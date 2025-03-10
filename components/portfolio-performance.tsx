@@ -43,7 +43,7 @@ export function PortfolioPerformance() {
       config={{
         value: {
           label: "Portfolio Value",
-          color: "hsl(var(--chart-1))",
+          color: "var(--chart-1)",
         },
       }}
       className="h-[300px]"

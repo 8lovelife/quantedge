@@ -43,19 +43,19 @@ export function AssetAllocation() {
       config={{
         btc: {
           label: "Bitcoin",
-          color: "hsl(var(--chart-1))",
+          color: "var(--chart-1)",
         },
         eth: {
           label: "Ethereum",
-          color: "hsl(var(--chart-2))",
+          color: "var(--chart-2)",
         },
         sol: {
           label: "Solana",
-          color: "hsl(var(--chart-3))",
+          color: "var(--chart-3)",
         },
         others: {
           label: "Others",
-          color: "hsl(var(--chart-4))",
+          color: "var(--chart-4)",
         },
       }}
       className="h-[300px]"

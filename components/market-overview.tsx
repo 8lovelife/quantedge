@@ -104,7 +104,7 @@ export function MarketOverview() {
               config={{
                 price: {
                   label: "Price",
-                  color: "hsl(var(--chart-1))",
+                  color: "var(--chart-1)",
                 },
               }}
               className="h-[300px]"

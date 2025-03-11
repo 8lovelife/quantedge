@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
-import { ArrowRightIcon } from "lucide-react"
+import {useState, useEffect} from "react"
+import {LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis} from "recharts"
+import {ArrowRightIcon} from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { fetchMarketData, fetchCryptoPrice } from "@/lib/api/market"
-import type { MarketData, PriceData } from "@/lib/types"
+import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
+import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {Button} from "@/components/ui/button"
+import {ChartContainer, ChartTooltip, ChartTooltipContent} from "@/components/ui/chart"
+import {fetchMarketData, fetchCryptoPrice} from "@/lib/api/market"
+import type {MarketData, PriceData} from "@/lib/types"
 
 export function MarketOverview() {
   const [timeframe, setTimeframe] = useState("1d")
@@ -43,13 +43,18 @@ export function MarketOverview() {
       try {
         setIsLoading(true)
         const data = await fetchCryptoPrice("BTC", timeframe)
-        setPriceData(data.prices)
-        setCurrentPrice(data.currentPrice)
-        setPriceChange(data.change)
-        setError(null)
+
+        if (data && data.prices) {
+          setPriceData(data.prices)
+          setCurrentPrice(data.currentPrice)
+          setPriceChange(data.change)
+          setError(null)
+        } else {
+          throw new Error("Invalid price data format")
+        }
       } catch (err) {
         console.error("Failed to fetch price data:", err)
-        setError("Failed to load price data")
+        setError("Failed to load price data. Please try again later.")
       } finally {
         setIsLoading(false)
       }
@@ -119,17 +124,27 @@ export function MarketOverview() {
                     bottom: 0,
                   }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={["auto", "auto"]} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12}}/>
+                  <YAxis
+                    domain={["auto", "auto"]}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{fontSize: 12}}
+                    width={60}
+                    tickFormatter={(value) => `$${value.toLocaleString()}`}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent/>}
+                    cursor={{stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "3 3"}}
+                  />
                   <Line
                     type="monotone"
                     dataKey="price"
                     stroke="var(--color-price)"
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6 }}
+                    activeDot={{r: 6, fill: "var(--color-price)", stroke: "var(--background)"}}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -139,11 +154,11 @@ export function MarketOverview() {
         <CardFooter>
           <Button variant="outline" className="w-full">
             <span>View detailed analysis</span>
-            <ArrowRightIcon className="ml-2 h-4 w-4" />
+            <ArrowRightIcon className="ml-2 h-4 w-4"/>
           </Button>
         </CardFooter>
       </Card>
-      <Card>
+      <Card className="col-span-2 lg:col-span-1">
         <CardHeader>
           <CardTitle>Market Overview</CardTitle>
           <CardDescription>Top cryptocurrencies by market cap</CardDescription>
@@ -151,15 +166,14 @@ export function MarketOverview() {
         <CardContent>
           {isLoading ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-5 text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-4 text-xs font-medium text-muted-foreground">
                 <div>Asset</div>
                 <div className="text-right">Price</div>
                 <div className="text-right">24h</div>
-                <div className="text-right">Volume</div>
-                <div className="text-right">Market Cap</div>
+                <div className="text-right">Chart</div>
               </div>
               <div className="space-y-2">
-                {[...Array(5)].map((_, i) => (
+                {[...Array(10)].map((_, i) => (
                   <div key={i} className="h-6 w-full animate-pulse rounded bg-muted"></div>
                 ))}
               </div>
@@ -168,24 +182,34 @@ export function MarketOverview() {
             <div className="flex h-[200px] items-center justify-center text-muted-foreground">{error}</div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-5 text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-4 text-xs font-medium text-muted-foreground">
                 <div>Asset</div>
                 <div className="text-right">Price</div>
                 <div className="text-right">24h</div>
-                <div className="text-right">Volume</div>
-                <div className="text-right">Market Cap</div>
+                <div className="text-right">Chart</div>
               </div>
               <div className="space-y-2">
                 {marketData.map((coin) => (
-                  <div key={coin.name} className="grid grid-cols-5 items-center text-sm">
+                  <div key={coin.name} className="grid grid-cols-4 items-center text-sm">
                     <div className="font-medium">{coin.name}</div>
                     <div className="text-right">${coin.price.toLocaleString()}</div>
                     <div className={`text-right ${coin.change >= 0 ? "text-green-500" : "text-red-500"}`}>
                       {coin.change >= 0 ? "+" : ""}
                       {coin.change}%
                     </div>
-                    <div className="text-right">${coin.volume}</div>
-                    <div className="text-right">${coin.marketCap}</div>
+                    <div className="h-8 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={coin.sparkline}>
+                          <Line
+                            type="monotone"
+                            dataKey="price"
+                            stroke={coin.change >= 0 ? "var(--color-green-500)" : "var(--color-red-500)"}
+                            strokeWidth={1}
+                            dot={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -8,6 +8,7 @@ import { fetchAssetAllocation } from "@/lib/api/portfolio"
 import type { AssetData } from "@/lib/types"
 
 export function AssetAllocation() {
+  const [selectedStrategy, setSelectedStrategy] = useState("all")
   const [assetData, setAssetData] = useState<AssetData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -16,7 +17,7 @@ export function AssetAllocation() {
     const loadAssetData = async () => {
       try {
         setIsLoading(true)
-        const data = await fetchAssetAllocation()
+        const data = await fetchAssetAllocation(selectedStrategy)
         setAssetData(data)
         setError(null)
       } catch (err) {
@@ -28,7 +29,7 @@ export function AssetAllocation() {
     }
 
     loadAssetData()
-  }, [])
+  }, [selectedStrategy])
 
   if (isLoading) {
     return <div className="h-[300px] w-full animate-pulse rounded bg-muted"></div>

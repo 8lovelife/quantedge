@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import {useEffect, useState} from "react"
 import Link from "next/link"
 import {
   ArrowDownIcon,
@@ -13,16 +13,15 @@ import {
   Settings2Icon,
 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MarketOverview } from "@/components/market-overview"
-import { PortfolioPerformance } from "@/components/portfolio-performance"
-import { TradingStrategies } from "@/components/trading-strategies"
-import { RecentTrades } from "@/components/recent-trades"
-import { AssetAllocation } from "@/components/asset-allocation"
-import { fetchDashboardData } from "@/lib/api/dashboard"
-import type { DashboardData } from "@/lib/types"
+import {Button} from "@/components/ui/button"
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {MarketOverview} from "@/components/market-overview"
+import {PortfolioPerformance} from "@/components/portfolio-performance"
+import {TradingStrategies} from "@/components/trading-strategies"
+import {RecentTrades} from "@/components/recent-trades"
+import {fetchDashboardData} from "@/lib/api/dashboard"
+import type {DashboardData} from "@/lib/types"
 
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -65,7 +64,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4 md:px-6">
         <div className="flex items-center gap-2 font-semibold">
-          <CandlestickChartIcon className="h-6 w-6 text-primary" />
+          <CandlestickChartIcon className="h-6 w-6 text-primary"/>
           <span>QuantEdge</span>
         </div>
         <nav className="ml-auto flex items-center gap-4 md:gap-6">
@@ -82,7 +81,7 @@ export default function DashboardPage() {
             Analytics
           </Link>
           <Button variant="outline" size="icon">
-            <Settings2Icon className="h-4 w-4" />
+            <Settings2Icon className="h-4 w-4"/>
             <span className="sr-only">Settings</span>
           </Button>
         </nav>
@@ -92,11 +91,11 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-              <RefreshCwIcon className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCwIcon className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}/>
               {isLoading ? "Refreshing..." : "Refresh"}
             </Button>
             <Button size="sm">
-              <CoinsIcon className="mr-2 h-4 w-4" />
+              <CoinsIcon className="mr-2 h-4 w-4"/>
               New Trade
             </Button>
           </div>
@@ -108,7 +107,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Portfolio Value</CardTitle>
-              <LineChartIcon className="h-4 w-4 text-muted-foreground" />
+              <LineChartIcon className="h-4 w-4 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -124,9 +123,9 @@ export default function DashboardPage() {
                 ) : dashboardData?.portfolioChange ? (
                   <>
                     {dashboardData.portfolioChange >= 0 ? (
-                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500" />
+                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500"/>
                     ) : (
-                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500" />
+                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500"/>
                     )}
                     <span className={dashboardData.portfolioChange >= 0 ? "text-green-500" : "text-red-500"}>
                       {dashboardData.portfolioChange >= 0 ? "+" : ""}
@@ -141,7 +140,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
-              <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
+              <BarChart3Icon className="h-4 w-4 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -157,9 +156,9 @@ export default function DashboardPage() {
                 ) : dashboardData?.strategiesChange ? (
                   <>
                     {dashboardData.strategiesChange >= 0 ? (
-                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500" />
+                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500"/>
                     ) : (
-                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500" />
+                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500"/>
                     )}
                     <span className={dashboardData.strategiesChange >= 0 ? "text-green-500" : "text-red-500"}>
                       {dashboardData.strategiesChange >= 0 ? "+" : ""}
@@ -174,7 +173,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Monthly Profit</CardTitle>
-              <LineChartIcon className="h-4 w-4 text-muted-foreground" />
+              <LineChartIcon className="h-4 w-4 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -190,9 +189,9 @@ export default function DashboardPage() {
                 ) : dashboardData?.profitChange ? (
                   <>
                     {dashboardData.profitChange >= 0 ? (
-                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500" />
+                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500"/>
                     ) : (
-                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500" />
+                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500"/>
                     )}
                     <span className={dashboardData.profitChange >= 0 ? "text-green-500" : "text-red-500"}>
                       {dashboardData.profitChange >= 0 ? "+" : ""}
@@ -207,7 +206,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-              <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
+              <BarChart3Icon className="h-4 w-4 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -223,9 +222,9 @@ export default function DashboardPage() {
                 ) : dashboardData?.winRateChange ? (
                   <>
                     {dashboardData.winRateChange >= 0 ? (
-                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500" />
+                      <ArrowUpIcon className="mr-1 h-4 w-4 text-green-500"/>
                     ) : (
-                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500" />
+                      <ArrowDownIcon className="mr-1 h-4 w-4 text-red-500"/>
                     )}
                     <span className={dashboardData.winRateChange >= 0 ? "text-green-500" : "text-red-500"}>
                       {dashboardData.winRateChange >= 0 ? "+" : ""}
@@ -246,35 +245,16 @@ export default function DashboardPage() {
             <TabsTrigger value="trades">Recent Trades</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
-            <MarketOverview />
+            <MarketOverview/>
           </TabsContent>
           <TabsContent value="performance" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="col-span-2">
-                <CardHeader>
-                  <CardTitle>Portfolio Performance</CardTitle>
-                  <CardDescription>Your portfolio performance over the last 30 days</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <PortfolioPerformance />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Asset Allocation</CardTitle>
-                  <CardDescription>Current distribution of your portfolio</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AssetAllocation />
-                </CardContent>
-              </Card>
-            </div>
+            <PortfolioPerformance/>
           </TabsContent>
           <TabsContent value="strategies" className="space-y-4">
-            <TradingStrategies />
+            <TradingStrategies/>
           </TabsContent>
           <TabsContent value="trades" className="space-y-4">
-            <RecentTrades />
+            <RecentTrades/>
           </TabsContent>
         </Tabs>
       </main>

@@ -102,13 +102,14 @@ export function MarketOverview() {
                 </>
               )}
             </div>
-            <Tabs defaultValue="1d" className="w-[300px]" onValueChange={setTimeframe}>
-              <TabsList className="grid grid-cols-5">
+            <Tabs defaultValue="1d" className="w-[360px]" onValueChange={setTimeframe}>
+              <TabsList className="grid grid-cols-6">
                 <TabsTrigger value="1h">1H</TabsTrigger>
                 <TabsTrigger value="1d">1D</TabsTrigger>
                 <TabsTrigger value="1w">1W</TabsTrigger>
                 <TabsTrigger value="1m">1M</TabsTrigger>
                 <TabsTrigger value="1y">1Y</TabsTrigger>
+                <TabsTrigger value="all">ALL</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -237,3 +238,4 @@ export function MarketOverview() {
     </div>
   )
 }
+

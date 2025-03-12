@@ -59,6 +59,20 @@ export interface AssetData {
   fill: string
 }
 
+// Monthly Returns
+export interface MonthlyReturn {
+  month: string
+  return: number
+}
+
+// Benchmark Comparison
+export interface BenchmarkData {
+  date: string
+  portfolio: number
+  btc: number
+  sp500: number
+}
+
 // Strategy Types
 export interface Strategy {
   id: number
@@ -91,3 +105,4 @@ export interface PaginatedResponse<T> {
   totalItems: number
   totalPages: number
 }
+

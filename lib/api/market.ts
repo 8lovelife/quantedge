@@ -172,3 +172,19 @@ export async function fetchCryptoPrice(symbol: string, timeframe: string): Promi
     }
   }
 }
+
+
+//export async function fetchCryptoPrice(symbol: string, timeframe: string): Promise<PriceResponse> {
+//  try {
+//    const response = await fetch(`/api/market/price/${symbol}?timeframe=${timeframe}`)
+//
+//    if (!response.ok) {
+//      throw new Error(`HTTP error! status: ${response.status}`)
+//    }
+//
+//    return await response.json()
+//  } catch (error) {
+//    console.error("Error fetching crypto price:", error)
+//    return { prices: [], currentPrice: 0, change: { value: 0, percentage: 0 } }
+//  }
+//}

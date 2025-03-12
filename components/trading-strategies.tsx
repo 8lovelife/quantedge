@@ -129,152 +129,154 @@ export function TradingStrategies() {
     return pageNumbers
   }
 
+  // 3. Wrap all strategy cards in a single Card component
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Active Trading Strategies</h3>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-2xl font-bold">Trading Strategies</CardTitle>
         <Button>
           <PlusIcon className="mr-2 h-4 w-4" />
           New Strategy
         </Button>
-      </div>
+      </CardHeader>
+      <CardContent>
+        {error && <div className="rounded-md bg-destructive/15 p-3 text-destructive">{error}</div>}
 
-      {error && <div className="rounded-md bg-destructive/15 p-3 text-destructive">{error}</div>}
-
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <div className="h-6 w-3/4 animate-pulse rounded bg-muted"></div>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <div className="space-y-2">
-                  <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-                  <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-                  <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between pt-2">
-                <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
-                <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
-                <div className="h-8 w-8 animate-pulse rounded bg-muted"></div>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <>
+        {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {strategies.map((strategy) => (
-              <Card key={strategy.id}>
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
                 <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle>{strategy.name}</CardTitle>
-                    <Badge variant={strategy.status === "active" ? "default" : "secondary"}>{strategy.status}</Badge>
-                  </div>
-                  <CardDescription>{strategy.description}</CardDescription>
+                  <div className="h-6 w-3/4 animate-pulse rounded bg-muted"></div>
                 </CardHeader>
                 <CardContent className="pb-2">
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Performance (30d)</span>
-                      <span className={strategy.performance >= 0 ? "text-green-500" : "text-red-500"}>
-                        {strategy.performance >= 0 ? "+" : ""}
-                        {strategy.performance}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Allocation</span>
-                      <span>{strategy.allocation}%</span>
-                    </div>
-                    <Progress value={strategy.allocation} className="h-2" />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Risk Level</span>
-                      <span
-                        className={
-                          strategy.risk === "low"
-                            ? "text-green-500"
-                            : strategy.risk === "medium"
-                              ? "text-yellow-500"
-                              : "text-red-500"
-                        }
-                      >
-                        {strategy.risk.charAt(0).toUpperCase() + strategy.risk.slice(1)}
-                      </span>
-                    </div>
+                    <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
+                    <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
+                    <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between pt-2">
-                  <Button variant="outline" size="sm">
-                    <PencilIcon className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  {strategy.status === "active" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleStatusChange(strategy.id, "paused")}
-                      disabled={actionInProgress === strategy.id}
-                    >
-                      <PauseIcon className="h-4 w-4 mr-1" />
-                      {actionInProgress === strategy.id ? "Updating..." : "Pause"}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleStatusChange(strategy.id, "active")}
-                      disabled={actionInProgress === strategy.id}
-                    >
-                      <PlayIcon className="h-4 w-4 mr-1" />
-                      {actionInProgress === strategy.id ? "Updating..." : "Resume"}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => handleDelete(strategy.id)}
-                    disabled={actionInProgress === strategy.id}
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </Button>
+                  <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
+                  <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
+                  <div className="h-8 w-8 animate-pulse rounded bg-muted"></div>
                 </CardFooter>
               </Card>
             ))}
           </div>
-
-          {/* Always show pagination controls */}
-          <Pagination className="mt-6">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
-              </PaginationItem>
-
-              {getPageNumbers().map((page, i) => (
-                <PaginationItem key={i}>
-                  {page === "ellipsis1" || page === "ellipsis2" ? (
-                    <PaginationEllipsis />
-                  ) : (
-                    <PaginationLink isActive={page === currentPage} onClick={() => handlePageChange(page as number)}>
-                      {page}
-                    </PaginationLink>
-                  )}
-                </PaginationItem>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {strategies.map((strategy) => (
+                <Card key={strategy.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <CardTitle>{strategy.name}</CardTitle>
+                      <Badge variant={strategy.status === "active" ? "default" : "secondary"}>{strategy.status}</Badge>
+                    </div>
+                    <CardDescription>{strategy.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Performance (30d)</span>
+                        <span className={strategy.performance >= 0 ? "text-green-500" : "text-red-500"}>
+                          {strategy.performance >= 0 ? "+" : ""}
+                          {strategy.performance}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Allocation</span>
+                        <span>{strategy.allocation}%</span>
+                      </div>
+                      <Progress value={strategy.allocation} className="h-2" />
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Risk Level</span>
+                        <span
+                          className={
+                            strategy.risk === "low"
+                              ? "text-green-500"
+                              : strategy.risk === "medium"
+                                ? "text-yellow-500"
+                                : "text-red-500"
+                          }
+                        >
+                          {strategy.risk.charAt(0).toUpperCase() + strategy.risk.slice(1)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-between pt-2">
+                    <Button variant="outline" size="sm">
+                      <PencilIcon className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    {strategy.status === "active" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusChange(strategy.id, "paused")}
+                        disabled={actionInProgress === strategy.id}
+                      >
+                        <PauseIcon className="h-4 w-4 mr-1" />
+                        {actionInProgress === strategy.id ? "Updating..." : "Pause"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusChange(strategy.id, "active")}
+                        disabled={actionInProgress === strategy.id}
+                      >
+                        <PlayIcon className="h-4 w-4 mr-1" />
+                        {actionInProgress === strategy.id ? "Updating..." : "Resume"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => handleDelete(strategy.id)}
+                      disabled={actionInProgress === strategy.id}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
               ))}
+            </div>
 
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </>
-      )}
-    </div>
+            {/* Always show pagination controls */}
+            <Pagination className="mt-6">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
+                </PaginationItem>
+
+                {getPageNumbers().map((page, i) => (
+                  <PaginationItem key={i}>
+                    {page === "ellipsis1" || page === "ellipsis2" ? (
+                      <PaginationEllipsis />
+                    ) : (
+                      <PaginationLink isActive={page === currentPage} onClick={() => handlePageChange(page as number)}>
+                        {page}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

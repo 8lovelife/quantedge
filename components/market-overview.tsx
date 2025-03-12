@@ -1,15 +1,15 @@
 "use client"
 
-import {useState, useEffect} from "react"
-import {LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis} from "recharts"
-import {ArrowRightIcon} from "lucide-react"
+import { useState, useEffect } from "react"
+import { LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis } from "recharts"
+import { ArrowRightIcon } from "lucide-react"
 
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
-import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs"
-import {Button} from "@/components/ui/button"
-import {ChartContainer, ChartTooltip, ChartTooltipContent} from "@/components/ui/chart"
-import {fetchMarketData, fetchCryptoPrice} from "@/lib/api/market"
-import type {MarketData, PriceData} from "@/lib/types"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { fetchMarketData, fetchCryptoPrice } from "@/lib/api/market"
+import type { MarketData, PriceData } from "@/lib/types"
 
 export function MarketOverview() {
   const [timeframe, setTimeframe] = useState("1d")
@@ -19,6 +19,7 @@ export function MarketOverview() {
   const [priceChange, setPriceChange] = useState<{ value: number; percentage: number } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedCrypto, setSelectedCrypto] = useState("BTC")
 
   useEffect(() => {
     const loadMarketData = async () => {
@@ -42,7 +43,7 @@ export function MarketOverview() {
     const loadPriceData = async () => {
       try {
         setIsLoading(true)
-        const data = await fetchCryptoPrice("BTC", timeframe)
+        const data = await fetchCryptoPrice(selectedCrypto, timeframe)
 
         if (data && data.prices) {
           setPriceData(data.prices)
@@ -61,14 +62,25 @@ export function MarketOverview() {
     }
 
     loadPriceData()
-  }, [timeframe])
+  }, [timeframe, selectedCrypto])
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card className="col-span-2">
         <CardHeader>
-          <CardTitle>Bitcoin Price</CardTitle>
-          <CardDescription>BTC/USD price movement</CardDescription>
+          <div className="flex flex-col space-y-2">
+            <CardTitle>Cryptocurrency Price</CardTitle>
+            <Tabs defaultValue="BTC" className="w-full" onValueChange={setSelectedCrypto}>
+              <TabsList className="grid grid-cols-3">
+                <TabsTrigger value="BTC">Bitcoin</TabsTrigger>
+                <TabsTrigger value="ETH">Ethereum</TabsTrigger>
+                <TabsTrigger value="SOL">Solana</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <CardDescription>
+            {selectedCrypto === "BTC" ? "BTC/USD" : selectedCrypto === "ETH" ? "ETH/USD" : "SOL/USD"} price movement
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-4">
@@ -124,19 +136,19 @@ export function MarketOverview() {
                     bottom: 0,
                   }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12}}/>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
                   <YAxis
                     domain={["auto", "auto"]}
                     axisLine={false}
                     tickLine={false}
-                    tick={{fontSize: 12}}
+                    tick={{ fontSize: 12 }}
                     width={60}
                     tickFormatter={(value) => `$${value.toLocaleString()}`}
                   />
                   <ChartTooltip
-                    content={<ChartTooltipContent/>}
-                    cursor={{stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "3 3"}}
+                    content={<ChartTooltipContent />}
+                    cursor={{ stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "3 3" }}
                   />
                   <Line
                     type="monotone"
@@ -144,7 +156,7 @@ export function MarketOverview() {
                     stroke="var(--color-price)"
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{r: 6, fill: "var(--color-price)", stroke: "var(--background)"}}
+                    activeDot={{ r: 6, fill: "var(--color-price)", stroke: "var(--background)" }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -154,7 +166,7 @@ export function MarketOverview() {
         <CardFooter>
           <Button variant="outline" className="w-full">
             <span>View detailed analysis</span>
-            <ArrowRightIcon className="ml-2 h-4 w-4"/>
+            <ArrowRightIcon className="ml-2 h-4 w-4" />
           </Button>
         </CardFooter>
       </Card>

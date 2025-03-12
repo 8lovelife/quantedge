@@ -1,4 +1,4 @@
-import type {MarketData, PriceResponse} from "@/lib/types"
+import type { MarketData, PriceResponse } from "@/lib/types"
 
 // Mock data for frontend development
 const mockMarketData: MarketData[] = [
@@ -85,17 +85,17 @@ const mockMarketData: MarketData[] = [
 ]
 
 function generateSparklineData(min: number, max: number, points: number): { price: number }[] {
-  return Array.from({length: points}, () => ({
+  return Array.from({ length: points }, () => ({
     price: min + Math.random() * (max - min),
   }))
 }
 
 const mockPriceData: { [key: string]: { price: number }[] } = {
-  "1h": Array.from({length: 60}, (_, i) => ({price: 42000 + Math.random() * 100})),
-  "1d": Array.from({length: 24}, (_, i) => ({price: 41500 + Math.random() * 1000})),
-  "1w": Array.from({length: 7}, (_, i) => ({price: 41000 + Math.random() * 2000})),
-  "1m": Array.from({length: 30}, (_, i) => ({price: 40000 + Math.random() * 3000})),
-  "1y": Array.from({length: 365}, (_, i) => ({price: 35000 + Math.random() * 10000})),
+  "1h": Array.from({ length: 60 }, (_, i) => ({ price: 42000 + Math.random() * 100 })),
+  "1d": Array.from({ length: 24 }, (_, i) => ({ price: 41500 + Math.random() * 1000 })),
+  "1w": Array.from({ length: 7 }, (_, i) => ({ price: 41000 + Math.random() * 2000 })),
+  "1m": Array.from({ length: 30 }, (_, i) => ({ price: 40000 + Math.random() * 3000 })),
+  "1y": Array.from({ length: 365 }, (_, i) => ({ price: 35000 + Math.random() * 10000 })),
 }
 
 // This function will be replaced with actual API call
@@ -111,7 +111,7 @@ export async function fetchMarketData(): Promise<MarketData[]> {
   return mockMarketData
 }
 
-// This function will be replaced with actual API call
+// Update the fetchCryptoPrice function to handle different cryptocurrencies
 export async function fetchCryptoPrice(symbol: string, timeframe: string): Promise<PriceResponse> {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -123,7 +123,33 @@ export async function fetchCryptoPrice(symbol: string, timeframe: string): Promi
     // const data = await response.json();
     // return data;
 
-    const prices = mockPriceData[timeframe] || mockPriceData["1d"]
+    // Generate different price ranges based on the cryptocurrency
+    let basePrice = 0
+    let priceRange = 0
+
+    switch (symbol) {
+      case "BTC":
+        basePrice = 41000
+        priceRange = 2000
+        break
+      case "ETH":
+        basePrice = 2200
+        priceRange = 200
+        break
+      case "SOL":
+        basePrice = 100
+        priceRange = 20
+        break
+      default:
+        basePrice = 41000
+        priceRange = 2000
+    }
+
+    // Generate mock price data for the selected cryptocurrency
+    const prices = Array.from({ length: 24 }, (_, i) => ({
+      price: basePrice + Math.random() * priceRange - priceRange / 2,
+    }))
+
     const currentPrice = prices[prices.length - 1].price
     const previousPrice = prices[0].price
     const change = {
@@ -132,7 +158,7 @@ export async function fetchCryptoPrice(symbol: string, timeframe: string): Promi
     }
 
     return {
-      prices: prices.map((p, i) => ({date: `T-${prices.length - i}`, price: p.price})),
+      prices: prices.map((p, i) => ({ date: `T-${prices.length - i}`, price: p.price })),
       currentPrice,
       change,
     }
@@ -142,7 +168,7 @@ export async function fetchCryptoPrice(symbol: string, timeframe: string): Promi
     return {
       prices: [],
       currentPrice: 0,
-      change: {value: 0, percentage: 0},
+      change: { value: 0, percentage: 0 },
     }
   }
 }

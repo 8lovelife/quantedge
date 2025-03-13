@@ -82,6 +82,10 @@ export interface Strategy {
   performance: number
   allocation: number
   risk: "low" | "medium" | "high"
+  algorithm?: string
+  timeframe?: string
+  assets?: string
+  parameters?: any
 }
 
 // Trade Types

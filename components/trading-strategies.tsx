@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { PlayIcon, PauseIcon, TrashIcon, PencilIcon, PlusIcon } from "lucide-react"
+import { PlayIcon, PauseIcon, TrashIcon, PencilIcon, PlusIcon, InfoIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +16,15 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { fetchTradingStrategies, updateStrategyStatus, deleteStrategy } from "@/lib/api/strategies"
 import type { Strategy } from "@/lib/types"
 
@@ -24,6 +33,7 @@ export function TradingStrategies() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionInProgress, setActionInProgress] = useState<number | null>(null)
+  const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -78,6 +88,10 @@ export function TradingStrategies() {
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return
     setCurrentPage(page)
+  }
+
+  const openStrategyDetails = (strategy: Strategy) => {
+    setSelectedStrategy(strategy)
   }
 
   // Generate page numbers to display
@@ -211,6 +225,98 @@ export function TradingStrategies() {
                       <PencilIcon className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>
+                          <InfoIcon className="h-4 w-4 mr-1" />
+                          Details
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center">
+                            {selectedStrategy?.name}
+                            <Badge
+                              variant={selectedStrategy?.status === "active" ? "default" : "secondary"}
+                              className="ml-2"
+                            >
+                              {selectedStrategy?.status}
+                            </Badge>
+                          </DialogTitle>
+                          <DialogDescription>{selectedStrategy?.description}</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="mb-2 text-sm font-medium">Performance</h4>
+                              <p
+                                className={
+                                  selectedStrategy?.performance && selectedStrategy.performance >= 0
+                                    ? "text-green-500 text-xl font-bold"
+                                    : "text-red-500 text-xl font-bold"
+                                }
+                              >
+                                {selectedStrategy?.performance && selectedStrategy.performance >= 0 ? "+" : ""}
+                                {selectedStrategy?.performance}%
+                              </p>
+                            </div>
+                            <div>
+                              <h4 className="mb-2 text-sm font-medium">Risk Level</h4>
+                              <p
+                                className={
+                                  selectedStrategy?.risk === "low"
+                                    ? "text-green-500 text-xl font-bold"
+                                    : selectedStrategy?.risk === "medium"
+                                      ? "text-yellow-500 text-xl font-bold"
+                                      : "text-red-500 text-xl font-bold"
+                                }
+                              >
+                                {selectedStrategy?.risk?.charAt(0).toUpperCase() + selectedStrategy?.risk?.slice(1)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 text-sm font-medium">Algorithm</h4>
+                            <p className="text-sm">{selectedStrategy?.algorithm}</p>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 text-sm font-medium">Timeframe</h4>
+                            <p className="text-sm">{selectedStrategy?.timeframe}</p>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 text-sm font-medium">Assets</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedStrategy?.assets?.split(",").map((asset) => (
+                                <Badge key={asset} variant="outline">
+                                  {asset}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 text-sm font-medium">Parameters</h4>
+                            <div className="rounded-md bg-muted p-3 text-sm font-mono">
+                              {selectedStrategy?.parameters &&
+                                Object.entries(selectedStrategy.parameters).map(([key, value]) => (
+                                  <div key={key} className="flex justify-between">
+                                    <span>{key}:</span>
+                                    <span>{JSON.stringify(value)}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setSelectedStrategy(null)}>
+                            Close
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                     {strategy.status === "active" ? (
                       <Button
                         variant="outline"

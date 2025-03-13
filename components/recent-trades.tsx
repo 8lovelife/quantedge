@@ -51,6 +51,18 @@ export function RecentTrades() {
     setCurrentPage(page)
   }
 
+  // Format timestamp to be more readable
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
+
   // Generate page numbers to display
   const getPageNumbers = () => {
     const pageNumbers = []
@@ -110,7 +122,7 @@ export function RecentTrades() {
         {error && <div className="rounded-md bg-destructive/15 p-3 mb-4 text-destructive">{error}</div>}
 
         <div className="space-y-4">
-          <div className="grid grid-cols-7 text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-8 text-xs font-medium text-muted-foreground">
             <div>ID</div>
             <div>Strategy</div>
             <div>Type</div>
@@ -118,6 +130,7 @@ export function RecentTrades() {
             <div className="text-right">Amount</div>
             <div className="text-right">Price</div>
             <div className="text-right">P/L</div>
+            <div className="text-right">Timestamp</div>
           </div>
 
           {isLoading ? (
@@ -129,7 +142,7 @@ export function RecentTrades() {
           ) : (
             <div className="space-y-2">
               {trades.map((trade) => (
-                <div key={trade.id} className="grid grid-cols-7 items-center text-sm">
+                <div key={trade.id} className="grid grid-cols-8 items-center text-sm">
                   <div className="font-medium">{trade.id}</div>
                   <div>{trade.strategy}</div>
                   <div>
@@ -153,6 +166,9 @@ export function RecentTrades() {
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
+                  </div>
+                  <div className="text-right text-muted-foreground">
+                    {trade.timestamp ? formatTimestamp(trade.timestamp) : "-"}
                   </div>
                 </div>
               ))}
@@ -191,4 +207,3 @@ export function RecentTrades() {
     </Card>
   )
 }
-

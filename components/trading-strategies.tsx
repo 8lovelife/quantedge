@@ -310,11 +310,6 @@ export function TradingStrategies() {
                             </div>
                           </div>
                         </div>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setSelectedStrategy(null)}>
-                            Close
-                          </Button>
-                        </DialogFooter>
                       </DialogContent>
                     </Dialog>
                     {strategy.status === "active" ? (

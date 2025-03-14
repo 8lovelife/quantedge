@@ -38,7 +38,7 @@ export function TradingStrategies() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [itemsPerPage] = useState(3) // Reduced to 3 to ensure pagination is visible
+  const [itemsPerPage] = useState(6) // Changed from 3 to 9 to show more items per page in the grid
 
   useEffect(() => {
     const loadStrategies = async () => {
@@ -153,202 +153,208 @@ export function TradingStrategies() {
           New Strategy
         </Button>
       </CardHeader>
-      <CardContent>
-        {error && <div className="rounded-md bg-destructive/15 p-3 text-destructive">{error}</div>}
+      <CardContent className="flex flex-col h-[calc(85vh-12rem)] min-h-[400px] max-h-[1000px]">
+        {error && <div className="rounded-md bg-destructive/15 p-3 mb-4 text-destructive">{error}</div>}
 
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-2">
-                  <div className="h-6 w-3/4 animate-pulse rounded bg-muted"></div>
-                </CardHeader>
-                <CardContent className="pb-2">
-                  <div className="space-y-2">
-                    <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-                    <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-                    <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between pt-2">
-                  <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
-                  <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
-                  <div className="h-8 w-8 animate-pulse rounded bg-muted"></div>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {strategies.map((strategy) => (
-                <Card key={strategy.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle>{strategy.name}</CardTitle>
-                      <Badge variant={strategy.status === "active" ? "default" : "secondary"}>{strategy.status}</Badge>
-                    </div>
-                    <CardDescription>{strategy.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Performance (30d)</span>
-                        <span className={strategy.performance >= 0 ? "text-green-500" : "text-red-500"}>
-                          {strategy.performance >= 0 ? "+" : ""}
-                          {strategy.performance}%
-                        </span>
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-auto">
+            {isLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2">
+                      <div className="h-6 w-3/4 animate-pulse rounded bg-muted"></div>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="space-y-2">
+                        <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
+                        <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
+                        <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Allocation</span>
-                        <span>{strategy.allocation}%</span>
-                      </div>
-                      <Progress value={strategy.allocation} className="h-2" />
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Risk Level</span>
-                        <span
-                          className={
-                            strategy.risk === "low"
-                              ? "text-green-500"
-                              : strategy.risk === "medium"
-                                ? "text-yellow-500"
-                                : "text-red-500"
-                          }
-                        >
-                          {strategy.risk.charAt(0).toUpperCase() + strategy.risk.slice(1)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between pt-2">
-                    <Button variant="outline" size="sm">
-                      <PencilIcon className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>
-                          <InfoIcon className="h-4 w-4 mr-1" />
-                          Details
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center">
-                            {selectedStrategy?.name}
-                            <Badge
-                              variant={selectedStrategy?.status === "active" ? "default" : "secondary"}
-                              className="ml-2"
+                    </CardContent>
+                    <CardFooter className="flex justify-between pt-2">
+                      <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
+                      <div className="h-8 w-20 animate-pulse rounded bg-muted"></div>
+                      <div className="h-8 w-8 animate-pulse rounded bg-muted"></div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {strategies.map((strategy) => (
+                    <Card key={strategy.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle>{strategy.name}</CardTitle>
+                          <Badge variant={strategy.status === "active" ? "default" : "secondary"}>{strategy.status}</Badge>
+                        </div>
+                        <CardDescription>{strategy.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pb-2">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Performance (30d)</span>
+                            <span className={strategy.performance >= 0 ? "text-green-500" : "text-red-500"}>
+                              {strategy.performance >= 0 ? "+" : ""}
+                              {strategy.performance}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Allocation</span>
+                            <span>{strategy.allocation}%</span>
+                          </div>
+                          <Progress value={strategy.allocation} className="h-2" />
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Risk Level</span>
+                            <span
+                              className={
+                                strategy.risk === "low"
+                                  ? "text-green-500"
+                                  : strategy.risk === "medium"
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
+                              }
                             >
-                              {selectedStrategy?.status}
-                            </Badge>
-                          </DialogTitle>
-                          <DialogDescription>{selectedStrategy?.description}</DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="mb-2 text-sm font-medium">Performance</h4>
-                              <p
-                                className={
-                                  selectedStrategy?.performance && selectedStrategy.performance >= 0
-                                    ? "text-green-500 text-xl font-bold"
-                                    : "text-red-500 text-xl font-bold"
-                                }
-                              >
-                                {selectedStrategy?.performance && selectedStrategy.performance >= 0 ? "+" : ""}
-                                {selectedStrategy?.performance}%
-                              </p>
-                            </div>
-                            <div>
-                              <h4 className="mb-2 text-sm font-medium">Risk Level</h4>
-                              <p
-                                className={
-                                  selectedStrategy?.risk === "low"
-                                    ? "text-green-500 text-xl font-bold"
-                                    : selectedStrategy?.risk === "medium"
-                                      ? "text-yellow-500 text-xl font-bold"
-                                      : "text-red-500 text-xl font-bold"
-                                }
-                              >
-                                {selectedStrategy?.risk?.charAt(0).toUpperCase() + selectedStrategy?.risk?.slice(1)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div>
-                            <h4 className="mb-2 text-sm font-medium">Algorithm</h4>
-                            <p className="text-sm">{selectedStrategy?.algorithm}</p>
-                          </div>
-
-                          <div>
-                            <h4 className="mb-2 text-sm font-medium">Timeframe</h4>
-                            <p className="text-sm">{selectedStrategy?.timeframe}</p>
-                          </div>
-
-                          <div>
-                            <h4 className="mb-2 text-sm font-medium">Assets</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedStrategy?.assets?.split(",").map((asset) => (
-                                <Badge key={asset} variant="outline">
-                                  {asset}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <h4 className="mb-2 text-sm font-medium">Parameters</h4>
-                            <div className="rounded-md bg-muted p-3 text-sm font-mono">
-                              {selectedStrategy?.parameters &&
-                                Object.entries(selectedStrategy.parameters).map(([key, value]) => (
-                                  <div key={key} className="flex justify-between">
-                                    <span>{key}:</span>
-                                    <span>{JSON.stringify(value)}</span>
-                                  </div>
-                                ))}
-                            </div>
+                              {strategy.risk.charAt(0).toUpperCase() + strategy.risk.slice(1)}
+                            </span>
                           </div>
                         </div>
-                      </DialogContent>
-                    </Dialog>
-                    {strategy.status === "active" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleStatusChange(strategy.id, "paused")}
-                        disabled={actionInProgress === strategy.id}
-                      >
-                        <PauseIcon className="h-4 w-4 mr-1" />
-                        {actionInProgress === strategy.id ? "Updating..." : "Pause"}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleStatusChange(strategy.id, "active")}
-                        disabled={actionInProgress === strategy.id}
-                      >
-                        <PlayIcon className="h-4 w-4 mr-1" />
-                        {actionInProgress === strategy.id ? "Updating..." : "Resume"}
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => handleDelete(strategy.id)}
-                      disabled={actionInProgress === strategy.id}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+                      </CardContent>
+                      <CardFooter className="flex justify-between pt-2">
+                        <Button variant="outline" size="sm">
+                          <PencilIcon className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>
+                              <InfoIcon className="h-4 w-4 mr-1" />
+                              Details
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[500px]">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center">
+                                {selectedStrategy?.name}
+                                <Badge
+                                  variant={selectedStrategy?.status === "active" ? "default" : "secondary"}
+                                  className="ml-2"
+                                >
+                                  {selectedStrategy?.status}
+                                </Badge>
+                              </DialogTitle>
+                              <DialogDescription>{selectedStrategy?.description}</DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <h4 className="mb-2 text-sm font-medium">Performance</h4>
+                                  <p
+                                    className={
+                                      selectedStrategy?.performance && selectedStrategy.performance >= 0
+                                        ? "text-green-500 text-xl font-bold"
+                                        : "text-red-500 text-xl font-bold"
+                                    }
+                                  >
+                                    {selectedStrategy?.performance && selectedStrategy.performance >= 0 ? "+" : ""}
+                                    {selectedStrategy?.performance}%
+                                  </p>
+                                </div>
+                                <div>
+                                  <h4 className="mb-2 text-sm font-medium">Risk Level</h4>
+                                  <p
+                                    className={
+                                      selectedStrategy?.risk === "low"
+                                        ? "text-green-500 text-xl font-bold"
+                                        : selectedStrategy?.risk === "medium"
+                                          ? "text-yellow-500 text-xl font-bold"
+                                          : "text-red-500 text-xl font-bold"
+                                    }
+                                  >
+                                    {selectedStrategy?.risk?.charAt(0).toUpperCase() + selectedStrategy?.risk?.slice(1)}
+                                  </p>
+                                </div>
+                              </div>
 
-            {/* Always show pagination controls */}
-            <Pagination className="mt-6">
+                              <div>
+                                <h4 className="mb-2 text-sm font-medium">Algorithm</h4>
+                                <p className="text-sm">{selectedStrategy?.algorithm}</p>
+                              </div>
+
+                              <div>
+                                <h4 className="mb-2 text-sm font-medium">Timeframe</h4>
+                                <p className="text-sm">{selectedStrategy?.timeframe}</p>
+                              </div>
+
+                              <div>
+                                <h4 className="mb-2 text-sm font-medium">Assets</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedStrategy?.assets?.split(",").map((asset) => (
+                                    <Badge key={asset} variant="outline">
+                                      {asset}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <h4 className="mb-2 text-sm font-medium">Parameters</h4>
+                                <div className="rounded-md bg-muted p-3 text-sm font-mono">
+                                  {selectedStrategy?.parameters &&
+                                    Object.entries(selectedStrategy.parameters).map(([key, value]) => (
+                                      <div key={key} className="flex justify-between">
+                                        <span>{key}:</span>
+                                        <span>{JSON.stringify(value)}</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        {strategy.status === "active" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleStatusChange(strategy.id, "paused")}
+                            disabled={actionInProgress === strategy.id}
+                          >
+                            <PauseIcon className="h-4 w-4 mr-1" />
+                            {actionInProgress === strategy.id ? "Updating..." : "Pause"}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleStatusChange(strategy.id, "active")}
+                            disabled={actionInProgress === strategy.id}
+                          >
+                            <PlayIcon className="h-4 w-4 mr-1" />
+                            {actionInProgress === strategy.id ? "Updating..." : "Resume"}
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => handleDelete(strategy.id)}
+                          disabled={actionInProgress === strategy.id}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Pagination fixed at bottom */}
+          <div className="mt-4 pt-4 border-t sticky bottom-0 bg-background">
+            <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
@@ -374,8 +380,8 @@ export function TradingStrategies() {
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
-          </>
-        )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

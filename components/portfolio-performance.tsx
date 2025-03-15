@@ -629,7 +629,7 @@ export function PortfolioPerformance() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="sticky bottom-0 mt-4 pt-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="sticky bottom-0 mt-4 pt-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <Pagination className="relative">
                 <PaginationContent>
                   <PaginationItem>

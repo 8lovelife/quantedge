@@ -110,3 +110,20 @@ export interface PaginatedResponse<T> {
   totalPages: number
 }
 
+
+export interface OrderBookData {
+  depthData: {
+    price: number
+    bidVolume: number
+    askVolume: number
+  }[]
+  bidWall: {
+    price: number
+    volume: number
+  }
+  askWall: {
+    price: number
+    volume: number
+  }
+}
+

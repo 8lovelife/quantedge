@@ -353,7 +353,7 @@ export function TradingStrategies() {
           </div>
 
           {/* Pagination fixed at bottom */}
-          <div className="mt-4 pt-4 border-t sticky bottom-0 bg-background">
+          <div className="mt-4 pt-4 sticky bottom-0 bg-background">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>

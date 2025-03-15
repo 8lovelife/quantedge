@@ -1,4 +1,4 @@
-import type { MarketData, PriceResponse } from "@/lib/types"
+import type { MarketData, OrderBookData, PriceData, PriceResponse } from "@/lib/types"
 
 // Mock data for frontend development
 const mockMarketData: MarketData[] = [
@@ -188,3 +188,150 @@ export async function fetchCryptoPrice(symbol: string, timeframe: string): Promi
 //    return { prices: [], currentPrice: 0, change: { value: 0, percentage: 0 } }
 //  }
 //}
+
+
+export async function fetchOrderBookData(crypto: string): Promise<OrderBookData> {
+  // Simulating API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const basePrice = crypto === "BTC" ? 65000 : crypto === "ETH" ? 3400 : 140
+      const depthData = generateOrderBookData(basePrice)
+
+      resolve({
+        depthData,
+        bidWall: {
+          price: basePrice * 0.95,
+          volume: crypto === "BTC" ? 25.5 : crypto === "ETH" ? 350 : 2800,
+        },
+        askWall: {
+          price: basePrice * 1.05,
+          volume: crypto === "BTC" ? 18.3 : crypto === "ETH" ? 280 : 2100,
+        },
+      })
+    }, 1200)
+  })
+}
+
+// Helper functions
+function generateSparklineDataByPrice(basePrice: number, changePercent: number) {
+  const direction = changePercent >= 0 ? 1 : -1
+  const volatility = Math.abs(changePercent) / 100
+
+  return Array(24)
+    .fill(0)
+    .map((_, i) => {
+      const randomFactor = 1 + Math.random() * volatility * direction * (i / 24)
+      return {
+        time: i,
+        price: basePrice * randomFactor,
+      }
+    })
+}
+
+function generatePriceData(basePrice: number, volatility: number, dataPoints: number, timeframe: string) {
+  const now = new Date()
+  const data: PriceData[] = []
+
+  for (let i = 0; i < dataPoints; i++) {
+    const timeDiff = getTimeDiffForTimeframe(timeframe, i, dataPoints)
+    const date = new Date(now.getTime() - timeDiff)
+
+    // More volatility at the beginning, trending toward current price
+    const progressFactor = i / dataPoints
+    const randomFactor = 1 + (Math.random() - 0.5) * volatility * (1 - progressFactor * 0.7)
+
+    data.push({
+      date: formatDateForTimeframe(date, timeframe),
+      price: basePrice * randomFactor,
+    })
+  }
+
+  return data
+}
+
+function generateOrderBookData(basePrice: number) {
+  const data = []
+  const midPoint = basePrice
+  const range = basePrice * 0.1 // 10% range
+
+  // Generate 20 price points
+  for (let i = 0; i < 20; i++) {
+    const offset = (i - 10) * (range / 10)
+    const price = midPoint + offset
+
+    // Volume decreases as we move away from the midpoint
+    const distanceFromMid = Math.abs(offset) / range
+    const bidVolume = i < 10 ? Math.max(0, (1 - distanceFromMid) * 100) : 0
+    const askVolume = i >= 10 ? Math.max(0, (1 - distanceFromMid) * 100) : 0
+
+    data.push({
+      price,
+      bidVolume,
+      askVolume,
+    })
+  }
+
+  return data
+}
+
+function getDataPointsForTimeframe(timeframe: string): number {
+  switch (timeframe) {
+    case "1h":
+      return 60
+    case "1d":
+      return 24
+    case "1w":
+      return 7
+    case "1m":
+      return 30
+    case "1y":
+      return 12
+    case "all":
+      return 24
+    default:
+      return 24
+  }
+}
+
+function getTimeDiffForTimeframe(timeframe: string, i: number, total: number): number {
+  const msPerMinute = 60 * 1000
+  const msPerHour = 60 * msPerMinute
+  const msPerDay = 24 * msPerHour
+
+  switch (timeframe) {
+    case "1h":
+      return (total - i) * msPerMinute
+    case "1d":
+      return (total - i) * msPerHour
+    case "1w":
+      return (total - i) * msPerDay
+    case "1m":
+      return (total - i) * msPerDay
+    case "1y":
+      return (total - i) * 30 * msPerDay
+    case "all":
+      return (total - i) * 90 * msPerDay
+    default:
+      return (total - i) * msPerHour
+  }
+}
+
+function formatDateForTimeframe(date: Date, timeframe: string): string {
+  switch (timeframe) {
+    case "1h":
+      return `${date.getHours()}:${date.getMinutes().toString().padStart(2, "0")}`
+    case "1d":
+      return `${date.getHours()}:00`
+    case "1w":
+      return date.toLocaleDateString(undefined, { weekday: "short" })
+    case "1m":
+      return date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    case "1y":
+    case "all":
+      return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" })
+    default:
+      return date.toLocaleDateString()
+  }
+}
+
+

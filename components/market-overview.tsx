@@ -88,7 +88,7 @@ export function MarketOverview() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Card className="col-span-2">
+      <Card className="col-span-2 flex flex-col h-[calc(85vh-12rem)] min-h-[400px] max-h-[90vh]">
         <CardHeader>
           <div className="flex flex-col space-y-2">
             <CardTitle>Cryptocurrency Price</CardTitle>
@@ -104,7 +104,7 @@ export function MarketOverview() {
             {selectedCrypto === "BTC" ? "BTC/USD" : selectedCrypto === "ETH" ? "ETH/USD" : "SOL/USD"} price movement
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex-1 overflow-y-auto p-4">
           <div className="flex items-center justify-between">
             <div>
               {isLoading ? (
@@ -317,13 +317,13 @@ export function MarketOverview() {
         </div>
       </Card>
 
-      <Card className="col-span-2 lg:col-span-1">
+      <Card className="col-span-2 lg:col-span-1 flex flex-col h-[calc(85vh-12rem)] min-h-[400px] max-h-[90vh]">
         <CardHeader>
           <CardTitle>Market Overview</CardTitle>
           <CardDescription>Top cryptocurrencies by market cap</CardDescription>
         </CardHeader>
 
-        <CardContent className="flex-grow p-4">
+        <CardContent className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="space-y-4">
               <div className="grid grid-cols-4 text-xs font-medium text-muted-foreground">
@@ -378,8 +378,9 @@ export function MarketOverview() {
         </CardContent>
         <div className="mt-4 pt-4 sticky bottom-0 bg-background">
           <CardFooter>
-            <Button variant="outline" size="sm" className="w-full">
-              View all markets
+            <Button variant="outline" className="w-full">
+              <span> View all markets</span>
+              <ArrowRightIcon className="ml-2 h-4 w-4" />
             </Button>
           </CardFooter>
         </div>

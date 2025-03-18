@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { PlayIcon, PauseIcon, TrashIcon, PencilIcon, PlusIcon, InfoIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { PlayIcon, PauseIcon, TrashIcon, PencilIcon, PlusIcon, InfoIcon, BarChart2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,13 +28,40 @@ import {
 } from "@/components/ui/dialog"
 import { fetchTradingStrategies, updateStrategyStatus, deleteStrategy } from "@/lib/api/strategies"
 import type { Strategy } from "@/lib/types"
+import { StrategyForm } from "@/components/strategy-form"
+
+// Add a mock function to create a strategy
+const createStrategy = async (data) => {
+  // In a real app, this would be an API call
+  console.log("Creating strategy:", data)
+  return {
+    id: Math.floor(Math.random() * 1000),
+    ...data,
+    status: "active",
+    performance: Math.random() * 20 - 5, // Random performance between -5% and 15%
+  }
+}
+
+// Add a mock function to update a strategy
+const updateStrategy = async (id, data) => {
+  // In a real app, this would be an API call
+  console.log("Updating strategy:", id, data)
+  return {
+    id,
+    ...data,
+  }
+}
 
 export function TradingStrategies() {
+  const router = useRouter()
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionInProgress, setActionInProgress] = useState<number | null>(null)
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null)
+  const [isNewStrategyDialogOpen, setIsNewStrategyDialogOpen] = useState(false)
+  const [isEditStrategyDialogOpen, setIsEditStrategyDialogOpen] = useState(false)
+  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -94,6 +122,22 @@ export function TradingStrategies() {
     setSelectedStrategy(strategy)
   }
 
+  // Modify the viewBacktestResults function to pass the timeframe
+  const viewBacktestResults = (strategyId: number, timeframe = "6m") => {
+    router.push(`/market/${strategyId}/backtest?mode=historical&timeframe=${timeframe}`)
+  }
+
+  // Handle edit strategy
+  const handleEditStrategy = (strategy: Strategy) => {
+    setEditingStrategy(strategy)
+    setIsEditStrategyDialogOpen(true)
+  }
+
+  // Handle new strategy
+  const handleNewStrategy = () => {
+    setIsNewStrategyDialogOpen(true)
+  }
+
   // Generate page numbers to display
   const getPageNumbers = () => {
     const pageNumbers = []
@@ -148,7 +192,7 @@ export function TradingStrategies() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-2xl font-bold">Trading Strategies</CardTitle>
-        <Button>
+        <Button onClick={handleNewStrategy}>
           <PlusIcon className="mr-2 h-4 w-4" />
           New Strategy
         </Button>
@@ -188,7 +232,9 @@ export function TradingStrategies() {
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <CardTitle>{strategy.name}</CardTitle>
-                          <Badge variant={strategy.status === "active" ? "default" : "secondary"}>{strategy.status}</Badge>
+                          <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
+                            {strategy.status}
+                          </Badge>
                         </div>
                         <CardDescription>{strategy.description}</CardDescription>
                       </CardHeader>
@@ -222,10 +268,19 @@ export function TradingStrategies() {
                           </div>
                         </div>
                       </CardContent>
-                      <CardFooter className="flex justify-between pt-2">
-                        <Button variant="outline" size="sm">
+                      <CardFooter className="flex justify-between pt-2 flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditStrategy(strategy)}>
                           <PencilIcon className="h-4 w-4 mr-1" />
                           Edit
+                        </Button>
+                        {/* Update the button onClick in the strategy cards to pass the timeframe */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => viewBacktestResults(strategy.id, strategy.timeframe)}
+                        >
+                          <BarChart2Icon className="h-4 w-4 mr-1" />
+                          Backtest
                         </Button>
                         <Dialog>
                           <DialogTrigger asChild>
@@ -312,6 +367,18 @@ export function TradingStrategies() {
                                 </div>
                               </div>
                             </div>
+                            <DialogFooter>
+                              {/* Update the button in the dialog to pass the timeframe */}
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  viewBacktestResults(selectedStrategy?.id || 1, selectedStrategy?.timeframe || "6m")
+                                }
+                              >
+                                <BarChart2Icon className="h-4 w-4 mr-2" />
+                                View Backtest Results
+                              </Button>
+                            </DialogFooter>
                           </DialogContent>
                         </Dialog>
                         {strategy.status === "active" ? (
@@ -383,6 +450,53 @@ export function TradingStrategies() {
           </div>
         </div>
       </CardContent>
+
+      {/* New Strategy Dialog */}
+      <Dialog open={isNewStrategyDialogOpen} onOpenChange={setIsNewStrategyDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create New Strategy</DialogTitle>
+            <DialogDescription>Create a new trading strategy with your desired parameters.</DialogDescription>
+          </DialogHeader>
+          <StrategyForm
+            onSubmit={async (data) => {
+              try {
+                const newStrategy = await createStrategy(data)
+                setStrategies([newStrategy, ...strategies])
+                setIsNewStrategyDialogOpen(false)
+              } catch (err) {
+                console.error("Failed to create strategy:", err)
+                setError("Failed to create strategy")
+              }
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Strategy Dialog */}
+      <Dialog open={isEditStrategyDialogOpen} onOpenChange={setIsEditStrategyDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Strategy</DialogTitle>
+            <DialogDescription>Modify your trading strategy parameters.</DialogDescription>
+          </DialogHeader>
+          {editingStrategy && (
+            <StrategyForm
+              strategy={editingStrategy}
+              onSubmit={async (data) => {
+                try {
+                  const updatedStrategy = await updateStrategy(editingStrategy.id, data)
+                  setStrategies(strategies.map((s) => (s.id === editingStrategy.id ? updatedStrategy : s)))
+                  setIsEditStrategyDialogOpen(false)
+                } catch (err) {
+                  console.error("Failed to update strategy:", err)
+                  setError("Failed to update strategy")
+                }
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

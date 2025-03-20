@@ -127,3 +127,35 @@ export interface OrderBookData {
   }
 }
 
+
+export interface TradeResult {
+  day: number; // The day of the trade in the backtest
+  type: "buy" | "sell"; // Trade type
+  result: "win" | "loss"; // Trade outcome
+  profit: number; // Profit or loss in USD
+}
+
+export interface StrategyParams {
+  smaFast: number; // Fast moving average period
+  smaSlow: number; // Slow moving average period
+  riskLevel: "low" | "medium" | "high"; // Risk level setting
+  stopLoss: number; // Stop-loss percentage
+  takeProfit: number; // Take-profit percentage
+  useTrailingStop: boolean; // Whether trailing stop is enabled
+  trailingStopDistance: number; // Distance for trailing stop
+}
+
+
+export interface DailyPerformance {
+  date: string; // ISO date string
+  balance: number; // Total account balance
+  marketBalance: number; // Market exposure
+  trades: number; // Number of trades executed that day
+};
+
+
+export interface BacktestReport {
+  dailyPerformance: DailyPerformance[]; // Daily balance & trades
+  trades: TradeResult[]; // Individual trades
+  params: StrategyParams; // Strategy configuration
+}

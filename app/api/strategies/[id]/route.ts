@@ -1,26 +1,51 @@
 import { NextResponse } from "next/server"
+import { mockUpdateStrategy, mockDeleteStrategy } from "@/lib/api/strategies/mock"
+import type { StrategyFormValues } from "@/lib/api/strategies/types"
 
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const id = Number.parseInt((await params).id)
-  const body = await request.json()
 
-  // In a real implementation, you would:
-  // 1. Authenticate the user
-  // 2. Validate the request body
-  // 3. Update the strategy in your database
-  // 4. Return the updated strategy
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
-  return NextResponse.json({ id, ...body })
+// PUT handler for updating a strategy
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number.parseInt((await params).id)
+    const req: StrategyFormValues = await request.json()
+
+    // const response = await mockUpdateStrategy(id, data)
+
+    const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req),
+    })
+
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    const data = await response.json();
+
+    return NextResponse.json({
+      success: true,
+      strategy: data,
+    })
+  } catch (error) {
+    console.error("Error updating strategy:", error)
+    return NextResponse.json({ success: false, error: "Failed to update strategy" }, { status: 500 })
+  }
 }
 
-export async function DELETE(request: Request, { params }:  { params: Promise<{ id: string }> }) {
-  const id = Number.parseInt((await params).id)
-
-
-  // In a real implementation, you would:
-  // 1. Authenticate the user
-  // 2. Delete the strategy from your database
-  // 3. Return a success response
-
-  return NextResponse.json({ success: true })
+// DELETE handler for deleting a strategy
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number.parseInt((await params).id)
+    // const response = await mockDeleteStrategy(id)
+    const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/${id}`, {
+      method: "DELETE",
+    })
+    return NextResponse.json(response)
+  } catch (error) {
+    console.error("Error deleting strategy:", error)
+    return NextResponse.json({ success: false, error: "Failed to delete strategy" }, { status: 500 })
+  }
 }
+

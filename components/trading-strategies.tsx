@@ -26,31 +26,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { fetchTradingStrategies, updateStrategyStatus, deleteStrategy } from "@/lib/api/strategies"
-import type { Strategy } from "@/lib/types"
+import {
+  fetchTradingStrategies,
+  updateStrategyStatus,
+  deleteStrategy,
+  createStrategy,
+  updateStrategy,
+} from "@/lib/api/strategies"
+import type { Strategy } from "@/lib/api/strategies"
 import { StrategyForm } from "@/components/strategy-form"
-
-// Add a mock function to create a strategy
-const createStrategy = async (data) => {
-  // In a real app, this would be an API call
-  console.log("Creating strategy:", data)
-  return {
-    id: Math.floor(Math.random() * 1000),
-    ...data,
-    status: "active",
-    performance: Math.random() * 20 - 5, // Random performance between -5% and 15%
-  }
-}
-
-// Add a mock function to update a strategy
-const updateStrategy = async (id, data) => {
-  // In a real app, this would be an API call
-  console.log("Updating strategy:", id, data)
-  return {
-    id,
-    ...data,
-  }
-}
 
 export function TradingStrategies() {
   const router = useRouter()
@@ -273,7 +257,7 @@ export function TradingStrategies() {
                           <PencilIcon className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        {/* Update the button onClick in the strategy cards to pass the timeframe */}
+                        {/* Update the button onClick in the strategy cards to pass the timeframe
                         <Button
                           variant="outline"
                           size="sm"
@@ -281,7 +265,7 @@ export function TradingStrategies() {
                         >
                           <BarChart2Icon className="h-4 w-4 mr-1" />
                           Backtest
-                        </Button>
+                        </Button> */}
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>

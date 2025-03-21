@@ -300,7 +300,7 @@ export default function BacktestPage() {
     const calculateMetrics = () => {
         if (!backtestData) return null
 
-        const data = backtestData.data
+        const data = backtestData.balances
         const initialBalance = data[0].balance
         const finalBalance = data[data.length - 1].balance
         const initialMarket = data[0].marketBalance
@@ -375,7 +375,7 @@ export default function BacktestPage() {
         const monthlyData = []
         const months = {}
 
-        backtestData.data.forEach((d) => {
+        backtestData.balances.forEach((d) => {
             const date = new Date(d.date)
             const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`
 
@@ -412,13 +412,13 @@ export default function BacktestPage() {
 
         // Calculate daily returns
         const returns = []
-        for (let i = 1; i < backtestData.data.length; i++) {
-            const prevBalance = backtestData.data[i - 1].balance
-            const currentBalance = backtestData.data[i].balance
+        for (let i = 1; i < backtestData.balances.length; i++) {
+            const prevBalance = backtestData.balances[i - 1].balance
+            const currentBalance = backtestData.balances[i].balance
             const dailyReturn = ((currentBalance - prevBalance) / prevBalance) * 100
 
             returns.push({
-                date: backtestData.data[i].date,
+                date: backtestData.balances[i].date,
                 return: dailyReturn,
             })
         }
@@ -430,9 +430,9 @@ export default function BacktestPage() {
 
         // Calculate return distribution
         const returns = []
-        for (let i = 1; i < backtestData.data.length; i++) {
-            const prevBalance = backtestData.data[i - 1].balance
-            const currentBalance = backtestData.data[i].balance
+        for (let i = 1; i < backtestData.balances.length; i++) {
+            const prevBalance = backtestData.balances[i - 1].balance
+            const currentBalance = backtestData.balances[i].balance
             const dailyReturn = ((currentBalance - prevBalance) / prevBalance) * 100
             returns.push(dailyReturn)
         }
@@ -717,7 +717,7 @@ export default function BacktestPage() {
                                 ) : (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <ComposedChart
-                                            data={backtestData?.data}
+                                            data={backtestData?.balances}
                                             margin={{
                                                 top: 20,
                                                 right: 20,
@@ -795,7 +795,7 @@ export default function BacktestPage() {
                                         ) : (
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <AreaChart
-                                                    data={backtestData?.data.map((d, i, arr) => {
+                                                    data={backtestData?.balances.map((d, i, arr) => {
                                                         let maxBalance = d.balance
                                                         for (let j = 0; j <= i; j++) {
                                                             if (arr[j].balance > maxBalance) maxBalance = arr[j].balance

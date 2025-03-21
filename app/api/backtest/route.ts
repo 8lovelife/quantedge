@@ -6,7 +6,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Generate historical backtest data with a fixed seed for consistency
 const generateHistoricalBacktestData = (days = 180, version = 1, params: any = {}) => {
     // Use fixed values for historical data to ensure consistency
-    const data = [];
+    const balances = [];
     // Adjust initial balance based on version to create different results
     let balance = 10000 + version * 500;
     let marketBalance = 10000;
@@ -66,7 +66,7 @@ const generateHistoricalBacktestData = (days = 180, version = 1, params: any = {
             });
         }
 
-        data.push({
+        balances.push({
             date: dayDate.toISOString().split("T")[0],
             balance: Math.round(balance * 100) / 100,
             marketBalance: Math.round(marketBalance * 100) / 100,
@@ -74,7 +74,7 @@ const generateHistoricalBacktestData = (days = 180, version = 1, params: any = {
         });
     }
 
-    return { data, trades, params };
+    return { balances, trades, params };
 };
 
 // API route handler
@@ -112,19 +112,26 @@ export async function POST(request: Request) {
 
         // Generate backtest data
         const version = Math.floor(Math.random() * 1000); // Generate a unique version ID
-        const backtestData = generateHistoricalBacktestData(days, version, params);
+        const mockBacktestData = generateHistoricalBacktestData(days, version, params);
+        // const response = await fetch("http://localhost:3001/api/backtest/run", {
+        //     method: "POST",
+        //     headers: { "Content-Type": "application/json" },
+        //     body: JSON.stringify(body),
+        // });
+        // if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        // const backtestData = await response.json();
 
-        // Create response with backtest data and metadata
-        const response = {
+
+        // // Create response with backtest data and metadata
+        const result = {
             success: true,
             runId: version,
             date: new Date().toISOString(),
             strategyId,
             timeframe,
-            data: backtestData
+            data: mockBacktestData
         };
-
-        return NextResponse.json(response);
+        return NextResponse.json(result);
     } catch (error) {
         console.error('Error processing backtest request:', error);
         return NextResponse.json(

@@ -1,166 +1,70 @@
 import { NextResponse } from "next/server"
-import type { Strategy, PaginatedResponse } from "@/lib/types"
+import { mockFetchTradingStrategies, mockCreateStrategy } from "@/lib/api/strategies/mock"
+import type { StrategyFormValues } from "@/lib/api/strategies/types"
 
-// Mock data for API endpoint
-const strategies: Strategy[] = [
-  {
-    id: 1,
-    name: "BTC Momentum",
-    description: "Follows Bitcoin price momentum with 4-hour timeframe",
-    status: "active",
-    performance: 8.4,
-    allocation: 25,
-    risk: "medium",
-  },
-  {
-    id: 2,
-    name: "ETH/BTC Ratio",
-    description: "Trades based on Ethereum to Bitcoin price ratio",
-    status: "active",
-    performance: 12.7,
-    allocation: 20,
-    risk: "high",
-  },
-  {
-    id: 3,
-    name: "DeFi Basket",
-    description: "Algorithmic trading of top DeFi tokens",
-    status: "paused",
-    performance: -2.3,
-    allocation: 15,
-    risk: "high",
-  },
-  {
-    id: 4,
-    name: "MACD Crossover",
-    description: "MACD indicator strategy for major cryptocurrencies",
-    status: "active",
-    performance: 5.2,
-    allocation: 15,
-    risk: "medium",
-  },
-  {
-    id: 5,
-    name: "Stablecoin Yield",
-    description: "Optimizes yield farming with stablecoins",
-    status: "active",
-    performance: 1.8,
-    allocation: 25,
-    risk: "low",
-  },
-  {
-    id: 6,
-    name: "Bollinger Bands",
-    description: "Uses Bollinger Bands to identify overbought/oversold conditions",
-    status: "active",
-    performance: 6.7,
-    allocation: 10,
-    risk: "medium",
-  },
-  {
-    id: 7,
-    name: "RSI Divergence",
-    description: "Identifies RSI divergence for potential trend reversals",
-    status: "paused",
-    performance: 3.2,
-    allocation: 10,
-    risk: "high",
-  },
-  {
-    id: 8,
-    name: "Moving Average Cross",
-    description: "Trades on moving average crossovers for major cryptocurrencies",
-    status: "active",
-    performance: 4.5,
-    allocation: 15,
-    risk: "medium",
-  },
-  {
-    id: 9,
-    name: "Fibonacci Retracement",
-    description: "Uses Fibonacci retracement levels for entry and exit points",
-    status: "active",
-    performance: 7.8,
-    allocation: 10,
-    risk: "medium",
-  },
-  {
-    id: 10,
-    name: "Volume Profile",
-    description: "Analyzes volume profile to identify support and resistance levels",
-    status: "paused",
-    performance: -1.2,
-    allocation: 5,
-    risk: "high",
-  },
-  {
-    id: 11,
-    name: "Ichimoku Cloud",
-    description: "Uses Ichimoku Cloud for trend identification and support/resistance",
-    status: "active",
-    performance: 5.9,
-    allocation: 10,
-    risk: "medium",
-  },
-  {
-    id: 12,
-    name: "Dollar Cost Averaging",
-    description: "Automated regular purchases of top cryptocurrencies",
-    status: "active",
-    performance: 3.4,
-    allocation: 15,
-    risk: "low",
-  },
-]
 
+// GET handler for fetching strategies with pagination
 export async function GET(request: Request) {
-  // In a real implementation, you would:
-  // 1. Authenticate the user
-  // 2. Query your database for the user's strategies
-  // 3. Process the data
-  // 4. Return the response
+  try {
+    // Get URL parameters
+    const url = new URL(request.url)
+    const page = Number.parseInt(url.searchParams.get("page") || "1")
+    const limit = Number.parseInt(url.searchParams.get("limit") || "6")
 
-  const { searchParams } = new URL(request.url)
-  const page = Number(searchParams.get("page") || 1)
-  const limit = Number(searchParams.get("limit") || 6)
+    const urlS = `http://127.0.0.1:3001/api/strategies?page=${page}&limit=${limit}`
+    const response = await fetch(urlS)
 
-  // Calculate pagination
-  const startIndex = (page - 1) * limit
-  const endIndex = startIndex + limit
-  const paginatedItems = strategies.slice(startIndex, endIndex)
-  const totalItems = strategies.length
-  const totalPages = Math.ceil(totalItems / limit)
+    // Fetch strategies
+    // const strategiesResponse = await mockFetchTradingStrategies(page, limit)
 
-  const response: PaginatedResponse<Strategy> = {
-    items: paginatedItems,
-    page,
-    limit,
-    totalItems,
-    totalPages,
+    const strategies = await response.json();
+    const transformStrategies = strategies.data.map((strategy, index) => ({
+      id: strategy.id,
+      name: strategy.name,
+      description: strategy.description,
+      status: strategy.status,
+      allocation: strategy.allocation,
+      risk: strategy.risk,
+      algorithm: strategy.algorithm,
+      timeframe: strategy.timeframe,
+      assets: strategy.assets,
+      parameters: JSON.parse(strategy.parameters) // Convert JSON string to object
+    }));
+
+    const strategiesResponse = {
+      items: transformStrategies,
+      totalPages: Math.ceil(strategies.data / limit),
+      currentPage: page,
+      totalItems: strategies.total,
+    }
+    return NextResponse.json(strategiesResponse)
+  } catch (error) {
+    console.error("Error fetching strategies:", error)
+    return NextResponse.json({ success: false, error: "Failed to fetch strategies" }, { status: 500 })
   }
-
-  return NextResponse.json(response)
 }
 
+// POST handler for creating a new strategy
 export async function POST(request: Request) {
-  // In a real implementation, you would:
-  // 1. Authenticate the user
-  // 2. Validate the request body
-  // 3. Create a new strategy in your database
-  // 4. Return the created strategy
+  try {
+    const req: StrategyFormValues = await request.json()
+    const response = await fetch("http://localhost:3001/api/strategies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    console.log(response)
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    const data = await response.json();
+    data.parameters = JSON.parse(data.parameters) // Convert JSON string to object
 
-  const body = await request.json()
-
-  // Mock creating a new strategy
-  const newStrategy: Strategy = {
-    id: strategies.length + 1,
-    name: body.name,
-    description: body.description,
-    status: "active",
-    performance: 0,
-    allocation: body.allocation,
-    risk: body.risk,
+    return NextResponse.json({
+      success: true,
+      strategy: data,
+    })
+  } catch (error) {
+    console.error("Error creating strategy:", error)
+    return NextResponse.json({ success: false, error: "Failed to create strategy" }, { status: 500 })
   }
-
-  return NextResponse.json(newStrategy, { status: 201 })
 }
+

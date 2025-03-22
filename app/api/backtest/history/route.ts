@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import type { BacktestRunHistoryItem, BacktestRunHistoryResponse } from "@/lib/api/backtest"
+import { BacktestRunHistoryItem, BacktestRunHistoryResponse } from "@/lib/api/backtest/types"
 
 // Simulate a delay for API response
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

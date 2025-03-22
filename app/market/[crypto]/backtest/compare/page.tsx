@@ -251,6 +251,23 @@ export default function BacktestComparePage() {
                                                 <span className="text-sm font-bold">{run.metrics?.winRate || "0"}%</span>
                                             </div>
                                         </div>
+                                        <div className="mt-2 pt-2 border-t border-muted">
+                                            <span className="text-sm font-medium block mb-1">Parameters:</span>
+                                            <div className="space-y-1 text-xs">
+                                                <div className="flex justify-between">
+                                                    <span>SMA Fast:</span>
+                                                    <span className="font-medium">{run.params?.smaFast || "-"}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>SMA Slow:</span>
+                                                    <span className="font-medium">{run.params?.smaSlow || "-"}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Risk Level:</span>
+                                                    <span className="font-medium capitalize">{run.params?.riskLevel || "-"}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             )
@@ -258,9 +275,10 @@ export default function BacktestComparePage() {
                     </div>
 
                     <Tabs defaultValue="overview" className="w-full">
-                        <TabsList className="grid grid-cols-2 mb-6 w-full max-w-md">
+                        <TabsList className="grid grid-cols-3 mb-6 w-full max-w-md">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
                             <TabsTrigger value="metrics">Metrics</TabsTrigger>
+                            <TabsTrigger value="parameters">Parameters</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="overview" className="mt-0">
@@ -357,7 +375,7 @@ export default function BacktestComparePage() {
                                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                                                     <XAxis type="number" tickFormatter={(value) => `${value}%`} />
                                                     <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={100} />
-                                                    <Tooltip formatter={(value) => [`${(value as number).toFixed(2)}%`, ""]} />
+                                                    <Tooltip formatter={(value) => [`${value.toFixed(2)}%`, ""]} />
                                                     <Legend />
 
                                                     {comparisonData.map((run, index) => {
@@ -410,8 +428,8 @@ export default function BacktestComparePage() {
                                                             <td
                                                                 key={run.version}
                                                                 className={`p-3 text-sm text-center ${Number.parseFloat(run.metrics?.strategyReturn || "0") >= 0
-                                                                    ? "text-green-500"
-                                                                    : "text-red-500"
+                                                                        ? "text-green-500"
+                                                                        : "text-red-500"
                                                                     }`}
                                                             >
                                                                 {run.metrics?.strategyReturn || "0"}%
@@ -424,8 +442,8 @@ export default function BacktestComparePage() {
                                                             <td
                                                                 key={run.version}
                                                                 className={`p-3 text-sm text-center ${Number.parseFloat(run.metrics?.marketReturn || "0") >= 0
-                                                                    ? "text-green-500"
-                                                                    : "text-red-500"
+                                                                        ? "text-green-500"
+                                                                        : "text-red-500"
                                                                     }`}
                                                             >
                                                                 {run.metrics?.marketReturn || "0"}%
@@ -481,12 +499,16 @@ export default function BacktestComparePage() {
                                         </div>
                                     </CardContent>
                                 </Card>
+                            </div>
+                        </TabsContent>
 
-                                {/* Parameters Table */}
-                                <Card className="md:col-span-2">
+                        <TabsContent value="parameters" className="mt-0">
+                            <div className="grid grid-cols-1 gap-6">
+                                {/* Parameters Comparison Card */}
+                                <Card>
                                     <CardHeader>
-                                        <CardTitle>Parameters Details</CardTitle>
-                                        <CardDescription>Detailed comparison of all strategy parameters</CardDescription>
+                                        <CardTitle>Strategy Parameters</CardTitle>
+                                        <CardDescription>Side-by-side comparison of all strategy parameters</CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="rounded-md border">
@@ -506,13 +528,19 @@ export default function BacktestComparePage() {
                                                     {Array.from(new Set(comparisonData.flatMap((run) => Object.keys(run.params || {})))).map(
                                                         (param) => (
                                                             <tr key={param} className="border-b">
-                                                                <td className="p-3 text-sm font-medium">{param}</td>
+                                                                <td className="p-3 text-sm font-medium capitalize">
+                                                                    {param.replace(/([A-Z])/g, " $1").trim()}
+                                                                </td>
                                                                 {comparisonData.map((run) => (
                                                                     <td key={run.version} className="p-3 text-sm text-center">
                                                                         {run.params && run.params[param] !== undefined
                                                                             ? typeof run.params[param] === "number"
                                                                                 ? run.params[param].toFixed(2)
-                                                                                : run.params[param]
+                                                                                : typeof run.params[param] === "boolean"
+                                                                                    ? run.params[param]
+                                                                                        ? "Yes"
+                                                                                        : "No"
+                                                                                    : run.params[param]
                                                                             : "-"}
                                                                     </td>
                                                                 ))}
@@ -521,6 +549,85 @@ export default function BacktestComparePage() {
                                                     )}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Parameter Impact Analysis */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Parameter Impact Analysis</CardTitle>
+                                        <CardDescription>How different parameters affect performance</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-sm text-muted-foreground mb-4">
+                                            <p>
+                                                This analysis shows how changes in parameters correlate with changes in performance metrics.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-4">
+                                            {comparisonData.length > 1 && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {comparisonData.map((run, index) => {
+                                                        if (index === 0) return null // Skip the first run as we need to compare
+                                                        const prevRun = comparisonData[index - 1]
+                                                        const colors = ["#10b981", "#3b82f6", "#f97316", "#8b5cf6", "#ec4899"]
+                                                        const color = colors[index % colors.length]
+
+                                                        // Calculate performance difference
+                                                        const returnDiff =
+                                                            Number.parseFloat(run.metrics?.strategyReturn || "0") -
+                                                            Number.parseFloat(prevRun.metrics?.strategyReturn || "0")
+
+                                                        return (
+                                                            <div key={run.version} className="border rounded-md p-4">
+                                                                <h4 className="font-medium mb-2">
+                                                                    Run #{prevRun.version} → Run #{run.version}
+                                                                </h4>
+                                                                <div className="space-y-2">
+                                                                    {/* Find parameter differences */}
+                                                                    {Object.keys(run.params || {}).map((param) => {
+                                                                        if (JSON.stringify(run.params[param]) !== JSON.stringify(prevRun.params[param])) {
+                                                                            return (
+                                                                                <div key={param} className="flex justify-between text-sm">
+                                                                                    <span className="capitalize">{param.replace(/([A-Z])/g, " $1").trim()}:</span>
+                                                                                    <span>
+                                                                                        <span className="line-through mr-2">
+                                                                                            {typeof prevRun.params[param] === "boolean"
+                                                                                                ? prevRun.params[param]
+                                                                                                    ? "Yes"
+                                                                                                    : "No"
+                                                                                                : prevRun.params[param]}
+                                                                                        </span>
+                                                                                        <span className="font-medium">
+                                                                                            {typeof run.params[param] === "boolean"
+                                                                                                ? run.params[param]
+                                                                                                    ? "Yes"
+                                                                                                    : "No"
+                                                                                                : run.params[param]}
+                                                                                        </span>
+                                                                                    </span>
+                                                                                </div>
+                                                                            )
+                                                                        }
+                                                                        return null
+                                                                    })}
+
+                                                                    <div className="mt-3 pt-2 border-t border-muted">
+                                                                        <div className="flex justify-between text-sm">
+                                                                            <span>Return change:</span>
+                                                                            <span className={returnDiff >= 0 ? "text-green-500" : "text-red-500"}>
+                                                                                {returnDiff >= 0 ? "+" : ""}
+                                                                                {returnDiff.toFixed(2)}%
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>

@@ -1,5 +1,5 @@
 // Mock data generation for backtest API
-import type { BacktestResponse, ComparisonResponse, StrategyParameters, BacktestData } from "./types"
+import type { BacktestResponse, ComparisonResponse, BacktestData, BacktestParameters } from "./types"
 
 // Simulate a delay for API response
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -42,10 +42,10 @@ export const backtestRunHistory = [
 export const generateHistoricalBacktestData = (
     days = 180,
     version = 1,
-    params: StrategyParameters = {},
+    params: BacktestParameters = {},
 ): BacktestData => {
     // Use fixed values for historical data to ensure consistency
-    const data = []
+    const balances = []
     // Adjust initial balance based on version to create different results
     let balance = 10000 + version * 500
     let marketBalance = 10000
@@ -103,7 +103,7 @@ export const generateHistoricalBacktestData = (
             })
         }
 
-        data.push({
+        balances.push({
             date: dayDate.toISOString().split("T")[0],
             balance: Math.round(balance * 100) / 100,
             marketBalance: Math.round(marketBalance * 100) / 100,
@@ -112,10 +112,10 @@ export const generateHistoricalBacktestData = (
     }
 
     // Calculate metrics
-    const initialBalance = data[0].balance
-    const finalBalance = data[data.length - 1].balance
-    const initialMarket = data[0].marketBalance
-    const finalMarket = data[data.length - 1].marketBalance
+    const initialBalance = balances[0].balance
+    const finalBalance = balances[balances.length - 1].balance
+    const initialMarket = balances[0].marketBalance
+    const finalMarket = balances[balances.length - 1].marketBalance
 
     const strategyReturn = ((finalBalance - initialBalance) / initialBalance) * 100
     const marketReturn = ((finalMarket - initialMarket) / initialMarket) * 100
@@ -125,7 +125,7 @@ export const generateHistoricalBacktestData = (
     let maxBalance = initialBalance
     let maxDrawdown = 0
 
-    for (const day of data) {
+    for (const day of balances) {
         if (day.balance > maxBalance) {
             maxBalance = day.balance
         }
@@ -142,8 +142,8 @@ export const generateHistoricalBacktestData = (
 
     // Calculate Sharpe ratio (simplified)
     const returns = []
-    for (let i = 1; i < data.length; i++) {
-        returns.push((data[i].balance - data[i - 1].balance) / data[i - 1].balance)
+    for (let i = 1; i < balances.length; i++) {
+        returns.push((balances[i].balance - balances[i - 1].balance) / balances[i - 1].balance)
     }
 
     const avgReturn = returns.length > 0 ? returns.reduce((sum, r) => sum + r, 0) / returns.length : 0
@@ -162,7 +162,7 @@ export const generateHistoricalBacktestData = (
     }
 
     return {
-        data,
+        balances,
         trades,
         params,
         metrics,
@@ -171,7 +171,7 @@ export const generateHistoricalBacktestData = (
 
 // Mock function to run a backtest
 export const mockRunBacktest = async (
-    params: StrategyParameters,
+    params: BacktestParameters,
     timeframe: string,
     strategyId: string,
 ): Promise<BacktestResponse> => {
@@ -298,7 +298,7 @@ export const mockCompareBacktests = async (
             version,
             date: runInfo.date,
             data: {
-                data: runData.data,
+                data: runData.balances,
                 trades: runData.trades,
             },
             metrics: runData.metrics!,

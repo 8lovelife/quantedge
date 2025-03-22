@@ -805,59 +805,6 @@ export function StatisticsTab({
                     </CardContent>
                 </Card>
             </div>
-
-            {/* New Risk-Return Chart */}
-            <Card className="mt-6">
-                <CardHeader>
-                    <CardTitle>Risk-Return Analysis</CardTitle>
-                    <CardDescription>Monthly risk vs. return comparison</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[400px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart
-                                data={calculateMonthlyRiskReturn(backtestData)}
-                                margin={{
-                                    top: 20,
-                                    right: 20,
-                                    left: 20,
-                                    bottom: 20,
-                                }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="risk"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 12 }}
-                                    label={{ value: "Risk (Volatility %)", position: "insideBottom", offset: -10 }}
-                                    domain={[0, "dataMax"]}
-                                />
-                                <YAxis
-                                    dataKey="return"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 12 }}
-                                    label={{ value: "Return (%)", angle: -90, position: "insideLeft" }}
-                                    domain={["dataMin", "dataMax"]}
-                                />
-                                <Tooltip
-                                    formatter={(value) => [`${value.toFixed(2)}%`, ""]}
-                                    labelFormatter={(label) => `Risk: ${label.toFixed(2)}%`}
-                                />
-                                <Legend />
-                                {/* Scatter plot for strategy months */}
-                                <Scatter name="Strategy Months" dataKey="return" fill="#10b981" />
-                                {/* Scatter plot for market months */}
-                                <Scatter name="Market Months" dataKey="marketReturn" fill="#3b82f6" />
-                                {/* Reference lines */}
-                                <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                                <ReferenceLine x={0} stroke="#666" strokeDasharray="3 3" />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
         </>
     )
 }

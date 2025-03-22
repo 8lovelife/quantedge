@@ -1,12 +1,5 @@
+import { BacktestData, BacktestParameters, BacktestResponse, DistributionData, MonthlyReturnData } from "@/lib/api/backtest/types"
 import { NextResponse } from "next/server"
-import type {
-    BacktestData,
-    BacktestParameters,
-    BacktestResponse,
-    BacktestMetrics,
-    MonthlyReturnData,
-    DistributionData,
-} from "@/lib/api/backtest"
 
 // Simulate a delay for API response
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -272,6 +265,8 @@ export async function POST(request: Request) {
 
         // Generate backtest data
         const backtestData = generateHistoricalBacktestData(days, version, params)
+
+
 
         // Create response with backtest data and metadata
         const response: BacktestResponse = {

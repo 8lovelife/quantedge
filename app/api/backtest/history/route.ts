@@ -6,7 +6,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Mock backtest run history
 const backtestRunHistory: BacktestRunHistoryItem[] = [
-    { id: 1, date: "2025-03-18T09:30:00", version: 1, parameters: { smaFast: 10, smaSlow: 50, riskLevel: "medium" } },
+    { id: 10, date: "2025-03-18T09:30:00", version: 10, parameters: { smaFast: 10, smaSlow: 50, riskLevel: "medium" } },
     { id: 2, date: "2025-03-17T14:45:00", version: 2, parameters: { smaFast: 12, smaSlow: 50, riskLevel: "medium" } },
     { id: 3, date: "2025-03-15T11:20:00", version: 3, parameters: { smaFast: 10, smaSlow: 45, riskLevel: "high" } },
     { id: 4, date: "2025-03-10T16:15:00", version: 4, parameters: { smaFast: 8, smaSlow: 40, riskLevel: "low" } },

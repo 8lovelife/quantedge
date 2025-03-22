@@ -17,9 +17,9 @@ import {
 } from "@/components/backtest/backtest-parameters-dialog"
 import { PerformanceTab, TradesTab, StatisticsTab } from "@/components/backtest/backtest-tabs"
 
-import { runBacktest, getHistoricalBacktest } from "@/lib/api/backtest"
+// import { runBacktest, getHistoricalBacktest } from "@/lib/api/backtest"
 import { BacktestData, BacktestParameters, BacktestRunHistoryItem } from "@/lib/api/backtest/types"
-import { getBacktestRunHistory } from "@/lib/api/backtest/client"
+import { getBacktestRunHistory, getHistoricalBacktest, runBacktest } from "@/lib/api/backtest/client"
 
 export default function BacktestPage() {
     const params = useParams()

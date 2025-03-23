@@ -29,7 +29,7 @@ export async function runBacktest(
 
         // Add the run to history
         if (result.success) {
-            await addRunToHistory(result.runId, result.date, params, strategyId)
+            await addRunToHistory(result.version, result.date, params, strategyId)
         }
 
         return result

@@ -8,6 +8,7 @@ export interface Strategy {
     risk: "low" | "medium" | "high"
     algorithm: string
     timeframe: string
+    latestVersion: number
     assets: string
     parameters?: Record<string, any>
 }

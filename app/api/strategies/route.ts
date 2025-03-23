@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       risk: strategy.risk,
       algorithm: strategy.algorithm,
       timeframe: strategy.timeframe,
+      latestVersion: strategy.latestVersion,
       assets: strategy.assets,
       parameters: JSON.parse(strategy.parameters) // Convert JSON string to object
     }));

@@ -35,6 +35,7 @@ import {
 } from "@/lib/api/strategies"
 import type { Strategy } from "@/lib/api/strategies"
 import { StrategyForm } from "@/components/strategy-form"
+import { string } from "zod"
 
 export function TradingStrategies() {
   const router = useRouter()
@@ -107,8 +108,8 @@ export function TradingStrategies() {
   }
 
   // Modify the viewBacktestResults function to pass the timeframe
-  const viewBacktestResults = (strategyId: number, timeframe = "6m") => {
-    router.push(`/market/${strategyId}/backtest?mode=historical&timeframe=${timeframe}`)
+  const viewBacktestResults = (strategyId: number, timeframe: string, latestVersion: number) => {
+    router.push(`/backtest/${strategyId}?mode=historical&version=${latestVersion}&timeframe=${timeframe}`)
   }
 
   // Handle edit strategy
@@ -356,7 +357,7 @@ export function TradingStrategies() {
                               <Button
                                 variant="outline"
                                 onClick={() =>
-                                  viewBacktestResults(selectedStrategy?.id || 1, selectedStrategy?.timeframe || "6m")
+                                  viewBacktestResults(selectedStrategy?.id, selectedStrategy?.timeframe, selectedStrategy?.latestVersion)
                                 }
                               >
                                 <BarChart2Icon className="h-4 w-4 mr-2" />

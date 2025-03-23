@@ -271,7 +271,7 @@ export async function POST(request: Request) {
         // Create response with backtest data and metadata
         const response: BacktestResponse = {
             success: true,
-            runId: version,
+            version: version,
             date: new Date().toISOString(),
             strategyId,
             timeframe,
@@ -294,6 +294,8 @@ export async function GET(request: Request) {
         const timeframe = url.searchParams.get("timeframe") || "6m"
         const strategyId = url.searchParams.get("strategyId") || "1"
 
+
+        console.log("hello version " + version)
         // Calculate days based on timeframe
         let days = 180
         switch (timeframe) {
@@ -334,7 +336,7 @@ export async function GET(request: Request) {
         // Create response with backtest data and metadata
         const response: BacktestResponse = {
             success: true,
-            runId: version,
+            version: version,
             date: new Date().toISOString(),
             strategyId,
             timeframe,

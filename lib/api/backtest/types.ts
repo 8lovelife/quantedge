@@ -25,6 +25,7 @@ export interface BacktestParameters {
     trailingStopDistance?: number
     tradeFrequency?: number
     winRate?: number
+
     [key: string]: any // Allow for additional parameters
 }
 
@@ -66,7 +67,7 @@ export interface BacktestData {
 // API response structure
 export interface BacktestResponse {
     success: boolean
-    runId: number
+    version: number
     date: string
     strategyId: string
     timeframe: string
@@ -97,7 +98,7 @@ export interface BacktestRunHistoryItem {
     id: number
     date: string
     version: number
-    parameters: BacktestParameters
+    //    parameters: BacktestParameters
 }
 
 // Run history response

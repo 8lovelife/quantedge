@@ -50,7 +50,7 @@ export default function BacktestPage() {
     const isHistorical = searchParams.get("mode") === "historical"
 
     // Get strategy ID from URL params
-    const strategyId = typeof params.crypto === "string" ? params.crypto : "1"
+    const strategyId = typeof params.strategyId === "string" ? params.strategyId : "1"
 
     // Load run history from API
     const loadRunHistory = async () => {
@@ -98,7 +98,7 @@ export default function BacktestPage() {
                 clearInterval(progressInterval)
 
                 // Set the selected run version
-                setSelectedRunVersion(response.runId)
+                setSelectedRunVersion(response.version)
 
                 // Reload run history
                 await loadRunHistory()
@@ -173,7 +173,7 @@ export default function BacktestPage() {
         }
 
         router.push(
-            `/market/${strategyId}/backtest/compare?versions=${selectedRunsForComparison.join(",")}&timeframe=${timeframe}`,
+            `/backtest/${strategyId}/compare?versions=${selectedRunsForComparison.join(",")}&timeframe=${timeframe}`,
         )
     }
 
@@ -186,6 +186,7 @@ export default function BacktestPage() {
 
     // Use useEffect to load data on initial render and when timeframe changes
     useEffect(() => {
+
         // Load run history
         loadRunHistory()
 

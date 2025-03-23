@@ -6,11 +6,11 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Mock backtest run history
 const backtestRunHistory: BacktestRunHistoryItem[] = [
-    { id: 10, date: "2025-03-18T09:30:00", version: 10, parameters: { smaFast: 10, smaSlow: 50, riskLevel: "medium" } },
-    { id: 2, date: "2025-03-17T14:45:00", version: 2, parameters: { smaFast: 12, smaSlow: 50, riskLevel: "medium" } },
-    { id: 3, date: "2025-03-15T11:20:00", version: 3, parameters: { smaFast: 10, smaSlow: 45, riskLevel: "high" } },
-    { id: 4, date: "2025-03-10T16:15:00", version: 4, parameters: { smaFast: 8, smaSlow: 40, riskLevel: "low" } },
-    { id: 5, date: "2025-03-05T10:00:00", version: 5, parameters: { smaFast: 15, smaSlow: 60, riskLevel: "medium" } },
+    { id: 10, date: "2025-03-18T09:30:00", version: 10 },
+    { id: 2, date: "2025-03-17T14:45:00", version: 2 },
+    { id: 3, date: "2025-03-15T11:20:00", version: 3 },
+    { id: 4, date: "2025-03-10T16:15:00", version: 4 },
+    { id: 5, date: "2025-03-05T10:00:00", version: 5 },
 ]
 
 export async function GET(request: Request) {
@@ -20,17 +20,33 @@ export async function GET(request: Request) {
         const strategyId = url.searchParams.get("strategyId") || "1"
 
         // Simulate API processing time
-        await delay(500)
+        // await delay(500)
 
         // Filter history by strategy ID if needed
         // In a real implementation, you would query a database
-        const filteredHistory = backtestRunHistory
+        // const filteredHistory = backtestRunHistory
+
+        const urlS = `http://127.0.0.1:3001/api/backtest/history?strategyId=123`
+        const results = await fetch(urlS)
+
+        // Fetch strategies
+        // const strategiesResponse = await mockFetchTradingStrategies(page, limit)
+
+        const runHistories = await results.json();
+
+        const backtestRunHistories = runHistories.map((run, index) => ({
+            id: run.id,
+            date: run.startDate,
+            version: run.id,
+        }));
 
         // Create response
         const response: BacktestRunHistoryResponse = {
             success: true,
-            history: filteredHistory,
+            history: backtestRunHistories,
         }
+
+        console.log(response)
 
         return NextResponse.json(response)
     } catch (error) {

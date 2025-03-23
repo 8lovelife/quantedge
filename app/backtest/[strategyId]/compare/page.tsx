@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeftIcon, DownloadIcon, Share2Icon, RefreshCw, CheckCircleIcon } from "lucide-react"
+import {useState, useEffect, useRef} from "react"
+import {useParams, useRouter, useSearchParams} from "next/navigation"
+import {ArrowLeftIcon, DownloadIcon, Share2Icon, RefreshCw, CheckCircleIcon} from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
+import {Button} from "@/components/ui/button"
+import {Badge} from "@/components/ui/badge"
 
 // Add these imports at the top of the file
 import {
@@ -39,13 +39,13 @@ const formatDate = (dateString: string) => {
 
 // Add this custom tooltip component after the formatDate function
 // Custom tooltip for backtest chart
-const BacktestTooltip = ({ active, payload, label }: any) => {
+const BacktestTooltip = ({active, payload, label}: any) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm border border-border">
                 <p className="font-medium mb-1">{`Date: ${label}`}</p>
                 {payload.map((entry, index) => (
-                    <p key={index} style={{ color: entry.color }}>
+                    <p key={index} style={{color: entry.color}}>
                         {`${entry.name}: $${entry.value.toLocaleString()}`}
                     </p>
                 ))}
@@ -61,10 +61,10 @@ const prepareMetricsData = (comparisonData) => {
 
     // Basic metrics data structure
     const metricsData = [
-        { name: "Return (%)" },
-        { name: "Win Rate (%)" },
-        { name: "Max Drawdown (%)" },
-        { name: "Sharpe Ratio" },
+        {name: "Return (%)"},
+        {name: "Win Rate (%)"},
+        {name: "Max Drawdown (%)"},
+        {name: "Sharpe Ratio"},
     ]
 
     // Add data for each run
@@ -92,7 +92,7 @@ const prepareMonthlyReturnsData = (comparisonData) => {
         for (let i = 0; i < 6; i++) {
             const date = new Date()
             date.setMonth(date.getMonth() - i)
-            allMonths.add(date.toLocaleString("default", { month: "short", year: "numeric" }))
+            allMonths.add(date.toLocaleString("default", {month: "short", year: "numeric"}))
         }
     })
 
@@ -105,7 +105,7 @@ const prepareMonthlyReturnsData = (comparisonData) => {
 
     // Create data structure for the chart
     return months.map((month) => {
-        const dataPoint = { month }
+        const dataPoint = {month}
 
         comparisonData.forEach((run) => {
             // Generate a random monthly return between -10% and +15%
@@ -308,7 +308,7 @@ export default function BacktestComparePage() {
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                     <Button variant="outline" size="icon" onClick={() => router.back()} className="mr-4">
-                        <ArrowLeftIcon className="h-4 w-4" />
+                        <ArrowLeftIcon className="h-4 w-4"/>
                     </Button>
                     <div>
                         <h1 className="text-2xl font-bold flex items-center">
@@ -320,15 +320,15 @@ export default function BacktestComparePage() {
                 </div>
                 <div className="flex items-center space-x-2">
                     <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-                        <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}/>
                         Refresh
                     </Button>
                     <Button variant="outline">
-                        <Share2Icon className="mr-2 h-4 w-4" />
+                        <Share2Icon className="mr-2 h-4 w-4"/>
                         Share
                     </Button>
                     <Button variant="outline">
-                        <DownloadIcon className="mr-2 h-4 w-4" />
+                        <DownloadIcon className="mr-2 h-4 w-4"/>
                         Export
                     </Button>
                 </div>
@@ -358,43 +358,52 @@ export default function BacktestComparePage() {
                         <Card className="mb-6 bg-green-50 border-green-200">
                             <CardHeader className="pb-2">
                                 <div className="flex justify-between items-center">
-                                    <CardTitle className="text-green-800">Best Performer: Run #{bestRun.version}</CardTitle>
+                                    <CardTitle className="text-green-800">Best Performer: Run
+                                        #{bestRun.version}</CardTitle>
                                     <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
                                         Recommended
                                     </Badge>
                                 </div>
                                 <CardDescription>
-                                    This run achieved the best overall performance based on return, risk, and consistency metrics
+                                    This run achieved the best overall performance based on return, risk, and
+                                    consistency metrics
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Return</div>
-                                        <div className="text-xl font-bold text-green-700">{bestRun.metrics.strategyReturn}%</div>
+                                        <div
+                                            className="text-xl font-bold text-green-700">{bestRun.metrics.strategyReturn}%
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Sharpe Ratio</div>
-                                        <div className="text-xl font-bold text-green-700">{bestRun.metrics.sharpeRatio}</div>
+                                        <div
+                                            className="text-xl font-bold text-green-700">{bestRun.metrics.sharpeRatio}</div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Win Rate</div>
-                                        <div className="text-xl font-bold text-green-700">{bestRun.metrics.winRate}%</div>
+                                        <div className="text-xl font-bold text-green-700">{bestRun.metrics.winRate}%
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Max Drawdown</div>
-                                        <div className="text-xl font-bold text-red-600">{bestRun.metrics.maxDrawdown}%</div>
+                                        <div className="text-xl font-bold text-red-600">{bestRun.metrics.maxDrawdown}%
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Alpha</div>
-                                        <div className="text-lg font-medium text-green-700">{bestRun.metrics.alpha}%</div>
+                                        <div className="text-lg font-medium text-green-700">{bestRun.metrics.alpha}%
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Profit Factor</div>
-                                        <div className="text-lg font-medium text-green-700">{bestRun.metrics.profitFactor}</div>
+                                        <div
+                                            className="text-lg font-medium text-green-700">{bestRun.metrics.profitFactor}</div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="text-sm text-muted-foreground">Total Trades</div>
@@ -429,7 +438,7 @@ export default function BacktestComparePage() {
                                     <div className="bg-white bg-opacity-50 rounded-md p-3">
                                         <ul className="space-y-1 text-sm">
                                             <li className="flex items-start">
-                                                <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
+                                                <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2 mt-0.5"/>
                                                 <span>
                                                     <strong>Superior Returns:</strong> Outperformed other runs by{" "}
                                                     {(
@@ -444,14 +453,14 @@ export default function BacktestComparePage() {
                                                 </span>
                                             </li>
                                             <li className="flex items-start">
-                                                <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
+                                                <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2 mt-0.5"/>
                                                 <span>
                                                     <strong>Risk-Adjusted Performance:</strong> Highest Sharpe ratio indicates better returns per
                                                     unit of risk
                                                 </span>
                                             </li>
                                             <li className="flex items-start">
-                                                <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
+                                                <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2 mt-0.5"/>
                                                 <span>
                                                     <strong>Consistency:</strong> {bestRun.metrics.winRate}% win rate with a profit factor of{" "}
                                                     {bestRun.metrics.profitFactor}
@@ -483,12 +492,12 @@ export default function BacktestComparePage() {
                                                 bottom: 20,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                             <XAxis
                                                 dataKey="date"
                                                 axisLine={false}
                                                 tickLine={false}
-                                                tick={{ fontSize: 12 }}
+                                                tick={{fontSize: 12}}
                                                 tickFormatter={(value) => {
                                                     try {
                                                         const date = new Date(value)
@@ -501,12 +510,12 @@ export default function BacktestComparePage() {
                                             <YAxis
                                                 axisLine={false}
                                                 tickLine={false}
-                                                tick={{ fontSize: 12 }}
+                                                tick={{fontSize: 12}}
                                                 width={80}
                                                 tickFormatter={(value) => `$${value.toLocaleString()}`}
                                             />
-                                            <Tooltip content={<BacktestTooltip />} />
-                                            <Legend />
+                                            <Tooltip content={<BacktestTooltip/>}/>
+                                            <Legend/>
 
                                             {comparisonData.map((run, index) => {
                                                 // Use different colors for each run
@@ -552,11 +561,11 @@ export default function BacktestComparePage() {
                                                 bottom: 20,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis dataKey="name" />
-                                            <YAxis axisLine={false} tickLine={false} />
-                                            <Tooltip />
-                                            <Legend />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                            <XAxis dataKey="name"/>
+                                            <YAxis axisLine={false} tickLine={false}/>
+                                            <Tooltip/>
+                                            <Legend/>
 
                                             {comparisonData.map((run, index) => {
                                                 const colors = ["#10b981", "#3b82f6", "#f97316", "#8b5cf6", "#ec4899"]
@@ -600,11 +609,12 @@ export default function BacktestComparePage() {
                                             bottom: 20,
                                         }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                        <XAxis dataKey="month" />
-                                        <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `${value}%`} />
-                                        <Tooltip formatter={(value) => [`${value.toFixed(2)}%`, ""]} />
-                                        <Legend />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                        <XAxis dataKey="month"/>
+                                        <YAxis axisLine={false} tickLine={false}
+                                               tickFormatter={(value) => `${value}%`}/>
+                                        <Tooltip formatter={(value) => [`${value.toFixed(2)}%`, ""]}/>
+                                        <Legend/>
 
                                         {comparisonData.map((run, index) => {
                                             const colors = ["#10b981", "#3b82f6", "#f97316", "#8b5cf6", "#ec4899"]
@@ -623,7 +633,7 @@ export default function BacktestComparePage() {
                                                 />
                                             )
                                         })}
-                                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3"/>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -648,7 +658,7 @@ export default function BacktestComparePage() {
                                             bottom: 20,
                                         }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                         <XAxis
                                             dataKey="date"
                                             axisLine={false}
@@ -668,8 +678,8 @@ export default function BacktestComparePage() {
                                             tickFormatter={(value) => `${value}%`}
                                             domain={[0, "dataMax"]}
                                         />
-                                        <Tooltip formatter={(value) => [`${value.toFixed(2)}%`, ""]} />
-                                        <Legend />
+                                        <Tooltip formatter={(value) => [`${value.toFixed(2)}%`, ""]}/>
+                                        <Legend/>
 
                                         {comparisonData.map((run, index) => {
                                             const colors = ["#10b981", "#3b82f6", "#f97316", "#8b5cf6", "#ec4899"]
@@ -711,33 +721,34 @@ export default function BacktestComparePage() {
                                             bottom: 20,
                                         }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <CartesianGrid strokeDasharray="3 3"/>
                                         <XAxis
                                             type="number"
                                             dataKey="risk"
                                             name="Risk (Volatility)"
-                                            label={{ value: "Risk (Volatility %)", position: "bottom", offset: 0 }}
+                                            label={{value: "Risk (Volatility %)", position: "bottom", offset: 0}}
                                             domain={[0, "dataMax"]}
                                         />
                                         <YAxis
                                             type="number"
                                             dataKey="return"
                                             name="Return"
-                                            label={{ value: "Return (%)", angle: -90, position: "insideLeft" }}
+                                            label={{value: "Return (%)", angle: -90, position: "insideLeft"}}
                                             domain={[0, "dataMax"]}
                                         />
                                         <Tooltip
-                                            cursor={{ strokeDasharray: "3 3" }}
+                                            cursor={{strokeDasharray: "3 3"}}
                                             formatter={(value, name) => [
                                                 `${value.toFixed(2)}${name === "return" ? "%" : ""}`,
                                                 name === "return" ? "Return" : "Risk",
                                             ]}
                                             labelFormatter={(value) => ""}
-                                            content={({ active, payload }) => {
+                                            content={({active, payload}) => {
                                                 if (active && payload && payload.length) {
                                                     const data = payload[0].payload
                                                     return (
-                                                        <div className="bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm border border-border">
+                                                        <div
+                                                            className="bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm border border-border">
                                                             <p className="font-medium mb-1">{data.name}</p>
                                                             <p>Return: {data.return.toFixed(2)}%</p>
                                                             <p>Risk: {data.risk.toFixed(2)}%</p>
@@ -748,7 +759,7 @@ export default function BacktestComparePage() {
                                                 return null
                                             }}
                                         />
-                                        <Legend />
+                                        <Legend/>
 
                                         {comparisonData.map((run, index) => {
                                             const colors = ["#10b981", "#3b82f6", "#f97316", "#8b5cf6", "#ec4899"]
@@ -764,7 +775,7 @@ export default function BacktestComparePage() {
                                                     data={[runData]}
                                                     fill={color}
                                                     shape={(props) => {
-                                                        const { cx, cy } = props
+                                                        const {cx, cy} = props
                                                         const size = isBest ? 12 : 8
                                                         return (
                                                             <svg>
@@ -777,7 +788,8 @@ export default function BacktestComparePage() {
                                                                     strokeWidth={isBest ? 2 : 0}
                                                                 />
                                                                 {isBest && (
-                                                                    <text x={cx} y={cy - 15} textAnchor="middle" fill="#000" fontSize="12">
+                                                                    <text x={cx} y={cy - 15} textAnchor="middle"
+                                                                          fill="#000" fontSize="12">
                                                                         Best
                                                                     </text>
                                                                 )}
@@ -789,17 +801,19 @@ export default function BacktestComparePage() {
                                         })}
 
                                         {/* Add reference lines for better visualization */}
-                                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                                        <ReferenceLine x={0} stroke="#666" strokeDasharray="3 3" />
+                                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3"/>
+                                        <ReferenceLine x={0} stroke="#666" strokeDasharray="3 3"/>
                                     </ScatterChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="mt-4 text-sm text-muted-foreground">
                                 <p>
-                                    This chart plots risk (volatility) against return for each backtest run. The ideal position is
+                                    This chart plots risk (volatility) against return for each backtest run. The ideal
+                                    position is
                                     top-left (high return, low risk).
                                 </p>
-                                <p className="mt-1">Larger circles indicate better Sharpe ratios (risk-adjusted returns).</p>
+                                <p className="mt-1">Larger circles indicate better Sharpe ratios (risk-adjusted
+                                    returns).</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -814,48 +828,49 @@ export default function BacktestComparePage() {
                             <div className="rounded-md border">
                                 <table className="w-full">
                                     <thead>
-                                        <tr className="border-b bg-muted/50">
-                                            <th className="p-3 text-left text-sm font-medium">Parameter</th>
-                                            {comparisonData.map((run) => (
-                                                <th key={run.version} className="p-3 text-center text-sm font-medium">
-                                                    Run #{run.version}
-                                                    {bestRun && bestRun.version === run.version && (
-                                                        <Badge className="ml-2 bg-green-100 text-green-800 border-green-300">Best</Badge>
-                                                    )}
-                                                </th>
-                                            ))}
-                                        </tr>
+                                    <tr className="border-b bg-muted/50">
+                                        <th className="p-3 text-left text-sm font-medium">Parameter</th>
+                                        {comparisonData.map((run) => (
+                                            <th key={run.version} className="p-3 text-center text-sm font-medium">
+                                                Run #{run.version}
+                                                {bestRun && bestRun.version === run.version && (
+                                                    <Badge
+                                                        className="ml-2 bg-green-100 text-green-800 border-green-300">Best</Badge>
+                                                )}
+                                            </th>
+                                        ))}
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        {/* Get all unique parameter keys across all runs */}
-                                        {Array.from(new Set(comparisonData.flatMap((run) => Object.keys(run.params || {})))).map(
-                                            (param) => (
-                                                <tr key={param} className="border-b">
-                                                    <td className="p-3 text-sm font-medium capitalize">
-                                                        {param.replace(/([A-Z])/g, " $1").trim()}
-                                                    </td>
-                                                    {comparisonData.map((run) => {
-                                                        const isBest = bestRun && bestRun.version === run.version
-                                                        return (
-                                                            <td
-                                                                key={run.version}
-                                                                className={`p-3 text-sm text-center ${isBest ? "font-medium bg-green-50" : ""}`}
-                                                            >
-                                                                {run.params && run.params[param] !== undefined
-                                                                    ? typeof run.params[param] === "number"
-                                                                        ? run.params[param].toFixed(2)
-                                                                        : typeof run.params[param] === "boolean"
-                                                                            ? run.params[param]
-                                                                                ? "Yes"
-                                                                                : "No"
-                                                                            : run.params[param]
-                                                                    : "-"}
-                                                            </td>
-                                                        )
-                                                    })}
-                                                </tr>
-                                            ),
-                                        )}
+                                    {/* Get all unique parameter keys across all runs */}
+                                    {Array.from(new Set(comparisonData.flatMap((run) => Object.keys(run.params || {})))).map(
+                                        (param) => (
+                                            <tr key={param} className="border-b">
+                                                <td className="p-3 text-sm font-medium capitalize">
+                                                    {param.replace(/([A-Z])/g, " $1").trim()}
+                                                </td>
+                                                {comparisonData.map((run) => {
+                                                    const isBest = bestRun && bestRun.version === run.version
+                                                    return (
+                                                        <td
+                                                            key={run.version}
+                                                            className={`p-3 text-sm text-center ${isBest ? "font-medium bg-green-50" : ""}`}
+                                                        >
+                                                            {run.params && run.params[param] !== undefined
+                                                                ? typeof run.params[param] === "number"
+                                                                    ? run.params[param].toFixed(2)
+                                                                    : typeof run.params[param] === "boolean"
+                                                                        ? run.params[param]
+                                                                            ? "Yes"
+                                                                            : "No"
+                                                                        : run.params[param]
+                                                                : "-"}
+                                                        </td>
+                                                    )
+                                                })}
+                                            </tr>
+                                        ),
+                                    )}
                                     </tbody>
                                 </table>
                             </div>

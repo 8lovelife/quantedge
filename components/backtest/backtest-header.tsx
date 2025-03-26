@@ -146,15 +146,33 @@ export function BacktestHeader({
                             runHistory.map((run) => (
                                 <div key={run.id} className="flex items-center px-2 py-1.5 hover:bg-muted/50 rounded-sm">
                                     <div className="flex-1 cursor-pointer" onClick={() => loadBacktestVersion(run.version)}>
-                                        <div className="flex items-center">
-                                            <ClockIcon className="mr-2 h-4 w-4" />
-                                            <span className="font-medium">Run #{run.version}</span>
-                                            {selectedRunVersion === run.version && <Badge className="ml-2 text-xs">Current</Badge>}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center min-w-0">
+                                                <ClockIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                                                <span className="font-medium">Run #{run.version}</span>
+                                            </div>
+                                            <div className="flex items-center space-x-1 flex-shrink-0">
+                                                {selectedRunVersion === run.version && <Badge className="text-xs">Current</Badge>}
+                                                {run.result && (
+                                                    <Badge
+                                                        className={`text-xs ${run.result === "success"
+                                                                ? "bg-green-100 text-green-800"
+                                                                : run.result === "failed"
+                                                                    ? "bg-red-100 text-red-800"
+                                                                    : run.result === "running"
+                                                                        ? "bg-blue-100 text-blue-800"
+                                                                        : "bg-yellow-100 text-yellow-800"
+                                                            }`}
+                                                    >
+                                                        {run.result.charAt(0).toUpperCase() + run.result.slice(1)}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="text-xs text-muted-foreground mt-1">{formatDate(run.date)}</div>
                                     </div>
                                     <div
-                                        className={`w-6 h-6 rounded-md border flex items-center justify-center cursor-pointer ${selectedRunsForComparison.includes(run.version) ? "bg-primary border-primary" : "border-input"
+                                        className={`ml-2 w-6 h-6 rounded-md border flex items-center justify-center cursor-pointer flex-shrink-0 ${selectedRunsForComparison.includes(run.version) ? "bg-primary border-primary" : "border-input"
                                             }`}
                                         onClick={() => toggleRunSelection(run.version)}
                                     >

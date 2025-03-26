@@ -6,11 +6,11 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Mock backtest run history
 const backtestRunHistory: BacktestRunHistoryItem[] = [
-    { id: 10, date: "2025-03-18T09:30:00", version: 10 },
-    { id: 2, date: "2025-03-17T14:45:00", version: 2 },
-    { id: 3, date: "2025-03-15T11:20:00", version: 3 },
-    { id: 4, date: "2025-03-10T16:15:00", version: 4 },
-    { id: 5, date: "2025-03-05T10:00:00", version: 5 },
+    { id: 10, date: "2025-03-18T09:30:00", version: 10, result: "success" },
+    { id: 2, date: "2025-03-17T14:45:00", version: 2, result: "success" },
+    { id: 3, date: "2025-03-15T11:20:00", version: 3, result: "failed" },
+    { id: 4, date: "2025-03-10T16:15:00", version: 4, result: "success" },
+    { id: 5, date: "2025-03-05T10:00:00", version: 5, result: "failed" },
 ]
 
 export async function GET(request: Request) {
@@ -38,6 +38,7 @@ export async function GET(request: Request) {
             id: run.id,
             date: run.startDate,
             version: run.id,
+            result: run.status,
         }));
 
         // Create response
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     try {
         // Parse request body
         const body = await request.json()
-        const { version, date, parameters, strategyId } = body
+        const { version, date, parameters, strategyId, result } = body
 
         // Simulate API processing time
         await delay(300)
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
             id: backtestRunHistory.length + 1,
             date: date || new Date().toISOString(),
             version,
-            parameters,
+            result,
         }
 
         // Add to history (in a real implementation, you would save to a database)

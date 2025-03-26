@@ -21,7 +21,7 @@ import {
     ReferenceLine,
 } from "recharts"
 import { BacktestTooltip, TradeTooltip } from "@/components/backtest/backtest-components"
-import type { BacktestData, BacktestTrade } from "@/lib/api/backtest"
+import type { BacktestData, BacktestTrade } from "@/lib/api/backtest/index"
 
 // Replace the PerformanceTab component with an enhanced version that combines charts
 export function PerformanceTab({

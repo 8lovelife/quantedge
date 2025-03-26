@@ -98,6 +98,7 @@ export interface BacktestRunHistoryItem {
     id: number
     date: string
     version: number
+    result: string
     //    parameters: BacktestParameters
 }
 

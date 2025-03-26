@@ -1,4 +1,4 @@
-import { BacktestData, BacktestParameters, BacktestResponse, DistributionData, MonthlyReturnData } from "@/lib/api/backtest/types"
+import { BacktestData, BacktestMetrics, BacktestParameters, BacktestResponse, DistributionData, MonthlyReturnData } from "@/lib/api/backtest/types"
 import { NextResponse } from "next/server"
 
 // Simulate a delay for API response
@@ -238,7 +238,7 @@ export async function POST(request: Request) {
         console.log("Received backtest request:", { params, timeframe, strategyId })
 
         // Simulate API processing time with progressive updates
-        await delay(2000)
+        // await delay(2000)
 
         // Calculate days based on timeframe
         let days = 180
@@ -267,18 +267,25 @@ export async function POST(request: Request) {
         const backtestData = generateHistoricalBacktestData(days, version, params)
 
 
-
+        const response = await fetch("http://localhost:3001/api/backtest/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ params, timeframe, strategyId: Number(strategyId) }),
+        });
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        const data = await response.json();
+        console.log(response)
         // Create response with backtest data and metadata
-        const response: BacktestResponse = {
+        const result: BacktestResponse = {
             success: true,
             version: version,
             date: new Date().toISOString(),
             strategyId,
             timeframe,
-            data: backtestData,
+            data: data,
         }
 
-        return NextResponse.json(response)
+        return NextResponse.json(result)
     } catch (error) {
         console.error("Error processing backtest request:", error)
         return NextResponse.json({ success: false, error: "Failed to process backtest request" }, { status: 500 })

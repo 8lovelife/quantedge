@@ -35,7 +35,44 @@ import {
 } from "@/lib/api/strategies"
 import type { Strategy, StrategyFormValues } from "@/lib/api/strategies"
 import { StrategyForm } from "@/components/strategy-form"
-import { string } from "zod"
+
+// Interface for asset with allocation
+interface AssetWithAllocation {
+  symbol: string
+  allocation: number
+}
+
+// Function to parse assets string to AssetWithAllocation array
+function parseAssetsString(assetsString: string): AssetWithAllocation[] {
+  if (!assetsString) return []
+
+  try {
+    return JSON.parse(assetsString)
+  } catch (e) {
+    // Fallback for old format (comma-separated symbols)
+    return assetsString.split(",").map((symbol) => ({
+      symbol: symbol.trim(),
+      allocation: 0,
+    }))
+  }
+}
+
+// Helper function to get color based on asset index
+function getAssetColor(index: number): string {
+  const colors = [
+    "bg-blue-500",
+    "bg-green-500",
+    "bg-purple-500",
+    "bg-orange-500",
+    "bg-pink-500",
+    "bg-teal-500",
+    "bg-indigo-500",
+    "bg-yellow-500",
+    "bg-red-500",
+    "bg-cyan-500",
+  ]
+  return colors[index % colors.length]
+}
 
 export function TradingStrategies() {
   const router = useRouter()
@@ -106,6 +143,7 @@ export function TradingStrategies() {
   const openStrategyDetails = (strategy: Strategy) => {
     setSelectedStrategy(strategy)
   }
+
   // Update the viewBacktestResults function to handle undefined latestVersion
   const viewBacktestResults = (strategyId: number, timeframe: string, latestVersion?: number) => {
     // If latestVersion is undefined, don't include it in the URL
@@ -174,6 +212,72 @@ export function TradingStrategies() {
     return pageNumbers
   }
 
+  // Render asset allocation bars
+  const renderAssetAllocation = (assetsString: string) => {
+    const assets = parseAssetsString(assetsString)
+
+    return (
+      <div className="space-y-2 mt-2">
+        <div className="text-sm font-medium">Asset Allocation</div>
+        <div className="h-3 w-full flex rounded-full overflow-hidden">
+          {assets.map((asset, index) => (
+            <div
+              key={asset.symbol}
+              className={`${getAssetColor(index)} h-full`}
+              style={{ width: `${asset.allocation}%` }}
+              title={`${asset.symbol}: ${asset.allocation}%`}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          {assets.map((asset, index) => (
+            <div key={asset.symbol} className="flex items-center">
+              <div className={`w-3 h-3 rounded-full mr-1 ${getAssetColor(index)}`}></div>
+              <span>
+                {asset.symbol}: {asset.allocation}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Render detailed asset allocation for the details dialog
+  const renderDetailedAssetAllocation = (assetsString: string) => {
+    const assets = parseAssetsString(assetsString)
+
+    return (
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium">Asset Allocation</h4>
+        <div className="h-4 w-full flex rounded-full overflow-hidden">
+          {assets.map((asset, index) => (
+            <div
+              key={asset.symbol}
+              className={`${getAssetColor(index)} h-full`}
+              style={{ width: `${asset.allocation}%` }}
+              title={`${asset.symbol}: ${asset.allocation}%`}
+            />
+          ))}
+        </div>
+        <div className="space-y-2 mt-2">
+          {assets.map((asset, index) => (
+            <div key={asset.symbol} className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className={`w-3 h-3 rounded-full mr-2 ${getAssetColor(index)}`}></div>
+                <span>{asset.symbol}</span>
+              </div>
+              <div className="flex items-center">
+                <Progress value={asset.allocation} className="w-24 h-2 mr-2" />
+                <span className="text-sm font-medium">{asset.allocation}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // 3. Wrap all strategy cards in a single Card component
   return (
     <Card>
@@ -235,10 +339,14 @@ export function TradingStrategies() {
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Allocation</span>
+                            <span className="text-muted-foreground">Total Allocation</span>
                             <span>{strategy.allocation}%</span>
                           </div>
                           <Progress value={strategy.allocation} className="h-2" />
+
+                          {/* Add asset allocation visualization */}
+                          {renderAssetAllocation(strategy.assets)}
+
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Risk Level</span>
                             <span
@@ -260,15 +368,6 @@ export function TradingStrategies() {
                           <PencilIcon className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        {/* Update the button onClick in the strategy cards to pass the timeframe
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => viewBacktestResults(strategy.id, strategy.timeframe)}
-                        >
-                          <BarChart2Icon className="h-4 w-4 mr-1" />
-                          Backtest
-                        </Button> */}
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>
@@ -330,16 +429,8 @@ export function TradingStrategies() {
                                 <p className="text-sm">{selectedStrategy?.timeframe}</p>
                               </div>
 
-                              <div>
-                                <h4 className="mb-2 text-sm font-medium">Assets</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {selectedStrategy?.assets?.split(",").map((asset) => (
-                                    <Badge key={asset} variant="outline">
-                                      {asset}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
+                              {/* Replace the simple asset badges with detailed asset allocation */}
+                              {selectedStrategy && renderDetailedAssetAllocation(selectedStrategy.assets)}
 
                               <div>
                                 <h4 className="mb-2 text-sm font-medium">Parameters</h4>
@@ -355,11 +446,14 @@ export function TradingStrategies() {
                               </div>
                             </div>
                             <DialogFooter>
-                              {/* Update the button in the dialog to pass the timeframe */}
                               <Button
                                 variant="outline"
                                 onClick={() =>
-                                  viewBacktestResults(selectedStrategy?.id, selectedStrategy?.timeframe, selectedStrategy?.latestVersion)
+                                  viewBacktestResults(
+                                    selectedStrategy?.id,
+                                    selectedStrategy?.timeframe,
+                                    selectedStrategy?.latestVersion,
+                                  )
                                 }
                               >
                                 <BarChart2Icon className="h-4 w-4 mr-2" />

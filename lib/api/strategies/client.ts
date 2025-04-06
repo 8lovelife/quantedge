@@ -97,7 +97,7 @@ export async function updateStrategy(id: number, data: StrategyFormValues): Prom
 /**
  * Update a strategy's status (active/paused)
  */
-export async function updateStrategyStatus(id: string, status: "active" | "paused"): Promise<Strategy> {
+export async function updateStrategyStatus(id: number, status: "active" | "paused"): Promise<Strategy> {
     // if (USE_MOCK_API) {
     // const response = await mockUpdateStrategyStatus(id, status)
     //     return response.strategy

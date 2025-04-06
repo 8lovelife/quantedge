@@ -1,5 +1,5 @@
 export interface AlgorithmOption {
     value: string
     label: string
-    defaultParameters?: Record<string, any>
+    defaultParameters?: Record<string, any> // ← most JSON-friendly
 }

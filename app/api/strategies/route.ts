@@ -49,6 +49,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const req: StrategyFormValues = await request.json()
+    console.log("req -> " + JSON.stringify(req))
     const response = await fetch("http://localhost:3001/api/strategies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -33,7 +33,7 @@ import {
   createStrategy,
   updateStrategy,
 } from "@/lib/api/strategies"
-import type { Strategy } from "@/lib/api/strategies"
+import type { Strategy, StrategyFormValues } from "@/lib/api/strategies"
 import { StrategyForm } from "@/components/strategy-form"
 import { string } from "zod"
 
@@ -106,10 +106,12 @@ export function TradingStrategies() {
   const openStrategyDetails = (strategy: Strategy) => {
     setSelectedStrategy(strategy)
   }
-
-  // Modify the viewBacktestResults function to pass the timeframe
-  const viewBacktestResults = (strategyId: number, timeframe: string, latestVersion: number) => {
-    router.push(`/backtest/${strategyId}?mode=historical&version=${latestVersion}&timeframe=${timeframe}`)
+  // Update the viewBacktestResults function to handle undefined latestVersion
+  const viewBacktestResults = (strategyId: number, timeframe: string, latestVersion?: number) => {
+    // If latestVersion is undefined, don't include it in the URL
+    // This will show the empty state in the backtest page
+    const versionParam = latestVersion ? `&version=${latestVersion}` : ""
+    router.push(`/backtest/${strategyId}?mode=historical${versionParam}&timeframe=${timeframe}`)
   }
 
   // Handle edit strategy
@@ -444,7 +446,7 @@ export function TradingStrategies() {
             <DialogDescription>Create a new trading strategy with your desired parameters.</DialogDescription>
           </DialogHeader>
           <StrategyForm
-            onSubmit={async (data) => {
+            onSubmit={async (data: StrategyFormValues) => {
               try {
                 const newStrategy = await createStrategy(data)
                 setStrategies([newStrategy, ...strategies])

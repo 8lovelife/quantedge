@@ -57,6 +57,7 @@ export default function BacktestPage() {
         try {
             setIsLoadingHistory(true)
             const history = await getBacktestRunHistory(strategyId)
+            console.log("history result " + JSON.stringify(history))
             setRunHistory(history)
         } catch (err) {
             console.error("Failed to load run history:", err)
@@ -89,6 +90,8 @@ export default function BacktestPage() {
 
             // Call the API to run the backtest
             const response = await runBacktest(params, timeframe, strategyId)
+
+            console.log("run backtest result " + JSON.stringify(response))
 
             if (response.success) {
                 setBacktestData(response.data)
@@ -198,15 +201,24 @@ export default function BacktestPage() {
 
         // Get version from URL if available
         const urlVersion = searchParams.get("version")
-        if (urlVersion) {
-            setSelectedRunVersion(Number.parseInt(urlVersion, 10))
-            loadHistoricalData(Number.parseInt(urlVersion, 10))
-            // Show run history immediately when viewing historical data
-            setShowRunHistory(true)
+
+        console.log("urlVersion " + urlVersion)
+        if (urlVersion && urlVersion !== "undefined") {
+            const versionNumber = Number.parseInt(urlVersion, 10)
+            if (!isNaN(versionNumber)) {
+                setSelectedRunVersion(versionNumber)
+                loadHistoricalData(versionNumber)
+                // Show run history immediately when viewing historical data
+                setShowRunHistory(true)
+            } else {
+                console.warn("Invalid version parameter:", urlVersion)
+                // Don't load any data if the version parameter is invalid
+                setIsLoading(false)
+            }
         } else if (isHistorical) {
-            loadHistoricalData()
-            // Show run history immediately when viewing historical data
-            setShowRunHistory(true)
+            // No version specified but in historical mode - don't load any data
+            console.log("No version specified in historical mode, showing empty state")
+            setIsLoading(false)
         } else {
             // Don't auto-load backtest data, wait for user to configure parameters
             setIsLoading(false)

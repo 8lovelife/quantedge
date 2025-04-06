@@ -92,7 +92,7 @@ export function BacktestHeader({
                 </div>
             </div>
             <div className="flex items-center space-x-2">
-                <Select value={timeframe} onValueChange={setTimeframe}>
+                {/* <Select value={timeframe} onValueChange={setTimeframe}>
                     <SelectTrigger className="w-[120px]">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Timeframe" />
@@ -104,7 +104,7 @@ export function BacktestHeader({
                         <SelectItem value="1y">1 Year</SelectItem>
                         <SelectItem value="all">All Time</SelectItem>
                     </SelectContent>
-                </Select>
+                </Select> */}
 
                 {/* Run History Dropdown */}
                 <DropdownMenu>
@@ -156,12 +156,12 @@ export function BacktestHeader({
                                                 {run.result && (
                                                     <Badge
                                                         className={`text-xs ${run.result === "success"
-                                                                ? "bg-green-100 text-green-800"
-                                                                : run.result === "failed"
-                                                                    ? "bg-red-100 text-red-800"
-                                                                    : run.result === "running"
-                                                                        ? "bg-blue-100 text-blue-800"
-                                                                        : "bg-yellow-100 text-yellow-800"
+                                                            ? "bg-green-100 text-green-800"
+                                                            : run.result === "failed"
+                                                                ? "bg-red-100 text-red-800"
+                                                                : run.result === "running"
+                                                                    ? "bg-blue-100 text-blue-800"
+                                                                    : "bg-yellow-100 text-yellow-800"
                                                             }`}
                                                     >
                                                         {run.result.charAt(0).toUpperCase() + run.result.slice(1)}

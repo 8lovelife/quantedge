@@ -18,6 +18,7 @@ import { DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import type { Strategy } from "@/lib/types"
+import { AlgorithmOption, fetchAlgorithms } from "@/lib/api/algorithms"
 
 // Form schema for strategy validation
 const strategyFormSchema = z.object({
@@ -62,6 +63,7 @@ const algorithmParameters = {
     custom: {},
 }
 
+
 export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
     const [assetInput, setAssetInput] = useState("")
     const [selectedAssets, setSelectedAssets] = useState<string[]>(strategy?.assets ? strategy.assets.split(",") : [])
@@ -71,7 +73,20 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
     const [paramKey, setParamKey] = useState("")
     const [paramValue, setParamValue] = useState("")
     const [parameters, setParameters] = useState<Record<string, any>>(strategy?.parameters || {})
+    // Add state for algorithms
+    const [algorithms, setAlgorithms] = useState<AlgorithmOption[]>([])
+    const [isLoadingAlgorithms, setIsLoadingAlgorithms] = useState(false)
+    const [algorithmDefaultParams, setAlgorithmDefaultParams] = useState<Map<string, Map<string, any>>>(
+        new Map<string, Map<string, any>>(),
+    )
 
+    function objectToMap(obj: Record<string, any>): Map<string, any> {
+        const map = new Map<string, any>()
+        Object.entries(obj).forEach(([key, value]) => {
+            map.set(key, value)
+        })
+        return map
+    }
     // Default values for the form
     const defaultValues: Partial<StrategyFormValues> = {
         name: strategy?.name || "",
@@ -89,6 +104,39 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         resolver: zodResolver(strategyFormSchema),
         defaultValues,
     })
+
+
+    // Add useEffect to fetch algorithms when creating a new strategy
+    useEffect(() => {
+        // Only fetch algorithms when creating a new strategy
+        if (!strategy) {
+            const getAlgorithms = async () => {
+                setIsLoadingAlgorithms(true)
+                try {
+                    const algorithmOptions = await fetchAlgorithms()
+                    setAlgorithms(algorithmOptions)
+                    // Process and store default parameters for each algorithm
+                    const paramsMap = new Map<string, Map<string, any>>()
+
+                    algorithmOptions.forEach((algo) => {
+                        if (algo.defaultParameters) {
+                            paramsMap.set(algo.value, objectToMap(algo.defaultParameters))
+                        } else {
+                            paramsMap.set(algo.value, new Map<string, any>())
+                        }
+                    })
+
+                    setAlgorithmDefaultParams(paramsMap)
+                } catch (error) {
+                    console.error("Failed to fetch algorithms:", error)
+                } finally {
+                    setIsLoadingAlgorithms(false)
+                }
+            }
+
+            getAlgorithms()
+        }
+    }, [strategy])
 
     // Add a useEffect hook to watch for algorithm changes after the form initialization
     // Add this inside the StrategyForm component, after the form initialization
@@ -174,18 +222,33 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Algorithm</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    disabled={!!strategy} // Disable when editing (strategy exists)
+                                >
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select algorithm" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="moving_average">Moving Average Crossover</SelectItem>
+                                        {strategy ? (
+                                            // When editing, show the current algorithm
+                                            <SelectItem value={field.value}>{field.value}</SelectItem>
+                                        ) : (
+                                            // When creating, show fetched algorithms
+                                            algorithms.map((algo) => (
+                                                <SelectItem key={algo.value} value={algo.value}>
+                                                    {algo.label}
+                                                </SelectItem>
+                                            ))
+                                        )}
+                                        {/* <SelectItem value="moving_average">Moving Average Crossover</SelectItem>
                                         <SelectItem value="rsi">RSI Strategy</SelectItem>
                                         <SelectItem value="macd">MACD Strategy</SelectItem>
                                         <SelectItem value="bollinger">Bollinger Bands</SelectItem>
-                                        <SelectItem value="custom">Custom Algorithm</SelectItem>
+                                        <SelectItem value="custom">Custom Algorithm</SelectItem> */}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />

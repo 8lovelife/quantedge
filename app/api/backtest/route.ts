@@ -274,12 +274,11 @@ export async function POST(request: Request) {
         });
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
         const data = await response.json();
-        console.log(response)
         // Create response with backtest data and metadata
         const result: BacktestResponse = {
             success: true,
-            version: version,
-            date: new Date().toISOString(),
+            version: data.version,
+            date: data.date,
             strategyId,
             timeframe,
             data: data,
@@ -301,8 +300,6 @@ export async function GET(request: Request) {
         const timeframe = url.searchParams.get("timeframe") || "6m"
         const strategyId = url.searchParams.get("strategyId") || "1"
 
-
-        console.log("hello version " + version)
         // Calculate days based on timeframe
         let days = 180
         switch (timeframe) {
@@ -324,7 +321,7 @@ export async function GET(request: Request) {
         }
 
         // Simulate API processing time
-        await delay(1000)
+        // await delay(1000)
 
         // Get parameters from mock database based on version
         const mockParams: Record<number, BacktestParameters> = {
@@ -339,18 +336,22 @@ export async function GET(request: Request) {
 
         // Generate backtest data
         const backtestData = generateHistoricalBacktestData(days, version, params)
+        const response = await fetch(`http://localhost:3001/api/backtest?version=${version}&strategyId=${strategyId}`);
+
+        const backtestHistoryData = await response.json();
+
 
         // Create response with backtest data and metadata
-        const response: BacktestResponse = {
+        const data: BacktestResponse = {
             success: true,
-            version: version,
-            date: new Date().toISOString(),
+            version: backtestHistoryData.version,
+            date: backtestHistoryData.date,
             strategyId,
             timeframe,
-            data: backtestData,
+            data: backtestHistoryData,
         }
 
-        return NextResponse.json(response)
+        return NextResponse.json(data)
     } catch (error) {
         console.error("Error processing historical backtest request:", error)
         return NextResponse.json(

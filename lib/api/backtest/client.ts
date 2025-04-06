@@ -27,10 +27,10 @@ export async function runBacktest(
 
         const result = await response.json()
 
-        // Add the run to history
-        if (result.success) {
-            await addRunToHistory(result.version, result.date, params, strategyId)
-        }
+        // // Add the run to history
+        // if (result.success) {
+        //     await addRunToHistory(result.version, result.date, params, strategyId)
+        // }
 
         return result
     } catch (error) {

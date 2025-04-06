@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     try {
         // Get URL parameters
         const url = new URL(request.url)
-        const strategyId = url.searchParams.get("strategyId") || "1"
+        const strategyId = url.searchParams.get("strategyId")
 
         // Simulate API processing time
         // await delay(500)
@@ -26,14 +26,13 @@ export async function GET(request: Request) {
         // In a real implementation, you would query a database
         // const filteredHistory = backtestRunHistory
 
-        const urlS = `http://127.0.0.1:3001/api/backtest/history?strategyId=123`
+        const urlS = `http://127.0.0.1:3001/api/backtest/history?strategyId=${strategyId}`
         const results = await fetch(urlS)
 
         // Fetch strategies
         // const strategiesResponse = await mockFetchTradingStrategies(page, limit)
 
         const runHistories = await results.json();
-
         const backtestRunHistories = runHistories.map((run, index) => ({
             id: run.id,
             date: run.startDate,
@@ -46,8 +45,6 @@ export async function GET(request: Request) {
             success: true,
             history: backtestRunHistories,
         }
-
-        console.log(response)
 
         return NextResponse.json(response)
     } catch (error) {

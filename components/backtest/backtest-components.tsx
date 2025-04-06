@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Settings2Icon } from "lucide-react"
-import type { BacktestParameters, BacktestMetrics, BacktestRunHistoryItem } from "@/lib/api/backtest"
+import type { BacktestParameters, BacktestMetrics, BacktestRunHistoryItem } from "@/lib/api/backtest/index"
 
 // Custom tooltip for backtest chart
 export const BacktestTooltip = ({ active, payload, label }: any) => {
@@ -86,11 +86,15 @@ export function BacktestRunDetails({
     runHistory: BacktestRunHistoryItem[]
     params: BacktestParameters | undefined
 }) {
+
     // Format date for display
     const formatDate = (dateString: string) => {
         const date = new Date(dateString)
         return date.toLocaleString()
     }
+
+    // Get the selected run from history
+    const selectedRun = runHistory.find((r) => r.version === selectedRunVersion)
 
     if (!params) return null
 
@@ -101,23 +105,45 @@ export function BacktestRunDetails({
                 <CardDescription>Configuration used for Run #{selectedRunVersion}</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h3 className="text-lg font-medium">Run #{selectedRunVersion}</h3>
-                        <p className="text-sm text-muted-foreground">
-                            {formatDate(runHistory.find((r) => r.version === selectedRunVersion)?.date || "")}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{formatDate(selectedRun?.date || "")}</p>
+                        {/* {selectedRun?.startTime && selectedRun?.endTime && (
+                            <p className="text-sm text-muted-foreground">
+                                Duration: {calculateDuration(selectedRun.startTime, selectedRun.endTime)}
+                            </p>
+                        )} */}
                     </div>
-                    <div className="flex space-x-4">
+
+                    {selectedRun?.result && (
                         <div className="flex flex-col">
-                            <span className="text-sm font-medium">Parameters</span>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
-                                {Object.entries(params).map(([key, value]) => (
-                                    <Badge key={key} variant="outline" className="text-xs">
-                                        {key}: {value}
+                            <span className="text-sm font-medium">Results</span>
+                            <div className="flex gap-2 mt-1">
+                                <Badge variant={selectedRun.result === "success" ? "default" : "destructive"}>
+                                    {selectedRun.result === "success" ? "success" : "failed"}
+                                </Badge>
+                                {/* {selectedRun.result.strategyReturn && (
+                                    <Badge
+                                        variant="outline"
+                                        className={Number(selectedRun.result.strategyReturn) >= 0 ? "text-green-600" : "text-red-600"}
+                                    >
+                                        Return: {selectedRun.result.strategyReturn}%
                                     </Badge>
-                                ))}
+                                )}
+                                {selectedRun.result.winRate && <Badge variant="outline">Win Rate: {selectedRun.result.winRate}%</Badge>} */}
                             </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">Parameters</span>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
+                            {Object.entries(params).map(([key, value]) => (
+                                <Badge key={key} variant="outline" className="text-xs">
+                                    {key}: {value}
+                                </Badge>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -126,19 +152,39 @@ export function BacktestRunDetails({
     )
 }
 
+// Add a helper function to calculate duration between two timestamps
+function calculateDuration(startTime: string, endTime: string): string {
+    const start = new Date(startTime).getTime()
+    const end = new Date(endTime).getTime()
+    const durationMs = end - start
+
+    if (durationMs < 1000) {
+        return `${durationMs}ms`
+    } else if (durationMs < 60000) {
+        return `${Math.round(durationMs / 1000)}s`
+    } else {
+        const minutes = Math.floor(durationMs / 60000)
+        const seconds = Math.round((durationMs % 60000) / 1000)
+        return `${minutes}m ${seconds}s`
+    }
+}
 // Config Prompt Component
 export function BacktestConfigPrompt({ openParamsDialog }: { openParamsDialog: () => void }) {
     return (
         <Card className="mb-6">
             <CardHeader>
                 <CardTitle>Configure Backtest Parameters</CardTitle>
-                <CardDescription>Set up your backtest parameters before running the simulation</CardDescription>
+                <CardDescription>
+                    {window.location.search.includes("mode=historical")
+                        ? "No backtest data available for this strategy yet. Run your first backtest to see results."
+                        : "Set up your backtest parameters before running the simulation"}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex items-center justify-center p-12">
                     <Button size="lg" onClick={openParamsDialog}>
                         <Settings2Icon className="mr-2 h-5 w-5" />
-                        Configure Parameters
+                        {window.location.search.includes("mode=historical") ? "Run First Backtest" : "Configure Parameters"}
                     </Button>
                 </div>
             </CardContent>

@@ -47,7 +47,10 @@ function parseAssetsString(assetsString: string): AssetWithAllocation[] {
   if (!assetsString) return []
 
   try {
-    return JSON.parse(assetsString)
+    const assets = JSON.parse(assetsString)
+    // Sort assets by allocation in descending order
+    const sortedAssets = [...assets].sort((a, b) => b.allocation - a.allocation)
+    return sortedAssets
   } catch (e) {
     // Fallback for old format (comma-separated symbols)
     return assetsString.split(",").map((symbol) => ({
@@ -57,21 +60,318 @@ function parseAssetsString(assetsString: string): AssetWithAllocation[] {
   }
 }
 
-// Helper function to get color based on asset index
+// Update the getAssetColor function to use more muted colors with hex values for SVG compatibility
 function getAssetColor(index: number): string {
+  // More muted color palette with hex values for SVG compatibility
   const colors = [
-    "bg-blue-500",
-    "bg-green-500",
-    "bg-purple-500",
-    "bg-orange-500",
-    "bg-pink-500",
-    "bg-teal-500",
-    "bg-indigo-500",
-    "bg-yellow-500",
-    "bg-red-500",
-    "bg-cyan-500",
+    "#5B8DEF", // vibrant soft blue
+    "#66C2A5", // mint green
+    "#F6A67A", // soft coral
+    "#B391C5", // lavender purple
+    "#F48FB1", // pastel pink
+    "#4DD0E1", // bright aqua
+    "#FFD166", // warm yellow
+    "#FC8D62", // soft orange red
+    "#A6D854", // lime green
+    "#FFB677", // apricot orange
   ]
   return colors[index % colors.length]
+}
+
+// Update the getAssetTextColor function to match the muted colors
+function getAssetTextColor(index: number): string {
+  const colors = [
+    "text-blue-600",
+    "text-green-600",
+    "text-purple-600",
+    "text-orange-600",
+    "text-pink-600",
+    "text-teal-600",
+    "text-indigo-600",
+    "text-yellow-600",
+    "text-red-600",
+    "text-cyan-600",
+  ]
+  return colors[index % colors.length]
+}
+
+// Helper function to get pattern based on asset index
+function getAssetPattern(index: number): string {
+  const patterns = [
+    "pattern-dots",
+    "pattern-lines",
+    "pattern-checks",
+    "pattern-grid",
+    "pattern-diagonal",
+    "pattern-cross",
+    "pattern-waves",
+    "pattern-zigzag",
+    "pattern-triangles",
+    "pattern-circles",
+  ]
+  return patterns[index % patterns.length]
+}
+
+// Helper function to get asset icon based on symbol
+function getAssetIcon(symbol: string): string {
+  const icons: Record<string, string> = {
+    BTC: "₿",
+    ETH: "Ξ",
+    SOL: "◎",
+    USDT: "₮",
+    USDC: "₵",
+    BNB: "Ƀ",
+    XRP: "✕",
+    ADA: "₳",
+    DOT: "●",
+    DOGE: "Ð",
+    AVAX: "Ⓐ",
+    MATIC: "⬡",
+    LINK: "⬡",
+    UNI: "🦄",
+    ATOM: "⚛",
+  }
+
+  return icons[symbol] || symbol.charAt(0)
+}
+
+// Update the renderAssetAllocation function to use the hex colors for backgrounds
+const renderAssetAllocation = (assetsString: string) => {
+  const assets = parseAssetsString(assetsString)
+
+  // Calculate cumulative positions for label placement
+  let cumulativePosition = 0
+  const assetPositions = assets.map((asset) => {
+    const position = cumulativePosition
+    cumulativePosition += asset.allocation
+    return {
+      ...asset,
+      position,
+    }
+  })
+
+  return (
+    <div className="space-y-2 mt-2">
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">Asset Allocation</span>
+      </div>
+      <div className="relative h-8 w-full">
+        <div className="absolute inset-0 flex rounded-md overflow-hidden">
+          {assets.map((asset, index) => (
+            <div
+              key={asset.symbol}
+              className="h-full relative flex items-center justify-center"
+              style={{
+                backgroundColor: getAssetColor(index),
+                width: `${asset.allocation}%`,
+                backgroundImage:
+                  index % 2 === 0
+                    ? "repeating-linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1) 5px, transparent 5px, transparent 10px)"
+                    : "none",
+              }}
+            >
+              {asset.allocation >= 10 && (
+                <div className="text-white text-xs font-bold whitespace-nowrap overflow-hidden px-1">
+                  {asset.symbol}: {asset.allocation}%
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Labels for segments too small to fit text */}
+        {/* {assets
+          .filter((asset) => asset.allocation < 10)
+          .map((asset, index) => {
+            const position = assetPositions.find((a) => a.symbol === asset.symbol)?.position || 0
+            return (
+              <div
+                key={`label-${asset.symbol}`}
+                className="absolute top-full mt-1 text-xs transform -translate-x-1/2"
+                style={{ left: `${position + asset.allocation / 2}%` }}
+              >
+                <span className={getAssetTextColor(assets.findIndex((a) => a.symbol === asset.symbol))}>
+                  {asset.symbol}: {asset.allocation}%
+                </span>
+              </div>
+            )
+          })} */}
+      </div>
+
+      {/* <div className="flex flex-wrap gap-2 text-xs mt-4">
+        {assets.map((asset, index) => (
+          <div key={asset.symbol} className="flex items-center">
+            <div
+              className="w-4 h-4 rounded-full mr-1 flex items-center justify-center"
+              style={{
+                backgroundColor: getAssetColor(index),
+                backgroundImage:
+                  index % 2 === 0
+                    ? "repeating-linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1) 5px, transparent 5px, transparent 10px)"
+                    : "none",
+              }}
+            >
+              <span className="text-white text-xs font-bold">{getAssetIcon(asset.symbol)}</span>
+            </div>
+            <span>{asset.symbol}</span>
+          </div>
+        ))}
+      </div> */}
+    </div>
+  )
+}
+
+// Update the renderDetailedAssetAllocation function to fix the SVG pie chart
+const renderDetailedAssetAllocation = (assetsString: string) => {
+  const assets = parseAssetsString(assetsString)
+  const size = 200 // Size of the pie chart
+  const centerX = size / 2
+  const centerY = size / 2
+  const radius = size / 2
+  const labelRadius = radius * 0.7 // Radius for label placement
+
+  // Calculate the SVG paths for the pie chart
+  let startAngle = 0
+  const slices = assets.map((asset, index) => {
+    const percentage = asset.allocation / 100
+    const endAngle = startAngle + percentage * 360
+    const midAngle = startAngle + (endAngle - startAngle) / 2
+
+    // Convert angles to radians
+    const startAngleRad = ((startAngle - 90) * Math.PI) / 180
+    const endAngleRad = ((endAngle - 90) * Math.PI) / 180
+    const midAngleRad = ((midAngle - 90) * Math.PI) / 180
+
+    // Calculate the SVG path
+    const x1 = centerX + radius * Math.cos(startAngleRad)
+    const y1 = centerY + radius * Math.sin(startAngleRad)
+    const x2 = centerX + radius * Math.cos(endAngleRad)
+    const y2 = centerY + radius * Math.sin(endAngleRad)
+
+    // Calculate label position
+    const labelX = centerX + labelRadius * Math.cos(midAngleRad)
+    const labelY = centerY + labelRadius * Math.sin(midAngleRad)
+
+    // Determine if the arc should be drawn as a large arc
+    const largeArcFlag = percentage > 0.5 ? 1 : 0
+
+    // Create the SVG path
+    const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
+
+    // Update the start angle for the next slice
+    startAngle = endAngle
+
+    return {
+      path,
+      color: getAssetColor(index),
+      pattern: index % 2 === 0,
+      labelX,
+      labelY,
+      symbol: asset.symbol,
+      allocation: asset.allocation,
+      icon: getAssetIcon(asset.symbol),
+    }
+  })
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-medium">Asset Allocation</h4>
+
+      <div className="flex items-start gap-6 justify-center">
+        {/* Pie Chart */}
+        <div className="flex items-center justify-center">
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            <defs>
+              <pattern
+                id="pattern-lines"
+                patternUnits="userSpaceOnUse"
+                width="10"
+                height="10"
+                patternTransform="rotate(45)"
+              >
+                <line x1="0" y="0" x2="0" y2="10" stroke="white" strokeWidth="1" strokeOpacity="0.2" />
+              </pattern>
+            </defs>
+
+            {/* Render pie slices */}
+            {slices.map((slice, index) => (
+              <g key={index}>
+                <path d={slice.path} fill={slice.color} stroke="white" strokeWidth="1" />
+                {slice.pattern && (
+                  <path d={slice.path} fill="url(#pattern-lines)" stroke="white" strokeWidth="1" fillOpacity="0.7" />
+                )}
+
+                {/* Add label if slice is big enough */}
+                {slice.allocation >= 5 && (
+                  <g>
+                    <circle
+                      cx={slice.labelX}
+                      cy={slice.labelY}
+                      r="12"
+                      fill={slice.color}
+                      stroke="white"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={slice.labelX}
+                      y={slice.labelY}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="white"
+                      fontSize="10"
+                      fontWeight="bold"
+                    >
+                      {slice.icon}
+                    </text>
+                    <text
+                      x={slice.labelX}
+                      y={slice.labelY + 25}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="white"
+                      fontSize="10"
+                      fontWeight="bold"
+                      stroke="black"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      {slice.symbol} {slice.allocation}%
+                    </text>
+                  </g>
+                )}
+              </g>
+            ))}
+          </svg>
+        </div>
+
+        {/* Legend - scrollable when too many items */}
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+          {assets.map((asset, index) => (
+            <div key={asset.symbol} className="flex items-center justify-between w-40">
+              <div className="flex items-center">
+                <div
+                  className="w-6 h-6 rounded-full mr-2 flex items-center justify-center"
+                  style={{
+                    backgroundColor: getAssetColor(index),
+                    backgroundImage:
+                      index % 2 === 0
+                        ? "repeating-linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1) 5px, transparent 5px, transparent 10px)"
+                        : "none",
+                  }}
+                >
+                  <span className="text-white text-xs font-bold">{getAssetIcon(asset.symbol)}</span>
+                </div>
+                <span className="text-sm font-medium">{asset.symbol}</span>
+              </div>
+              <span className="text-sm font-semibold" style={{ color: getAssetColor(index) }}>
+                {asset.allocation}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function TradingStrategies() {
@@ -212,72 +512,6 @@ export function TradingStrategies() {
     return pageNumbers
   }
 
-  // Render asset allocation bars
-  const renderAssetAllocation = (assetsString: string) => {
-    const assets = parseAssetsString(assetsString)
-
-    return (
-      <div className="space-y-2 mt-2">
-        <div className="text-sm font-medium">Asset Allocation</div>
-        <div className="h-3 w-full flex rounded-full overflow-hidden">
-          {assets.map((asset, index) => (
-            <div
-              key={asset.symbol}
-              className={`${getAssetColor(index)} h-full`}
-              style={{ width: `${asset.allocation}%` }}
-              title={`${asset.symbol}: ${asset.allocation}%`}
-            />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs">
-          {assets.map((asset, index) => (
-            <div key={asset.symbol} className="flex items-center">
-              <div className={`w-3 h-3 rounded-full mr-1 ${getAssetColor(index)}`}></div>
-              <span>
-                {asset.symbol}: {asset.allocation}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  // Render detailed asset allocation for the details dialog
-  const renderDetailedAssetAllocation = (assetsString: string) => {
-    const assets = parseAssetsString(assetsString)
-
-    return (
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Asset Allocation</h4>
-        <div className="h-4 w-full flex rounded-full overflow-hidden">
-          {assets.map((asset, index) => (
-            <div
-              key={asset.symbol}
-              className={`${getAssetColor(index)} h-full`}
-              style={{ width: `${asset.allocation}%` }}
-              title={`${asset.symbol}: ${asset.allocation}%`}
-            />
-          ))}
-        </div>
-        <div className="space-y-2 mt-2">
-          {assets.map((asset, index) => (
-            <div key={asset.symbol} className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${getAssetColor(index)}`}></div>
-                <span>{asset.symbol}</span>
-              </div>
-              <div className="flex items-center">
-                <Progress value={asset.allocation} className="w-24 h-2 mr-2" />
-                <span className="text-sm font-medium">{asset.allocation}%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   // 3. Wrap all strategy cards in a single Card component
   return (
     <Card>
@@ -316,187 +550,186 @@ export function TradingStrategies() {
                 ))}
               </div>
             ) : (
-              <>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {strategies.map((strategy) => (
-                    <Card key={strategy.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle>{strategy.name}</CardTitle>
-                          <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
-                            {strategy.status}
-                          </Badge>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {strategies.map((strategy) => (
+                  <Card key={strategy.id}>
+                    {/* Card content remains the same */}
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle>{strategy.name}</CardTitle>
+                        <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
+                          {strategy.status}
+                        </Badge>
+                      </div>
+                      <CardDescription>{strategy.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Performance (30d)</span>
+                          <span className={strategy.performance >= 0 ? "text-green-500" : "text-red-500"}>
+                            {strategy.performance >= 0 ? "+" : ""}
+                            {strategy.performance}%
+                          </span>
                         </div>
-                        <CardDescription>{strategy.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="pb-2">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Performance (30d)</span>
-                            <span className={strategy.performance >= 0 ? "text-green-500" : "text-red-500"}>
-                              {strategy.performance >= 0 ? "+" : ""}
-                              {strategy.performance}%
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Total Allocation</span>
-                            <span>{strategy.allocation}%</span>
-                          </div>
-                          <Progress value={strategy.allocation} className="h-2" />
-
-                          {/* Add asset allocation visualization */}
-                          {renderAssetAllocation(strategy.assets)}
-
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Risk Level</span>
-                            <span
-                              className={
-                                strategy.risk === "low"
-                                  ? "text-green-500"
-                                  : strategy.risk === "medium"
-                                    ? "text-yellow-500"
-                                    : "text-red-500"
-                              }
-                            >
-                              {strategy.risk.charAt(0).toUpperCase() + strategy.risk.slice(1)}
-                            </span>
-                          </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Total Allocation</span>
+                          <span>{strategy.allocation}%</span>
                         </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-between pt-2 flex-wrap gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditStrategy(strategy)}>
-                          <PencilIcon className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>
-                              <InfoIcon className="h-4 w-4 mr-1" />
-                              Details
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[500px]">
-                            <DialogHeader>
-                              <DialogTitle className="flex items-center">
-                                {selectedStrategy?.name}
-                                <Badge
-                                  variant={selectedStrategy?.status === "active" ? "default" : "secondary"}
-                                  className="ml-2"
+                        <Progress value={strategy.allocation} className="h-2" />
+
+                        {/* Add asset allocation visualization */}
+                        {renderAssetAllocation(strategy.assets)}
+
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Risk Level</span>
+                          <span
+                            className={
+                              strategy.risk === "low"
+                                ? "text-green-500"
+                                : strategy.risk === "medium"
+                                  ? "text-yellow-500"
+                                  : "text-red-500"
+                            }
+                          >
+                            {strategy.risk.charAt(0).toUpperCase() + strategy.risk.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between pt-2 flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEditStrategy(strategy)}>
+                        <PencilIcon className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => openStrategyDetails(strategy)}>
+                            <InfoIcon className="h-4 w-4 mr-1" />
+                            Details
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[500px]">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center">
+                              {selectedStrategy?.name}
+                              <Badge
+                                variant={selectedStrategy?.status === "active" ? "default" : "secondary"}
+                                className="ml-2"
+                              >
+                                {selectedStrategy?.status}
+                              </Badge>
+                            </DialogTitle>
+                            <DialogDescription>{selectedStrategy?.description}</DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="mb-2 text-sm font-medium">Performance</h4>
+                                <p
+                                  className={
+                                    selectedStrategy?.performance && selectedStrategy.performance >= 0
+                                      ? "text-green-500 text-xl font-bold"
+                                      : "text-red-500 text-xl font-bold"
+                                  }
                                 >
-                                  {selectedStrategy?.status}
-                                </Badge>
-                              </DialogTitle>
-                              <DialogDescription>{selectedStrategy?.description}</DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <h4 className="mb-2 text-sm font-medium">Performance</h4>
-                                  <p
-                                    className={
-                                      selectedStrategy?.performance && selectedStrategy.performance >= 0
-                                        ? "text-green-500 text-xl font-bold"
+                                  {selectedStrategy?.performance && selectedStrategy.performance >= 0 ? "+" : ""}
+                                  {selectedStrategy?.performance}%
+                                </p>
+                              </div>
+                              <div>
+                                <h4 className="mb-2 text-sm font-medium">Risk Level</h4>
+                                <p
+                                  className={
+                                    selectedStrategy?.risk === "low"
+                                      ? "text-green-500 text-xl font-bold"
+                                      : selectedStrategy?.risk === "medium"
+                                        ? "text-yellow-500 text-xl font-bold"
                                         : "text-red-500 text-xl font-bold"
-                                    }
-                                  >
-                                    {selectedStrategy?.performance && selectedStrategy.performance >= 0 ? "+" : ""}
-                                    {selectedStrategy?.performance}%
-                                  </p>
-                                </div>
-                                <div>
-                                  <h4 className="mb-2 text-sm font-medium">Risk Level</h4>
-                                  <p
-                                    className={
-                                      selectedStrategy?.risk === "low"
-                                        ? "text-green-500 text-xl font-bold"
-                                        : selectedStrategy?.risk === "medium"
-                                          ? "text-yellow-500 text-xl font-bold"
-                                          : "text-red-500 text-xl font-bold"
-                                    }
-                                  >
-                                    {selectedStrategy?.risk?.charAt(0).toUpperCase() + selectedStrategy?.risk?.slice(1)}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div>
-                                <h4 className="mb-2 text-sm font-medium">Algorithm</h4>
-                                <p className="text-sm">{selectedStrategy?.algorithm}</p>
-                              </div>
-
-                              <div>
-                                <h4 className="mb-2 text-sm font-medium">Timeframe</h4>
-                                <p className="text-sm">{selectedStrategy?.timeframe}</p>
-                              </div>
-
-                              {/* Replace the simple asset badges with detailed asset allocation */}
-                              {selectedStrategy && renderDetailedAssetAllocation(selectedStrategy.assets)}
-
-                              <div>
-                                <h4 className="mb-2 text-sm font-medium">Parameters</h4>
-                                <div className="rounded-md bg-muted p-3 text-sm font-mono">
-                                  {selectedStrategy?.parameters &&
-                                    Object.entries(selectedStrategy.parameters).map(([key, value]) => (
-                                      <div key={key} className="flex justify-between">
-                                        <span>{key}:</span>
-                                        <span>{JSON.stringify(value)}</span>
-                                      </div>
-                                    ))}
-                                </div>
+                                  }
+                                >
+                                  {selectedStrategy?.risk?.charAt(0).toUpperCase() + selectedStrategy?.risk?.slice(1)}
+                                </p>
                               </div>
                             </div>
-                            <DialogFooter>
-                              <Button
-                                variant="outline"
-                                onClick={() =>
-                                  viewBacktestResults(
-                                    selectedStrategy?.id,
-                                    selectedStrategy?.timeframe,
-                                    selectedStrategy?.latestVersion,
-                                  )
-                                }
-                              >
-                                <BarChart2Icon className="h-4 w-4 mr-2" />
-                                View Backtest Results
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                        {strategy.status === "active" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleStatusChange(strategy.id, "paused")}
-                            disabled={actionInProgress === strategy.id}
-                          >
-                            <PauseIcon className="h-4 w-4 mr-1" />
-                            {actionInProgress === strategy.id ? "Updating..." : "Pause"}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleStatusChange(strategy.id, "active")}
-                            disabled={actionInProgress === strategy.id}
-                          >
-                            <PlayIcon className="h-4 w-4 mr-1" />
-                            {actionInProgress === strategy.id ? "Updating..." : "Resume"}
-                          </Button>
-                        )}
+
+                            <div>
+                              <h4 className="mb-2 text-sm font-medium">Algorithm</h4>
+                              <p className="text-sm">{selectedStrategy?.algorithm}</p>
+                            </div>
+
+                            <div>
+                              <h4 className="mb-2 text-sm font-medium">Timeframe</h4>
+                              <p className="text-sm">{selectedStrategy?.timeframe}</p>
+                            </div>
+
+                            {/* Replaced progress bars with pie chart for asset allocation */}
+                            {selectedStrategy && renderDetailedAssetAllocation(selectedStrategy.assets)}
+
+                            <div>
+                              <h4 className="mb-2 text-sm font-medium">Parameters</h4>
+                              <div className="rounded-md bg-muted p-3 text-sm font-mono">
+                                {selectedStrategy?.parameters &&
+                                  Object.entries(selectedStrategy.parameters).map(([key, value]) => (
+                                    <div key={key} className="flex justify-between">
+                                      <span>{key}:</span>
+                                      <span>{JSON.stringify(value)}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button
+                              variant="outline"
+                              onClick={() =>
+                                viewBacktestResults(
+                                  selectedStrategy?.id,
+                                  selectedStrategy?.timeframe,
+                                  selectedStrategy?.latestVersion,
+                                )
+                              }
+                            >
+                              <BarChart2Icon className="h-4 w-4 mr-2" />
+                              View Backtest Results
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      {strategy.status === "active" ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-destructive"
-                          onClick={() => handleDelete(strategy.id)}
+                          onClick={() => handleStatusChange(strategy.id, "paused")}
                           disabled={actionInProgress === strategy.id}
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <PauseIcon className="h-4 w-4 mr-1" />
+                          {actionInProgress === strategy.id ? "Updating..." : "Pause"}
                         </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStatusChange(strategy.id, "active")}
+                          disabled={actionInProgress === strategy.id}
+                        >
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                          {actionInProgress === strategy.id ? "Updating..." : "Resume"}
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleDelete(strategy.id)}
+                        disabled={actionInProgress === strategy.id}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
 

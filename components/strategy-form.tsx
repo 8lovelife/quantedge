@@ -23,6 +23,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AssetWithAllocation, StrategyFormValues } from "@/lib/api/strategies"
+
 
 // Form schema for strategy validation
 const strategyFormSchema = z.object({
@@ -32,22 +34,20 @@ const strategyFormSchema = z.object({
     risk: z.enum(["low", "medium", "high"], { message: "Risk level must be selected." }),
     allocation: z.number().min(1).max(100),
     timeframe: z.string().min(1, { message: "Timeframe must be selected." }),
-    assets: z.string().min(1, { message: "At least one asset must be specified." }),
+    assets: z.array(
+        z.object({
+            symbol: z.string(),
+            allocation: z.number(),
+        }),
+    ),
     status: z.enum(["active", "paused"]).optional(),
-    parameters: z.any().optional(), // Changed to accept Map
+    parameters: z.record(z.string(), z.any()).optional(), // Changed to accept object
 })
 
-type StrategyFormValues = z.infer<typeof strategyFormSchema>
 
 interface StrategyFormProps {
     strategy?: Strategy
     onSubmit: (data: StrategyFormValues) => void
-}
-
-// Define an interface for asset with allocation
-interface AssetWithAllocation {
-    symbol: string
-    allocation: number
 }
 
 // Function to convert object to Map
@@ -83,11 +83,6 @@ function parseAssetsString(assetsString: string): AssetWithAllocation[] {
     }
 }
 
-// Function to stringify AssetWithAllocation array to string
-function stringifyAssets(assets: AssetWithAllocation[]): string {
-    return JSON.stringify(assets)
-}
-
 // Helper function to round to 2 decimal places
 function roundToTwoDecimals(num: number): number {
     return Math.round(num * 100) / 100
@@ -99,9 +94,17 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
 
     const [assetInput, setAssetInput] = useState("")
     const [assetAllocation, setAssetAllocation] = useState(10)
-    const [selectedAssets, setSelectedAssets] = useState<AssetWithAllocation[]>(
-        strategy?.assets ? parseAssetsString(strategy.assets) : [],
-    )
+    const [selectedAssets, setSelectedAssets] = useState<AssetWithAllocation[]>(() => {
+        if (!strategy?.assets) return []
+
+        // Handle case where assets might be stored as a string in legacy data
+        if (typeof strategy.assets === "string") {
+            return parseAssetsString(strategy.assets)
+        }
+
+        // Assets is already an array
+        return strategy.assets as AssetWithAllocation[]
+    })
     const [assetAllocationError, setAssetAllocationError] = useState<string | null>(null)
 
     // State for confirmation dialog
@@ -138,7 +141,15 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         risk: strategy?.risk || "medium",
         allocation: strategy?.allocation || 10,
         timeframe: strategy?.timeframe || "1d",
-        assets: strategy?.assets || "",
+        assets: (() => {
+            if (!strategy?.assets) return []
+
+            if (typeof strategy.assets === "string") {
+                return parseAssetsString(strategy.assets)
+            }
+
+            return strategy.assets as AssetWithAllocation[]
+        })(),
         status: strategy?.status || "paused",
         parameters: strategy?.parameters || {},
     }
@@ -218,8 +229,8 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
             setAssetAllocationError(null)
         }
 
-        // Update the form value with the stringified assets
-        form.setValue("assets", stringifyAssets(selectedAssets))
+        // Update the form value with the assets array directly
+        form.setValue("assets", selectedAssets)
     }, [selectedAssets, form, roundedTotalAllocation])
 
     // Handle asset input
@@ -235,7 +246,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
             const newAssets = [...selectedAssets, { symbol: assetInput, allocation: assetAllocation }]
 
             setSelectedAssets(newAssets)
-            form.setValue("assets", stringifyAssets(newAssets))
+            form.setValue("assets", newAssets)
             setAssetInput("")
             setAssetAllocation(Math.min(10, roundToTwoDecimals(100 - newTotalAllocation))) // Default to 10% or remaining allocation
         }
@@ -244,7 +255,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
     const handleRemoveAsset = (assetSymbol: string) => {
         const newAssets = selectedAssets.filter((a) => a.symbol !== assetSymbol)
         setSelectedAssets(newAssets)
-        form.setValue("assets", stringifyAssets(newAssets))
+        form.setValue("assets", newAssets)
     }
 
     const handleUpdateAssetAllocation = (assetSymbol: string, newAllocation: number) => {
@@ -265,7 +276,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         )
 
         setSelectedAssets(newAssets)
-        form.setValue("assets", stringifyAssets(newAssets))
+        form.setValue("assets", newAssets)
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -307,7 +318,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         }
 
         setSelectedAssets(newAssets)
-        form.setValue("assets", stringifyAssets(newAssets))
+        form.setValue("assets", newAssets)
     }
 
     // Improved Balance Equally function
@@ -339,7 +350,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         }
 
         setSelectedAssets(newAssets)
-        form.setValue("assets", stringifyAssets(newAssets))
+        form.setValue("assets", newAssets)
     }
 
     // Update handleAddParameter to work with Map
@@ -739,10 +750,9 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
                                     <FormField
                                         control={form.control}
                                         name="assets"
-                                        render={({ field }) => (
+                                        render={() => (
                                             <FormItem>
                                                 {renderAssetsTab()}
-                                                <input type="hidden" {...field} />
                                                 <FormMessage />
                                             </FormItem>
                                         )}

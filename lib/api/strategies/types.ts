@@ -13,6 +13,12 @@ export interface Strategy {
     parameters?: Record<string, any>
 }
 
+// Define an interface for asset with allocation
+export interface AssetWithAllocation {
+    symbol: string
+    allocation: number
+}
+
 export interface StrategyFormValues {
     name: string
     description: string
@@ -20,7 +26,7 @@ export interface StrategyFormValues {
     risk: "low" | "medium" | "high"
     allocation: number
     timeframe: string
-    assets: string
+    assets: AssetWithAllocation[]
     status?: "active" | "paused"
     parameters?: Record<string, any>
 }

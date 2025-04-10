@@ -16,7 +16,17 @@ export interface Strategy {
 // Define an interface for asset with allocation
 export interface AssetWithAllocation {
     symbol: string
-    allocation: number
+    weight: number
+    direction: string
+    exchange: string
+}
+
+export interface AssetAllocationData {
+
+    symbol: string
+    direction: "long" | "short" | "both"
+    weight: number
+
 }
 
 export interface StrategyFormValues {

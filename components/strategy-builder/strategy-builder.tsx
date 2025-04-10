@@ -1,14 +1,19 @@
+// StrategyBuilderWizard.tsx
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { JSX, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, ArrowLeftIcon, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Card, CardContent, CardFooter, CardHeader, CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 import StrategyTypeSelector from "./strategy-type-selector"
 import StrategyParameters from "./strategy-parameters"
@@ -17,20 +22,85 @@ import RiskManagement from "./risk-management"
 import { SidebarInset, SidebarProvider } from "../ui/sidebar"
 import { AppSidebar } from "../layout/app-sidebar"
 import { SiteHeader } from "../layout/site-header"
+import { AssetData } from "@/lib/types"
+import { AssetAllocationData } from "@/lib/api/strategies"
 
-/* ─── constants ───────────────────────────────────────────────────────────── */
-const steps = ["type", "general", "assets", "risk"] as const
-const labels: Record<(typeof steps)[number], string> = {
+const steps = ["type", "parameters", "assets", "risk"] as const
+const labels = {
     type: "Strategy Type",
-    general: "General",
+    parameters: "Parameters",
     assets: "Assets",
     risk: "Risk",
-}
-type StrategyType = Parameters<typeof StrategyTypeSelector>[0]["value"]
+} as const
 
-/* timeline dot */
-function Dot({ active, done }: { active: boolean; done: boolean }) {
-    return (
+type StrategyType = Parameters<typeof StrategyTypeSelector>[0]["value"]
+type ParametersData = { slow_period: number, fast_period: number }
+type RiskData = { maxDrawdown: number }
+
+async function saveStep(id: string | null, step: string, data: any): Promise<string | null> {
+    const url = id ? `/api/strategies/draft/${id}/${step}` : `/api/strategies/draft/${step}`
+    const method = id ? "PUT" : "POST"
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        })
+        if (!res.ok) throw new Error()
+        const resData = await res.json()
+        toast.success("Step saved ✔")
+        return id ?? resData.id ?? null
+    } catch {
+        toast.error("Save failed")
+        return id
+    }
+}
+
+export default function StrategyBuilderWizard() {
+    const router = useRouter()
+    const [stepIdx, setStepIdx] = useState(0)
+    const [saving, setSaving] = useState(false)
+    const [draftId, setDraftId] = useState<string | null>(null)
+
+    const [name, setName] = useState("")
+    const [type, setType] = useState<StrategyType>("mean-reversion")
+    const [description, setDesc] = useState("")
+
+    const [paramData, setParamData] = useState<ParametersData>({ slow_period: 10, fast_period: 30 })
+    const [assetData, setAssetData] = useState<AssetAllocationData[]>([])
+    const [riskData, setRiskData] = useState<RiskData>({ maxDrawdown: 10 })
+
+    const nameDescValid = name.trim() && description.trim()
+
+    const totalWeight = assetData.reduce((sum, a) => sum + Number(a.weight), 0)
+    const allocationValid = totalWeight === 100
+
+    const saveAndNext = async () => {
+        setSaving(true)
+        const stepName = steps[stepIdx]
+        let payload: any = {}
+        if (stepName === "type") payload = { name, type, description }
+        if (stepName === "parameters") payload = paramData
+        if (stepName === "assets") payload = assetData
+        if (stepName === "risk") payload = riskData
+        const id = await saveStep(draftId, stepName, payload)
+        if (!draftId && id) setDraftId(id)
+        setSaving(false)
+        setStepIdx(i => Math.min(i + 1, steps.length - 1))
+    }
+
+    const finish = async () => {
+        setSaving(true)
+        const id = await saveStep(draftId, "risk", riskData)
+        if (!draftId && id) setDraftId(id)
+        setSaving(false)
+        toast("Strategy saved to DB ✅")
+        router.push("/strategies")
+    }
+
+    const back = () => setStepIdx(i => Math.max(i - 1, 0))
+
+    const Dot = ({ active, done }: { active: boolean; done: boolean }) => (
         <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center
       ${done ? "bg-green-500 border-green-500 text-white"
                 : active ? "bg-blue-500 border-blue-500 text-white"
@@ -38,82 +108,62 @@ function Dot({ active, done }: { active: boolean; done: boolean }) {
             {done && <CheckCircle2 className="h-3 w-3" />}
         </div>
     )
-}
 
-/* ─── main wizard component ──────────────────────────────────────────────── */
-export default function StrategyBuilderWizard() {
-    const router = useRouter()
-    const [stepIdx, setStepIdx] = useState(0)
-    const [saving, setSaving] = useState(false)
-
-    /* header fields */
-    const [name, setName] = useState("")
-    const [type, setType] = useState<StrategyType>("mean-reversion")
-    const [description, setDesc] = useState("")
-
-    /* auto‑save draft mock */
-    useEffect(() => {
-        const draft = { name, type, description, stepIdx }
-        localStorage.setItem("strategy-draft", JSON.stringify(draft))
-        toast.success("Draft saved ✨")
-    }, [stepIdx, type])
-
-    const next = () => setStepIdx(i => Math.min(i + 1, steps.length - 1))
-    const back = () => setStepIdx(i => Math.max(i - 1, 0))
-    const finish = () => {
-        setSaving(true)
-        setTimeout(() => {
-            setSaving(false)
-            toast("Saved to DB ✅")
-            router.push("/strategies")
-        }, 1000)
-    }
-
-    /* cards per step */
-    const cards: Record<(typeof steps)[number], JSX.Element> = {
+    const cards = {
         type: (
             <Card className="max-w-3xl">
                 <CardHeader><CardTitle>Select Strategy Type</CardTitle></CardHeader>
                 <CardContent><StrategyTypeSelector value={type} onChange={setType} /></CardContent>
                 <CardFooter className="justify-end">
-                    <Button onClick={next} disabled={!type}>Next</Button>
+                    <Button onClick={saveAndNext} disabled={!type || !nameDescValid || saving}>
+                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
+                    </Button>
                 </CardFooter>
             </Card>
         ),
-        general: (
+        parameters: (
             <Card className="max-w-3xl">
-                <CardHeader><CardTitle>General</CardTitle></CardHeader>
-                <CardContent><StrategyParameters strategyType={type} /></CardContent>
+                <CardHeader><CardTitle>Parameters</CardTitle></CardHeader>
+                <CardContent>
+                    <StrategyParameters strategyType={type} onChange={setParamData} data={paramData} />
+                </CardContent>
                 <CardFooter className="justify-between">
                     <Button variant="outline" onClick={back}>Back</Button>
-                    <Button onClick={next}>Next</Button>
+                    <Button onClick={saveAndNext} disabled={saving}>
+                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
+                    </Button>
                 </CardFooter>
             </Card>
         ),
         assets: (
             <Card className="max-w-3xl">
                 <CardHeader><CardTitle>Assets</CardTitle></CardHeader>
-                <CardContent><AssetConfiguration strategyType={type} /></CardContent>
+                <CardContent>
+                    <AssetConfiguration strategyType={type} onChange={setAssetData} data={assetData} />
+                </CardContent>
                 <CardFooter className="justify-between">
                     <Button variant="outline" onClick={back}>Back</Button>
-                    <Button onClick={next}>Next</Button>
+                    <Button onClick={saveAndNext} disabled={!allocationValid || saving}>
+                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
+                    </Button>
                 </CardFooter>
             </Card>
         ),
         risk: (
             <Card className="max-w-3xl">
                 <CardHeader><CardTitle>Risk</CardTitle></CardHeader>
-                <CardContent><RiskManagement /></CardContent>
+                <CardContent>
+                    <RiskManagement onChange={setRiskData} data={riskData} />
+                </CardContent>
                 <CardFooter className="justify-between">
                     <Button variant="outline" onClick={back}>Back</Button>
                     <Button onClick={finish} disabled={saving}>
-                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                        Finish
+                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Finish
                     </Button>
                 </CardFooter>
             </Card>
-        ),
-    }
+        )
+    } as Record<(typeof steps)[number], JSX.Element>
 
     return (
         <SidebarProvider>
@@ -121,15 +171,12 @@ export default function StrategyBuilderWizard() {
             <SidebarInset>
                 <SiteHeader />
                 <div className="max-w-6xl mx-auto py-6 space-y-8">
-                    {/* header */}
                     <div className="flex items-center gap-3 mb-6">
                         <Button variant="outline" size="icon" onClick={() => router.back()}>
                             <ArrowLeftIcon className="h-4 w-4" />
                         </Button>
                         <h1 className="text-3xl font-bold tracking-tight">Strategy Builder</h1>
                     </div>
-
-                    {/* name & description */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mb-6">
                         <div className="space-y-1">
                             <Label>Name</Label>
@@ -137,11 +184,9 @@ export default function StrategyBuilderWizard() {
                         </div>
                         <div className="space-y-1">
                             <Label>Description</Label>
-                            <Input value={description} onChange={e => setDesc(e.target.value)} />
+                            <Textarea value={description} onChange={e => setDesc(e.target.value)} />
                         </div>
                     </div>
-
-                    {/* horizontal stepper */}
                     <div className="flex items-center gap-4 mb-8">
                         {steps.map((s, i) => (
                             <div key={s} className="flex items-center gap-2 cursor-pointer"
@@ -154,11 +199,9 @@ export default function StrategyBuilderWizard() {
                             </div>
                         ))}
                     </div>
-
-                    {/* current step card */}
                     {cards[steps[stepIdx]]}
                 </div>
-            </SidebarInset >
-        </SidebarProvider >
+            </SidebarInset>
+        </SidebarProvider>
     )
 }

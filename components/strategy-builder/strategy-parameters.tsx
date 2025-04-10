@@ -14,8 +14,14 @@ interface StrategyParametersProps {
     strategyType: string
 }
 
-export default function StrategyParameters({ strategyType }: StrategyParametersProps) {
-    const [useDefaultParams, setUseDefaultParams] = useState(true)
+type Props = {
+    strategyType: string
+    data: { slow_period: number; fast_period: number }
+    onChange: (data: { slow_period: number; fast_period: number }) => void
+}
+
+export default function StrategyParameters({ strategyType, data, onChange }: Props) {
+    // const [useDefaultParams, setUseDefaultParams] = useState(true)
 
     // Strategy templates for each type
     const strategyTemplates = {
@@ -49,7 +55,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
 
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">Strategy Parameters</h3>
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                     <Select
                         value={selectedTemplate}
                         onValueChange={(value) => {
@@ -98,7 +104,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                         </Label>
                         <Switch id="use-defaults" checked={useDefaultParams} onCheckedChange={setUseDefaultParams} />
                     </div>
-                </div>
+                </div> */}
             </div>
 
             {strategyType === "mean-reversion" && (
@@ -106,7 +112,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <div className="flex items-center">
-                                <Label htmlFor="lookback-period">Lookback Period</Label>
+                                <Label htmlFor="slow-period">Slow Period</Label>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -119,17 +125,17 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                 </TooltipProvider>
                             </div>
                             <Input
-                                id="lookback-period"
+                                id="slow-period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "20" : ""}
+                                defaultValue={data.slow_period}
                                 placeholder="20"
-                                disabled={useDefaultParams}
+                                onChange={(e) => onChange({ ...data, slow_period: Number(e.target.value) })}
                             />
                         </div>
 
                         <div className="space-y-2">
                             <div className="flex items-center">
-                                <Label htmlFor="std-dev">Standard Deviation Threshold</Label>
+                                <Label htmlFor="fast-period">Fast Period</Label>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -137,19 +143,19 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <p className="w-[200px] text-xs">
-                                                Number of standard deviations from the mean to trigger a trade
+                                                Number of periods to calculate the mean price
                                             </p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                             </div>
                             <Input
-                                id="std-dev"
+                                id="fast-period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "2" : ""}
+                                defaultValue={data.fast_period}
                                 step="0.1"
                                 placeholder="2"
-                                disabled={useDefaultParams}
+                                onChange={(e) => onChange({ ...data, fast_period: Number(e.target.value) })}
                             />
                         </div>
                     </div>
@@ -157,7 +163,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="mean-type">Mean Type</Label>
-                            <Select defaultValue={useDefaultParams ? "sma" : ""} disabled={useDefaultParams}>
+                            <Select defaultValue={"sma"} >
                                 <SelectTrigger id="mean-type">
                                     <SelectValue placeholder="Select mean type" />
                                 </SelectTrigger>
@@ -171,7 +177,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
 
                         <div className="space-y-2">
                             <Label htmlFor="timeframe">Timeframe</Label>
-                            <Select defaultValue={useDefaultParams ? "1h" : ""} disabled={useDefaultParams}>
+                            <Select defaultValue={"1h"}>
                                 <SelectTrigger id="timeframe">
                                     <SelectValue placeholder="Select timeframe" />
                                 </SelectTrigger>
@@ -197,9 +203,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Input
                                                 id="entry-threshold"
                                                 type="number"
-                                                defaultValue={useDefaultParams ? "1.5" : ""}
+                                                defaultValue={"1.5"}
                                                 step="0.1"
-                                                disabled={useDefaultParams}
                                             />
                                         </div>
 
@@ -208,9 +213,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Input
                                                 id="exit-threshold"
                                                 type="number"
-                                                defaultValue={useDefaultParams ? "0.5" : ""}
+                                                defaultValue={"0.5"}
                                                 step="0.1"
-                                                disabled={useDefaultParams}
                                             />
                                         </div>
                                     </div>
@@ -220,8 +224,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Label htmlFor="use-volume-filter">Use Volume Filter</Label>
                                             <Switch
                                                 id="use-volume-filter"
-                                                defaultChecked={useDefaultParams ? true : false}
-                                                disabled={useDefaultParams}
+                                                defaultChecked={true}
                                             />
                                         </div>
                                     </div>
@@ -240,9 +243,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "20" : ""}
+                                defaultValue={"20"}
                                 placeholder="20"
-                                disabled={useDefaultParams}
                             />
                         </div>
 
@@ -251,10 +253,9 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="breakout-threshold"
                                 type="number"
-                                defaultValue={useDefaultParams ? "2" : ""}
+                                defaultValue={"2"}
                                 step="0.1"
                                 placeholder="2"
-                                disabled={useDefaultParams}
                             />
                         </div>
                     </div>
@@ -265,15 +266,14 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="confirmation-candles"
                                 type="number"
-                                defaultValue={useDefaultParams ? "2" : ""}
+                                defaultValue={"2"}
                                 placeholder="2"
-                                disabled={useDefaultParams}
                             />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="timeframe">Timeframe</Label>
-                            <Select defaultValue={useDefaultParams ? "4h" : ""} disabled={useDefaultParams}>
+                            <Select defaultValue={"4h"}>
                                 <SelectTrigger id="timeframe">
                                     <SelectValue placeholder="Select timeframe" />
                                 </SelectTrigger>
@@ -299,8 +299,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Input
                                                 id="volume-increase"
                                                 type="number"
-                                                defaultValue={useDefaultParams ? "50" : ""}
-                                                disabled={useDefaultParams}
+                                                defaultValue={"50"}
                                             />
                                         </div>
 
@@ -309,8 +308,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Input
                                                 id="consolidation-period"
                                                 type="number"
-                                                defaultValue={useDefaultParams ? "5" : ""}
-                                                disabled={useDefaultParams}
+                                                defaultValue={"5"}
                                             />
                                         </div>
                                     </div>
@@ -320,8 +318,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Label htmlFor="use-atr">Use ATR for Breakout Calculation</Label>
                                             <Switch
                                                 id="use-atr"
-                                                defaultChecked={useDefaultParams ? true : false}
-                                                disabled={useDefaultParams}
+                                                defaultChecked={true}
                                             />
                                         </div>
                                     </div>
@@ -340,15 +337,14 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="rsi-period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "14" : ""}
+                                defaultValue={"14"}
                                 placeholder="14"
-                                disabled={useDefaultParams}
                             />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="timeframe">Timeframe</Label>
-                            <Select defaultValue={useDefaultParams ? "1h" : ""} disabled={useDefaultParams}>
+                            <Select defaultValue={"1h"}>
                                 <SelectTrigger id="timeframe">
                                     <SelectValue placeholder="Select timeframe" />
                                 </SelectTrigger>
@@ -371,9 +367,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                 <Input
                                     id="oversold"
                                     type="number"
-                                    defaultValue={useDefaultParams ? "30" : ""}
+                                    defaultValue={"30"}
                                     placeholder="30"
-                                    disabled={useDefaultParams}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -381,9 +376,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                 <Input
                                     id="overbought"
                                     type="number"
-                                    defaultValue={useDefaultParams ? "70" : ""}
+                                    defaultValue={"70"}
                                     placeholder="70"
-                                    disabled={useDefaultParams}
                                 />
                             </div>
                         </div>
@@ -399,8 +393,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                         <Input
                                             id="signal-confirmation"
                                             type="number"
-                                            defaultValue={useDefaultParams ? "2" : ""}
-                                            disabled={useDefaultParams}
+                                            defaultValue={"2"}
                                         />
                                     </div>
 
@@ -409,8 +402,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Label htmlFor="use-divergence">Use RSI Divergence</Label>
                                             <Switch
                                                 id="use-divergence"
-                                                defaultChecked={useDefaultParams ? true : false}
-                                                disabled={useDefaultParams}
+                                                defaultChecked={true}
                                             />
                                         </div>
                                     </div>
@@ -420,8 +412,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Label htmlFor="use-ma-filter">Use Moving Average Filter</Label>
                                             <Switch
                                                 id="use-ma-filter"
-                                                defaultChecked={useDefaultParams ? false : false}
-                                                disabled={useDefaultParams}
+                                                defaultChecked={false}
                                             />
                                         </div>
                                     </div>
@@ -440,9 +431,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="fast-period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "12" : ""}
+                                defaultValue={"12"}
                                 placeholder="12"
-                                disabled={useDefaultParams}
                             />
                         </div>
 
@@ -451,9 +441,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="slow-period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "26" : ""}
+                                defaultValue={"26"}
                                 placeholder="26"
-                                disabled={useDefaultParams}
                             />
                         </div>
 
@@ -462,9 +451,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                             <Input
                                 id="signal-period"
                                 type="number"
-                                defaultValue={useDefaultParams ? "9" : ""}
+                                defaultValue={"9"}
                                 placeholder="9"
-                                disabled={useDefaultParams}
                             />
                         </div>
                     </div>
@@ -472,7 +460,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="timeframe">Timeframe</Label>
-                            <Select defaultValue={useDefaultParams ? "4h" : ""} disabled={useDefaultParams}>
+                            <Select defaultValue={"4h"}>
                                 <SelectTrigger id="timeframe">
                                     <SelectValue placeholder="Select timeframe" />
                                 </SelectTrigger>
@@ -488,7 +476,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
 
                         <div className="space-y-2">
                             <Label htmlFor="source">Price Source</Label>
-                            <Select defaultValue={useDefaultParams ? "close" : ""} disabled={useDefaultParams}>
+                            <Select defaultValue={"close"}>
                                 <SelectTrigger id="source">
                                     <SelectValue placeholder="Select price source" />
                                 </SelectTrigger>
@@ -515,8 +503,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Label htmlFor="use-histogram">Use Histogram for Signals</Label>
                                             <Switch
                                                 id="use-histogram"
-                                                defaultChecked={useDefaultParams ? true : false}
-                                                disabled={useDefaultParams}
+                                                defaultChecked={true}
                                             />
                                         </div>
                                     </div>
@@ -526,9 +513,8 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                         <Input
                                             id="histogram-threshold"
                                             type="number"
-                                            defaultValue={useDefaultParams ? "0.001" : ""}
+                                            defaultValue={"0.001"}
                                             step="0.001"
-                                            disabled={useDefaultParams}
                                         />
                                     </div>
 
@@ -537,8 +523,7 @@ export default function StrategyParameters({ strategyType }: StrategyParametersP
                                             <Label htmlFor="use-zero-cross">Use Zero Line Crossover</Label>
                                             <Switch
                                                 id="use-zero-cross"
-                                                defaultChecked={useDefaultParams ? false : false}
-                                                disabled={useDefaultParams}
+                                                defaultChecked={false}
                                             />
                                         </div>
                                     </div>

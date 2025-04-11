@@ -1,41 +1,60 @@
 export const algorithmOptions = [
     {
-        value: "moving_average",
-        label: "Moving Average Crossover",
+        value: "mean-reversion",
+        label: "Mean Reversionr",
+        desc: "Price returns to historical average",
+        icon: "Activity",
+        info: "Mean reversion strategy info",
         defaultParameters: {
-            smaFast: "10",
-            smaSlow: "50",
+            slowPeriod: "5",
+            fastPeriod: "2",
         },
+        defaultRisk: {
+            "maxDrawdown": 15
+        }
     },
     {
-        value: "rsi",
-        label: "RSI Strategy",
+        value: "breakout",
+        label: "Breakout",
+        desc: "Price returns to historical average",
+        icon: "Activity",
+        info: "Mean reversion strategy info",
         defaultParameters: {
             rsiPeriod: "14",
             overbought: "70",
             oversold: "30",
         },
+        defaultRisk: {
+            "maxDrawdown": 15
+        }
     },
     {
         value: "macd",
         label: "MACD Strategy",
+        desc: "Price returns to historical average",
+        icon: "Activity",
+        info: "Mean reversion strategy info",
         defaultParameters: {
             fastPeriod: "12",
             slowPeriod: "26",
             signalPeriod: "9",
         },
+        defaultRisk: {
+            "maxDrawdown": 15
+        }
     },
     {
         value: "bollinger",
         label: "Bollinger Bands",
+        desc: "Price returns to historical average",
+        icon: "Activity",
+        info: "Mean reversion strategy info",
         defaultParameters: {
             period: "20",
             stdDev: "2",
         },
-    },
-    {
-        value: "custom",
-        label: "Custom Algorithm",
-        defaultParameters: {},
-    },
+        defaultRisk: {
+            "maxDrawdown": 15
+        }
+    }
 ]

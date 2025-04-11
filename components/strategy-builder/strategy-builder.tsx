@@ -2,7 +2,7 @@
 
 "use client"
 
-import { JSX, useState } from "react"
+import { JSX, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, ArrowLeftIcon, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -24,6 +24,7 @@ import { AppSidebar } from "../layout/app-sidebar"
 import { SiteHeader } from "../layout/site-header"
 import { AssetData } from "@/lib/types"
 import { AssetAllocationData } from "@/lib/api/strategies"
+import { AlgorithmOption, fetchAlgorithms } from "@/lib/api/algorithms"
 
 const steps = ["type", "parameters", "assets", "risk"] as const
 const labels = {
@@ -34,7 +35,7 @@ const labels = {
 } as const
 
 type StrategyType = Parameters<typeof StrategyTypeSelector>[0]["value"]
-type ParametersData = { slow_period: number, fast_period: number }
+type ParametersData = Record<string, any>
 type RiskData = { maxDrawdown: number }
 
 async function saveStep(id: string | null, step: string, data: any): Promise<string | null> {
@@ -66,14 +67,36 @@ export default function StrategyBuilderWizard() {
     const [type, setType] = useState<StrategyType>("mean-reversion")
     const [description, setDesc] = useState("")
 
-    const [paramData, setParamData] = useState<ParametersData>({ slow_period: 10, fast_period: 30 })
+    const [paramData, setParamData] = useState<Record<string, any>>(null)
     const [assetData, setAssetData] = useState<AssetAllocationData[]>([])
-    const [riskData, setRiskData] = useState<RiskData>({ maxDrawdown: 10 })
+    const [riskData, setRiskData] = useState<Record<string, any>>(null)
+
+    const [strategyTypes, setStrategyTypes] = useState<AlgorithmOption[]>([])
 
     const nameDescValid = name.trim() && description.trim()
 
     const totalWeight = assetData.reduce((sum, a) => sum + Number(a.weight), 0)
     const allocationValid = totalWeight === 100
+
+
+    useEffect(() => {
+        const laodStrategyTypes = async () => {
+            const strategyTypes = await fetchAlgorithms();
+            setStrategyTypes(strategyTypes)
+        }
+        laodStrategyTypes()
+    }, [])
+
+
+    useEffect(() => {
+        if (!type || strategyTypes.length === 0) return
+        const selected = strategyTypes.find((s) => s.value === type)
+        if (selected) {
+            setParamData(selected.defaultParameters ?? {})
+            setRiskData(selected.defaultRisk ?? {})
+        }
+    }, [type, strategyTypes])
+
 
     const saveAndNext = async () => {
         setSaving(true)
@@ -113,7 +136,7 @@ export default function StrategyBuilderWizard() {
         type: (
             <Card className="max-w-3xl">
                 <CardHeader><CardTitle>Select Strategy Type</CardTitle></CardHeader>
-                <CardContent><StrategyTypeSelector value={type} onChange={setType} /></CardContent>
+                <CardContent><StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} /></CardContent>
                 <CardFooter className="justify-end">
                     <Button onClick={saveAndNext} disabled={!type || !nameDescValid || saving}>
                         {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
@@ -139,7 +162,7 @@ export default function StrategyBuilderWizard() {
             <Card className="max-w-3xl">
                 <CardHeader><CardTitle>Assets</CardTitle></CardHeader>
                 <CardContent>
-                    <AssetConfiguration strategyType={type} onChange={setAssetData} data={assetData} />
+                    <AssetConfiguration onChange={setAssetData} data={assetData} />
                 </CardContent>
                 <CardFooter className="justify-between">
                     <Button variant="outline" onClick={back}>Back</Button>

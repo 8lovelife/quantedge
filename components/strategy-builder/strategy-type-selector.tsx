@@ -1,7 +1,7 @@
 // strategy-type-selector.tsx – restore Custom dialog content + working Cancel
 "use client"
 
-import React, { memo, useState } from "react"
+import React, { JSX, memo, useEffect, useState } from "react"
 import {
     RadioGroup,
     RadioGroupItem,
@@ -22,6 +22,9 @@ import {
     Activity,
     Info,
     Plus,
+    Signal,
+    Zap,
+    BarChart3,
 } from "lucide-react"
 import {
     Dialog,
@@ -34,6 +37,8 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { string } from "zod"
+import { AlgorithmOption } from "@/lib/api/algorithms"
 
 type StrategyType = "mean-reversion" | "breakout" | "rsi" | "macd" | "custom"
 
@@ -41,8 +46,7 @@ interface Strategy {
     id: StrategyType
     title: string
     desc: string
-    icon: React.ReactNode
-    info: React.ReactNode
+    info: string
 }
 
 /* built‑in strategies */
@@ -51,36 +55,36 @@ const STRATEGIES: Strategy[] = [
         id: "mean-reversion",
         title: "Mean Reversion",
         desc: "Price returns to historical average",
-        icon: <ArrowDownUp className="h-5 w-5" />,
-        info: (
-            <p>
-                Mean‑reversion trades deviations from a moving average and expects a
-                snap‑back to the mean.
-            </p>
-        ),
+        info: "Mean‑reversion trades deviations from a moving average and expects a snap‑back to the mean."
     },
     {
         id: "breakout",
         title: "Breakout",
         desc: "Breaks support / resistance",
-        icon: <TrendingUp className="h-5 w-5" />,
-        info: <p>Breakout strategy details…</p>,
+        info: "Breakout strategy details...",
     },
     {
         id: "rsi",
         title: "RSI",
         desc: "Relative Strength Index",
-        icon: <Activity className="h-5 w-5" />,
-        info: <p>RSI strategy details…</p>,
+        info: "RSI strategy details…",
     },
     {
         id: "macd",
         title: "MACD",
         desc: "MA Convergence Divergence",
-        icon: <LineChart className="h-5 w-5" />,
-        info: <p>MACD strategy details…</p>,
+        info: "MACD strategy details…",
     },
 ]
+
+const strategyIconMap: Record<string, JSX.Element> = {
+    "mean-reversion": <ArrowDownUp className="h-5 w-5" />,
+    "breakout": <TrendingUp className="h-5 w-5" />,
+    "rsi": <Activity className="h-5 w-5" />,
+    "macd": <LineChart className="h-5 w-5" />,
+    "momentum": <Signal className="h-5 w-5" />,
+    "custom": <Zap className="h-5 w-5" />,
+}
 
 /* memoized card */
 const StrategyCard = memo(function StrategyCard({
@@ -89,20 +93,23 @@ const StrategyCard = memo(function StrategyCard({
     onSelect,
     onInfo,
 }: {
-    s: Strategy
+    s: AlgorithmOption
     selected: boolean
-    onSelect: (id: StrategyType) => void
+    onSelect: (id: string) => void
     onInfo: () => void
 }) {
+
+    const icon = strategyIconMap[s.value] || <BarChart3 className="h-5 w-5" /> // fallback icon
+
     return (
         <div
-            onClick={() => onSelect(s.id)}
+            onClick={() => onSelect(s.value)}
             className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition ${selected ? "border-primary bg-primary/5" : "border-input"
                 }`}
         >
-            {s.icon}
+            {icon}
             <div className="flex-1">
-                <Label className="font-medium">{s.title}</Label>
+                <Label className="font-medium">{s.label}</Label>
                 <p className="text-xs text-muted-foreground">{s.desc}</p>
             </div>
             <Button
@@ -123,34 +130,45 @@ const StrategyCard = memo(function StrategyCard({
 export default function StrategyTypeSelector({
     value,
     onChange,
+    strategies,
 }: {
-    value: StrategyType
-    onChange: (v: StrategyType) => void
+    value: string
+    onChange: (v: string) => void
+    strategies: AlgorithmOption[]
 }) {
-    /* info dialog */
-    const [infoOpen, setInfoOpen] = useState(false)
-    const [infoId, setInfoId] = useState<StrategyType>("mean-reversion")
-    const currentInfo = STRATEGIES.find((s) => s.id === infoId)!
 
     /* custom dialog */
     const [customOpen, setCustomOpen] = useState(false)
+    /* info dialog */
+    const [infoOpen, setInfoOpen] = useState(false)
+    const [infoId, setInfoId] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (strategies.length > 0 && !infoId) {
+            setInfoId(strategies[0].value) // use the first strategy as default
+        }
+    }, [strategies, infoId])
+
+
+    const currentInfo = strategies.find((s) => s.value === infoId)!
+
 
     return (
         <>
             <RadioGroup
                 value={value}
-                onValueChange={(v) => onChange(v as StrategyType)}
+                onValueChange={(v) => onChange(v)}
                 className="grid gap-3"
             >
                 {/* built‑in */}
-                {STRATEGIES.map((s) => (
+                {strategies.map((s) => (
                     <StrategyCard
-                        key={s.id}
+                        key={s.value}
                         s={s}
-                        selected={value === s.id}
+                        selected={value === s.value}
                         onSelect={onChange}
                         onInfo={() => {
-                            setInfoId(s.id)
+                            setInfoId(s.value)
                             setInfoOpen(true)
                         }}
                     />
@@ -236,28 +254,33 @@ export default function StrategyTypeSelector({
             </RadioGroup>
 
             {/* info dialog */}
-            {/* <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>{currentInfo.title} Strategy</DialogTitle>
-                        <DialogDescription>{currentInfo.desc}</DialogDescription>
-                    </DialogHeader>
-                    <CardContent className="space-y-4">{currentInfo.info}</CardContent>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setInfoOpen(false)}>
-                            Close
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                onChange(currentInfo.id)
-                                setInfoOpen(false)
-                            }}
-                        >
-                            Select This Strategy
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog> */}
+
+            {currentInfo && (
+                <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>{currentInfo.label} Strategy</DialogTitle>
+                            <DialogDescription>{currentInfo.desc}</DialogDescription>
+                        </DialogHeader>
+                        <CardContent className="space-y-4">
+                            <p>{currentInfo.info}</p>
+                        </CardContent>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setInfoOpen(false)}>
+                                Close
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    onChange(currentInfo.value)
+                                    setInfoOpen(false)
+                                }}
+                            >
+                                Select This Strategy
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </>
     )
 }

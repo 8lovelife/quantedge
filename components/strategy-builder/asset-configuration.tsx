@@ -14,7 +14,6 @@ import { AssetAllocationData } from "@/lib/api/strategies"
 interface AssetConfigurationProps {
     data: AssetAllocationData[]
     onChange: (data: AssetAllocationData[]) => void
-    strategyType: string
 }
 
 export default function AssetConfiguration({ data, onChange }: AssetConfigurationProps) {

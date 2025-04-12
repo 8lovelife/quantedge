@@ -30,6 +30,7 @@ import { toast } from "sonner"
 import { fetchStrategyDetails, StrategyDetail } from "@/lib/api/strategies"
 import { Pie, ResponsiveContainer, Tooltip } from "recharts"
 import { StrategyAssetsCard } from "./strategy-assets"
+import { Skeleton } from "../ui/skeleton"
 
 // Replace the single mockStrategy with a function that returns different mock data based on ID
 
@@ -296,7 +297,38 @@ export default function StrategyDetails({ id }: { id: number }) {
         }
     }
 
-    if (!strategy) return <div>Loading...</div>
+    if (isLoading || !strategy) {
+        return (
+            <main className="flex-1 space-y-4 p-4 md:p-6">
+                <div className="flex items-center space-x-4">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-6 w-48" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[...Array(4)].map((_, i) => (
+                        <Card key={i}>
+                            <CardHeader>
+                                <CardTitle>
+                                    <Skeleton className="h-6 w-32" />
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[...Array(4)].map((_, j) => (
+                                        <Skeleton key={j} className="h-14 w-full rounded-md" />
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </main>
+        )
+    }
 
     const pieData = strategy.configuration.assets.map((asset: any) => ({
         name: `${asset.symbol} (${asset.direction})`,

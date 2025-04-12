@@ -49,3 +49,18 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   }
 }
 
+
+export async function GET(request: Request, { params }: { params: { id: number } }) {
+  try {
+    const id = (await params).id
+    const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/details?id=${id}`)
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    const data = await response.json();
+    console.log("Data:", data)
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Error updating strategy:", error)
+    return NextResponse.json({ success: false, error: "Failed to update strategy" }, { status: 500 })
+  }
+}
+

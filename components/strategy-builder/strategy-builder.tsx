@@ -23,7 +23,7 @@ import { SidebarInset, SidebarProvider } from "../ui/sidebar"
 import { AppSidebar } from "../layout/app-sidebar"
 import { SiteHeader } from "../layout/site-header"
 import { AssetData } from "@/lib/types"
-import { AssetAllocationData } from "@/lib/api/strategies"
+import { AssetAllocationData, saveStep } from "@/lib/api/strategies"
 import { AlgorithmOption, fetchAlgorithms } from "@/lib/api/algorithms"
 
 const steps = ["type", "parameters", "assets", "risk"] as const
@@ -38,24 +38,6 @@ type StrategyType = Parameters<typeof StrategyTypeSelector>[0]["value"]
 type ParametersData = Record<string, any>
 type RiskData = { maxDrawdown: number }
 
-async function saveStep(id: string | null, step: string, data: any): Promise<string | null> {
-    const url = id ? `/api/strategies/draft/${id}/${step}` : `/api/strategies/draft/${step}`
-    const method = id ? "PUT" : "POST"
-    try {
-        const res = await fetch(url, {
-            method,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-        })
-        if (!res.ok) throw new Error()
-        const resData = await res.json()
-        toast.success("Step saved ✔")
-        return id ?? resData.id ?? null
-    } catch {
-        toast.error("Save failed")
-        return id
-    }
-}
 
 export default function StrategyBuilderWizard() {
     const router = useRouter()
@@ -118,7 +100,7 @@ export default function StrategyBuilderWizard() {
         if (!draftId && id) setDraftId(id)
         setSaving(false)
         toast("Strategy saved to DB ✅")
-        router.push("/strategies")
+        router.push(`/strategies/${id}`)
     }
 
     const back = () => setStepIdx(i => Math.max(i - 1, 0))

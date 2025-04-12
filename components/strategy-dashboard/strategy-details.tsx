@@ -24,8 +24,12 @@ import {
     FileEdit,
     ChevronRight,
     ArrowLeftIcon,
+    PieChart,
 } from "lucide-react"
 import { toast } from "sonner"
+import { fetchStrategyDetails, StrategyDetail } from "@/lib/api/strategies"
+import { Pie, ResponsiveContainer, Tooltip } from "recharts"
+import { StrategyAssetsCard } from "./strategy-assets"
 
 // Replace the single mockStrategy with a function that returns different mock data based on ID
 
@@ -51,328 +55,17 @@ function formatValue(key: string, value: unknown): string {
     return `${value}`
 }
 
-// Mock data for strategies based on ID
-function getMockStrategyById(id: number) {
-    // Draft strategy
-    if (id === 1) {
-        return {
-            id: 1,
-            name: "Mean Reversion BTC",
-            type: "Mean-Reversion",
-            status: "draft", // Strategy is in draft stage
-            created: "2023-06-15",
-            updated: "2023-06-15",
-            performance: null, // No performance data yet
-            description: "Basic mean reversion strategy for Bitcoin",
-            configuration: {
-                parameters: {
-                    lookbackPeriod: 20,
-                    deviationThreshold: 2.5,
-                    meanReversionStrength: 70,
-                },
-                assets: ["BTC/USDT"],
-                timeframe: "4h",
-                riskManagement: {
-                    positionSize: 3,
-                    maxPositions: 2,
-                    stopLoss: 2.5,
-                    takeProfit: 4,
-                    trailingStop: false,
-                },
-            },
-            trades: [], // No trades yet
-            logs: [], // No logs yet
-        }
-    }
-
-    // Backtested strategy
-    else if (id === 2) {
-        return {
-            id: 2,
-            name: "Momentum ETH",
-            type: "Momentum",
-            status: "backtest", // Strategy has been backtested
-            created: "2023-06-10",
-            updated: "2023-06-14",
-            performance: {
-                return: 18.5,
-                sharpe: 1.92,
-                drawdown: 12.3,
-                winRate: 68.4,
-                profitFactor: 2.3,
-                averageTrade: 1.2,
-                maxConsecutiveLosses: 3,
-            },
-            description: "Momentum strategy for Ethereum with RSI filter",
-            configuration: {
-                parameters: {
-                    rsiPeriod: 14,
-                    rsiLower: 30,
-                    rsiUpper: 70,
-                    momentumStrength: 65,
-                },
-                assets: ["ETH/USDT"],
-                timeframe: "1h",
-                riskManagement: {
-                    positionSize: 5,
-                    maxPositions: 3,
-                    stopLoss: 2,
-                    takeProfit: 5,
-                    trailingStop: false,
-                },
-            },
-            trades: [
-                {
-                    id: 1,
-                    date: "2023-06-14",
-                    type: "BUY",
-                    asset: "ETH/USDT",
-                    price: 1850.25,
-                    size: 0.5,
-                    pnl: 2.3,
-                    status: "CLOSED",
-                },
-                {
-                    id: 2,
-                    date: "2023-06-13",
-                    type: "SELL",
-                    asset: "ETH/USDT",
-                    price: 1820.75,
-                    size: 0.5,
-                    pnl: -1.2,
-                    status: "CLOSED",
-                },
-                {
-                    id: 3,
-                    date: "2023-06-12",
-                    type: "BUY",
-                    asset: "ETH/USDT",
-                    price: 1805.5,
-                    size: 0.5,
-                    pnl: 3.5,
-                    status: "CLOSED",
-                },
-            ],
-            logs: [
-                { timestamp: "2023-06-14T10:15:00Z", level: "INFO", message: "Backtest completed successfully" },
-                { timestamp: "2023-06-14T10:14:55Z", level: "INFO", message: "Processing trade #3" },
-                { timestamp: "2023-06-14T10:14:50Z", level: "INFO", message: "Processing trade #2" },
-                { timestamp: "2023-06-14T10:14:45Z", level: "INFO", message: "Processing trade #1" },
-                { timestamp: "2023-06-14T10:14:30Z", level: "INFO", message: "Starting backtest for ETH/USDT" },
-            ],
-        }
-    }
-
-    // Paper trading strategy
-    else if (id === 3) {
-        return {
-            id: 3,
-            name: "Breakout Multi-Asset",
-            type: "Breakout",
-            status: "paper", // Strategy is in paper trading mode
-            created: "2023-05-20",
-            updated: "2023-06-12",
-            performance: {
-                return: 24.7,
-                sharpe: 2.15,
-                drawdown: 8.7,
-                winRate: 72.1,
-                profitFactor: 2.8,
-                averageTrade: 1.5,
-                maxConsecutiveLosses: 2,
-            },
-            paperPerformance: {
-                // Additional paper trading performance data
-                currentReturn: 8.3,
-                openPositions: 2,
-                lastTradeTime: "2023-06-16T14:32:00Z",
-                runningTime: "3 days",
-            },
-            description: "Multi-asset breakout strategy with volume confirmation",
-            configuration: {
-                parameters: {
-                    breakoutPeriod: 20,
-                    volumeThreshold: 1.5,
-                    confirmationCandles: 2,
-                },
-                assets: ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
-                timeframe: "2h",
-                riskManagement: {
-                    positionSize: 4,
-                    maxPositions: 3,
-                    stopLoss: 3,
-                    takeProfit: 6,
-                    trailingStop: true,
-                },
-            },
-            trades: [
-                {
-                    id: 1,
-                    date: "2023-06-16",
-                    type: "BUY",
-                    asset: "BTC/USDT",
-                    price: 26750.5,
-                    size: 0.02,
-                    pnl: null,
-                    status: "OPEN",
-                },
-                {
-                    id: 2,
-                    date: "2023-06-15",
-                    type: "BUY",
-                    asset: "SOL/USDT",
-                    price: 15.75,
-                    size: 10,
-                    pnl: 3.2,
-                    status: "OPEN",
-                },
-                {
-                    id: 3,
-                    date: "2023-06-14",
-                    type: "SELL",
-                    asset: "ETH/USDT",
-                    price: 1740.25,
-                    size: 0.3,
-                    pnl: 2.1,
-                    status: "CLOSED",
-                },
-            ],
-            logs: [
-                { timestamp: "2023-06-16T14:32:00Z", level: "INFO", message: "Opened BTC/USDT long position at $26750.50" },
-                { timestamp: "2023-06-16T14:31:55Z", level: "INFO", message: "Breakout detected on BTC/USDT" },
-                { timestamp: "2023-06-15T09:15:30Z", level: "INFO", message: "Opened SOL/USDT long position at $15.75" },
-                { timestamp: "2023-06-14T16:22:10Z", level: "INFO", message: "Closed ETH/USDT position with 2.1% profit" },
-                { timestamp: "2023-06-13T10:00:00Z", level: "INFO", message: "Paper trading started" },
-            ],
-        }
-    }
-
-    // Live trading strategy
-    else if (id === 4) {
-        return {
-            id: 4,
-            name: "RSI Divergence",
-            type: "Custom",
-            status: "live", // Strategy is in live trading mode
-            created: "2023-04-05",
-            updated: "2023-06-01",
-            performance: {
-                return: 32.1,
-                sharpe: 2.43,
-                drawdown: 14.2,
-                winRate: 74.6,
-                profitFactor: 3.1,
-                averageTrade: 1.8,
-                maxConsecutiveLosses: 2,
-            },
-            livePerformance: {
-                // Additional live trading performance data
-                currentReturn: 15.7,
-                openPositions: 3,
-                lastTradeTime: "2023-06-16T15:45:00Z",
-                runningTime: "7 days",
-                totalTrades: 12,
-                profitableTrades: 9,
-            },
-            description: "RSI divergence strategy with multiple timeframe analysis",
-            configuration: {
-                parameters: {
-                    rsiPeriod: 14,
-                    divergenceThreshold: 10,
-                    confirmationPeriod: 3,
-                },
-                assets: ["BTC/USDT", "ETH/USDT", "ADA/USDT", "DOT/USDT"],
-                timeframe: "1h",
-                riskManagement: {
-                    positionSize: 5,
-                    maxPositions: 4,
-                    stopLoss: 2.5,
-                    takeProfit: 7.5,
-                    trailingStop: true,
-                },
-            },
-            trades: [
-                {
-                    id: 1,
-                    date: "2023-06-16",
-                    type: "BUY",
-                    asset: "DOT/USDT",
-                    price: 5.25,
-                    size: 50,
-                    pnl: 1.2,
-                    status: "OPEN",
-                },
-                {
-                    id: 2,
-                    date: "2023-06-15",
-                    type: "BUY",
-                    asset: "ADA/USDT",
-                    price: 0.28,
-                    size: 1000,
-                    pnl: 3.5,
-                    status: "OPEN",
-                },
-                {
-                    id: 3,
-                    date: "2023-06-14",
-                    type: "BUY",
-                    asset: "ETH/USDT",
-                    price: 1720.5,
-                    size: 0.5,
-                    pnl: 2.8,
-                    status: "OPEN",
-                },
-                {
-                    id: 4,
-                    date: "2023-06-13",
-                    type: "SELL",
-                    asset: "BTC/USDT",
-                    price: 25980.75,
-                    size: 0.05,
-                    pnl: 4.2,
-                    status: "CLOSED",
-                },
-            ],
-            logs: [
-                { timestamp: "2023-06-16T15:45:00Z", level: "INFO", message: "Opened DOT/USDT long position at $5.25" },
-                { timestamp: "2023-06-16T15:44:50Z", level: "INFO", message: "RSI divergence detected on DOT/USDT" },
-                { timestamp: "2023-06-15T12:30:15Z", level: "INFO", message: "Opened ADA/USDT long position at $0.28" },
-                { timestamp: "2023-06-14T09:15:30Z", level: "INFO", message: "Opened ETH/USDT long position at $1720.50" },
-                { timestamp: "2023-06-13T14:22:10Z", level: "INFO", message: "Closed BTC/USDT position with 4.2% profit" },
-                { timestamp: "2023-06-13T14:22:00Z", level: "WARNING", message: "Take profit triggered for BTC/USDT" },
-            ],
-            alerts: [{ type: "warning", message: "Approaching stop loss on ETH position" }],
-        }
-    }
-
-    // Default fallback strategy
-    else {
-        return {
-            id: id,
-            name: "Unknown Strategy",
-            type: "Custom",
-            status: "draft",
-            created: "2023-06-01",
-            updated: "2023-06-01",
-            performance: null,
-            description: "Strategy details not found",
-            configuration: {
-                parameters: {},
-                assets: [],
-                timeframe: "1h",
-                riskManagement: {
-                    positionSize: 5,
-                    maxPositions: 3,
-                    stopLoss: 2,
-                    takeProfit: 5,
-                    trailingStop: false,
-                },
-            },
-            trades: [],
-            logs: [],
-        }
+function getStatusColorClass(status: string) {
+    switch (status) {
+        case "live":
+            return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300"
+        case "paper":
+            return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-300"
+        default:
+            return "bg-muted"
     }
 }
+
 
 export default function StrategyDetails({ id }: { id: number }) {
     const router = useRouter()
@@ -380,11 +73,22 @@ export default function StrategyDetails({ id }: { id: number }) {
     const [strategy, setStrategy] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
 
-    // Replace the useEffect with:
     useEffect(() => {
-        // In a real app, you would fetch the strategy data from an API
-        // For now, we'll use our mock data function
-        setStrategy(getMockStrategyById(id))
+
+        const loadStrategyDetails = async () => {
+            try {
+                setIsLoading(true)
+                const response = await fetchStrategyDetails(id)
+                setStrategy(response)
+            } catch (err) {
+                console.error("Failed to fetch trading strategies:", err)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        loadStrategyDetails()
+
     }, [id])
 
     const handleEditStrategy = () => {
@@ -594,6 +298,11 @@ export default function StrategyDetails({ id }: { id: number }) {
 
     if (!strategy) return <div>Loading...</div>
 
+    const pieData = strategy.configuration.assets.map((asset: any) => ({
+        name: `${asset.symbol} (${asset.direction})`,
+        value: asset.weight,
+    }))
+
     return (
         <div className="flex items-center justify-between mb-6">
 
@@ -784,13 +493,13 @@ export default function StrategyDetails({ id }: { id: number }) {
                                         ))}
 
                                         {/* If timeframe is not in parameters, show it separately */}
-                                        {!("timeframe" in (strategy.configuration.parameters ?? {})) &&
+                                        {/* {!("timeframe" in (strategy.configuration.parameters ?? {})) &&
                                             strategy.configuration.timeframe && (
                                                 <div className="bg-muted/40 p-3 rounded-md">
                                                     <div className="text-xs text-muted-foreground">Timeframe</div>
                                                     <div className="font-medium">{strategy.configuration.timeframe}</div>
                                                 </div>
-                                            )}
+                                            )} */}
                                     </div>
                                 </div>
                             </div>
@@ -857,43 +566,8 @@ export default function StrategyDetails({ id }: { id: number }) {
                     </Card>
 
                     {/* Assets */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center gap-2">
-                                <Coins className="h-5 w-5" />
-                                Assets
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {strategy.configuration.assets.map((asset, index) => (
-                                    <div key={index} className="bg-muted/40 p-3 rounded-md flex justify-between items-center">
-                                        <div>
-                                            <div className="font-medium">{asset}</div>
-                                            <div className="text-xs text-muted-foreground">Trading Pair</div>
-                                        </div>
-                                        <Badge
-                                            variant="outline"
-                                            className={
-                                                strategy.status === "live"
-                                                    ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300"
-                                                    : strategy.status === "paper"
-                                                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-300"
-                                                        : "bg-muted"
-                                            }
-                                        >
-                                            {strategy.status === "live" ? "Live" : strategy.status === "paper" ? "Paper" : "Configured"}
-                                        </Badge>
-                                    </div>
-                                ))}
-                                {strategy.configuration.assets.length === 0 && (
-                                    <div className="text-center py-6 text-muted-foreground">
-                                        <p>No assets configured</p>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <StrategyAssetsCard strategy={strategy} />
+
 
                     {/* Live Performance */}
                     <Card>

@@ -53,3 +53,27 @@ export interface StrategyResponse {
     strategy: Strategy
 }
 
+
+export interface StrategyDetail {
+    id: number
+    name: string
+    type: string
+    status: "draft" | "backtest" | "paper" | "live"
+    created: string
+    updated: string
+    description: string
+    performance?: Record<string, any>
+    configuration?: {
+        parameters?: Record<string, any>
+        assets?: Record<string, any>[]
+        timeframe?: string
+        riskManagement?: Record<string, any>
+    }
+    trades?: any[]
+    logs?: {
+        timestamp: string
+        level: string
+        message: string
+    }[]
+}
+

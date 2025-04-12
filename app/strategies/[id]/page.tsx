@@ -5,30 +5,27 @@ import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SiteHeader } from "@/components/layout/site-header"
 
 // Update the getStrategyById function to return proper data
-function getStrategyById(id: string) {
+function getStrategyById(id: number) {
     // In a real app, this would fetch from an API or database
-    const strategyId = Number.parseInt(id)
-
     // Check if the ID is valid
-    if (isNaN(strategyId) || strategyId < 1 || strategyId > 4) {
+    if (isNaN(id) || id < 1 || id > 4) {
         return { exists: false }
     }
 
     return {
-        id: strategyId,
+        id: id,
         exists: true,
     }
 }
 
 export default function StrategyDetailsPage({ params }: { params: { id: string } }) {
     const strategyId = Number.parseInt(params.id)
-
     // Check if strategy exists
-    const strategy = getStrategyById(params.id)
+    // const strategy = getStrategyById(strategyId)
 
-    if (!strategy.exists) {
-        notFound()
-    }
+    // if (!strategy.exists) {
+    //     notFound()
+    // }
 
     return (
         <SidebarProvider>

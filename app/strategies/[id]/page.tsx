@@ -1,0 +1,42 @@
+import { notFound } from "next/navigation"
+import StrategyDetails from "@/components/strategy-dashboard/strategy-details"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/layout/app-sidebar"
+import { SiteHeader } from "@/components/layout/site-header"
+
+// Update the getStrategyById function to return proper data
+function getStrategyById(id: string) {
+    // In a real app, this would fetch from an API or database
+    const strategyId = Number.parseInt(id)
+
+    // Check if the ID is valid
+    if (isNaN(strategyId) || strategyId < 1 || strategyId > 4) {
+        return { exists: false }
+    }
+
+    return {
+        id: strategyId,
+        exists: true,
+    }
+}
+
+export default function StrategyDetailsPage({ params }: { params: { id: string } }) {
+    const strategyId = Number.parseInt(params.id)
+
+    // Check if strategy exists
+    const strategy = getStrategyById(params.id)
+
+    if (!strategy.exists) {
+        notFound()
+    }
+
+    return (
+        <SidebarProvider>
+            <AppSidebar variant="inset" />
+            <SidebarInset>
+                <SiteHeader />
+                <StrategyDetails id={strategyId} />
+            </SidebarInset>
+        </SidebarProvider >
+    )
+}

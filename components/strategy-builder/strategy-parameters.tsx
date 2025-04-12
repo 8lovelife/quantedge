@@ -83,7 +83,7 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="mean-type">Mean Type</Label>
-                            <Select value={data.mean_type ?? "sma"} onValueChange={(v) => handleChange("meanType", v)}>
+                            <Select value={data.meanType} onValueChange={(v) => handleChange("meanType", v)}>
                                 <SelectTrigger id="mean-type">
                                     <SelectValue placeholder="Select mean type" />
                                 </SelectTrigger>
@@ -97,7 +97,7 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
 
                         <div className="space-y-2">
                             <Label htmlFor="timeframe">Timeframe</Label>
-                            <Select value={data.timeframe ?? "1h"} onValueChange={(v) => handleChange("timeframe", v)}>
+                            <Select value={data.timeframe} onValueChange={(v) => handleChange("timeframe", v)}>
                                 <SelectTrigger id="timeframe">
                                     <SelectValue placeholder="Select timeframe" />
                                 </SelectTrigger>

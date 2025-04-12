@@ -14,11 +14,11 @@ export default function RiskManagement() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Risk Management Settings</h3>
             </div>
 
-            <Separator />
+            <Separator /> */}
 
             <div className="space-y-6">
                 <div className="space-y-4">

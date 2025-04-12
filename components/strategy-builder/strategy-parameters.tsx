@@ -23,11 +23,11 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
 
     return (
         <div className="space-y-6">
-            <Separator />
+            {/* <Separator /> */}
 
-            <div className="flex items-center justify-between mb-4">
+            {/* <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">Strategy Parameters</h3>
-            </div>
+            </div> */}
 
             {strategyType === "mean-reversion" && (
                 <div className="space-y-4">

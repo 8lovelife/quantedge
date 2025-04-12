@@ -460,7 +460,10 @@ export default function TradingStrategies() {
 
     // Handle new strategy
     const handleNewStrategy = () => {
-        setIsNewStrategyDialogOpen(true)
+        // setIsNewStrategyDialogOpen(true)
+
+        router.push(`/strategies/create`)
+
     }
 
     // Generate page numbers to display
@@ -526,6 +529,20 @@ export default function TradingStrategies() {
                         <PlusIcon className="mr-2 h-4 w-4" />
                         New Strategy
                     </Button>
+
+                    {/* <Button
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    viewBacktestResults(
+                                                                        selectedStrategy?.id,
+                                                                        selectedStrategy?.timeframe,
+                                                                        selectedStrategy?.latestVersion,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <BarChart2Icon className="h-4 w-4 mr-2" />
+                                                                View Backtest Results
+                                                            </Button> */}
                 </CardHeader>
                 <CardContent className="flex flex-col">
                     {error && <div className="rounded-md bg-destructive/15 p-3 mb-4 text-destructive">{error}</div>}
@@ -771,7 +788,7 @@ export default function TradingStrategies() {
                 </CardContent>
 
                 {/* New Strategy Dialog */}
-                <Dialog open={isNewStrategyDialogOpen} onOpenChange={setIsNewStrategyDialogOpen}>
+                {/* <Dialog open={isNewStrategyDialogOpen} onOpenChange={setIsNewStrategyDialogOpen}>
                     <DialogContent className="sm:max-w-[600px]">
                         <DialogHeader>
                             <DialogTitle>Create New Strategy</DialogTitle>
@@ -790,7 +807,7 @@ export default function TradingStrategies() {
                             }}
                         />
                     </DialogContent>
-                </Dialog>
+                </Dialog> */}
 
                 {/* Edit Strategy Dialog */}
                 <Dialog open={isEditStrategyDialogOpen} onOpenChange={setIsEditStrategyDialogOpen}>

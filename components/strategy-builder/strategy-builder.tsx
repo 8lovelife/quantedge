@@ -1,5 +1,3 @@
-// StrategyBuilderWizard.tsx
-
 "use client"
 
 import { JSX, useEffect, useState } from "react"
@@ -14,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 import StrategyTypeSelector from "./strategy-type-selector"
 import StrategyParameters from "./strategy-parameters"
@@ -22,7 +22,6 @@ import RiskManagement from "./risk-management"
 import { SidebarInset, SidebarProvider } from "../ui/sidebar"
 import { AppSidebar } from "../layout/app-sidebar"
 import { SiteHeader } from "../layout/site-header"
-import { AssetData } from "@/lib/types"
 import { AssetAllocationData, saveStep } from "@/lib/api/strategies"
 import { AlgorithmOption, fetchAlgorithms } from "@/lib/api/algorithms"
 
@@ -35,15 +34,24 @@ const labels = {
 } as const
 
 type StrategyType = Parameters<typeof StrategyTypeSelector>[0]["value"]
-type ParametersData = Record<string, any>
-type RiskData = { maxDrawdown: number }
 
+type SavedStep = {
+    type?: {
+        name: string,
+        description: string,
+        strategyName: string,
+    }
+    parameters?: Record<string, any>
+    assets?: AssetAllocationData[]
+    risk?: Record<string, any>
+}
 
 export default function StrategyBuilderWizard() {
     const router = useRouter()
     const [stepIdx, setStepIdx] = useState(0)
     const [saving, setSaving] = useState(false)
     const [draftId, setDraftId] = useState<string | null>(null)
+    const [completedSteps, setCompletedSteps] = useState<SavedStep>({})
 
     const [name, setName] = useState("")
     const [type, setType] = useState<StrategyType>("mean-reversion")
@@ -56,19 +64,16 @@ export default function StrategyBuilderWizard() {
     const [strategyTypes, setStrategyTypes] = useState<AlgorithmOption[]>([])
 
     const nameDescValid = name.trim() && description.trim()
-
     const totalWeight = assetData.reduce((sum, a) => sum + Number(a.weight), 0)
     const allocationValid = totalWeight === 100
 
-
     useEffect(() => {
-        const laodStrategyTypes = async () => {
-            const strategyTypes = await fetchAlgorithms();
+        const loadStrategyTypes = async () => {
+            const strategyTypes = await fetchAlgorithms()
             setStrategyTypes(strategyTypes)
         }
-        laodStrategyTypes()
+        loadStrategyTypes()
     }, [])
-
 
     useEffect(() => {
         if (!type || strategyTypes.length === 0) return
@@ -79,15 +84,30 @@ export default function StrategyBuilderWizard() {
         }
     }, [type, strategyTypes])
 
-
     const saveAndNext = async () => {
         setSaving(true)
         const stepName = steps[stepIdx]
         let payload: any = {}
-        if (stepName === "type") payload = { name, type, description }
+
+        if (stepName === "type") {
+            payload = { name, type, description }
+            setCompletedSteps(prev => ({
+                ...prev,
+                type: {
+                    name,
+                    description,
+                    strategyName: strategyTypes.find(s => s.value === type)?.label || type
+                }
+            }))
+        }
+        if (stepName === "parameters") setCompletedSteps(prev => ({ ...prev, parameters: paramData }))
+        if (stepName === "assets") setCompletedSteps(prev => ({ ...prev, assets: assetData }))
+        if (stepName === "risk") setCompletedSteps(prev => ({ ...prev, risk: riskData }))
+
         if (stepName === "parameters") payload = paramData
         if (stepName === "assets") payload = assetData
         if (stepName === "risk") payload = riskData
+
         const id = await saveStep(draftId, stepName, payload)
         if (!draftId && id) setDraftId(id)
         setSaving(false)
@@ -115,96 +135,112 @@ export default function StrategyBuilderWizard() {
     )
 
     const cards = {
-        type: (
-            <Card className="max-w-3xl">
-                <CardHeader><CardTitle>Select Strategy Type</CardTitle></CardHeader>
-                <CardContent><StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} /></CardContent>
-                <CardFooter className="justify-end">
-                    <Button onClick={saveAndNext} disabled={!type || !nameDescValid || saving}>
-                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
-                    </Button>
-                </CardFooter>
-            </Card>
-        ),
-        parameters: (
-            <Card className="max-w-3xl">
-                <CardHeader><CardTitle>Parameters</CardTitle></CardHeader>
-                <CardContent>
-                    <StrategyParameters strategyType={type} onChange={setParamData} data={paramData} />
-                </CardContent>
-                <CardFooter className="justify-between">
-                    <Button variant="outline" onClick={back}>Back</Button>
-                    <Button onClick={saveAndNext} disabled={saving}>
-                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
-                    </Button>
-                </CardFooter>
-            </Card>
-        ),
-        assets: (
-            <Card className="max-w-3xl">
-                <CardHeader><CardTitle>Assets</CardTitle></CardHeader>
-                <CardContent>
-                    <AssetConfiguration onChange={setAssetData} data={assetData} />
-                </CardContent>
-                <CardFooter className="justify-between">
-                    <Button variant="outline" onClick={back}>Back</Button>
-                    <Button onClick={saveAndNext} disabled={!allocationValid || saving}>
-                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Next
-                    </Button>
-                </CardFooter>
-            </Card>
-        ),
-        risk: (
-            <Card className="max-w-3xl">
-                <CardHeader><CardTitle>Risk</CardTitle></CardHeader>
-                <CardContent>
-                    <RiskManagement onChange={setRiskData} data={riskData} />
-                </CardContent>
-                <CardFooter className="justify-between">
-                    <Button variant="outline" onClick={back}>Back</Button>
-                    <Button onClick={finish} disabled={saving}>
-                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Finish
-                    </Button>
-                </CardFooter>
-            </Card>
-        )
-    } as Record<(typeof steps)[number], JSX.Element>
+        type: <StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} />,
+        parameters: <StrategyParameters strategyType={type} onChange={setParamData} data={paramData} />,
+        assets: <AssetConfiguration onChange={setAssetData} data={assetData} />,
+        risk: <RiskManagement onChange={setRiskData} data={riskData} />,
+    }
 
     return (
         <SidebarProvider>
             <AppSidebar variant="inset" />
             <SidebarInset>
                 <SiteHeader />
-                <div className="max-w-6xl mx-auto py-6 space-y-8">
-                    <div className="flex items-center gap-3 mb-6">
+                <div className="flex flex-col gap-6 px-6 pt-6">
+                    <div className="flex items-start gap-3">
                         <Button variant="outline" size="icon" onClick={() => router.back()}>
                             <ArrowLeftIcon className="h-4 w-4" />
                         </Button>
                         <h1 className="text-3xl font-bold tracking-tight">Strategy Builder</h1>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mb-6">
-                        <div className="space-y-1">
-                            <Label>Name</Label>
-                            <Input value={name} onChange={e => setName(e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Description</Label>
-                            <Textarea value={description} onChange={e => setDesc(e.target.value)} />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4 mb-8">
-                        {steps.map((s, i) => (
-                            <div key={s} className="flex items-center gap-2 cursor-pointer"
-                                onClick={() => i <= stepIdx && setStepIdx(i)}>
-                                <Dot active={i === stepIdx} done={i < stepIdx} />
-                                <span className={`text-sm ${i === stepIdx ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                                    {labels[s]}
-                                </span>
-                                {i < steps.length - 1 && <div className="h-px w-8 bg-muted mx-2" />}
+
+                    <div className="flex flex-col lg:flex-row gap-6 justify-center items-start">
+                        {stepIdx > 0 && (
+                            <Card className="w-full max-w-sm">
+                                <CardHeader><CardTitle>Summary</CardTitle></CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    {completedSteps.type && (
+                                        <div>
+                                            <p><strong>Name:</strong> {completedSteps.type.name}</p>
+                                            <p><strong>Description:</strong> {completedSteps.type.description}</p>
+                                            <p><strong>Type:</strong> <Badge>{completedSteps.type.strategyName}</Badge></p>
+                                        </div>
+                                    )}
+                                    {completedSteps.parameters && (
+                                        <div>
+                                            <Separator className="my-2" />
+                                            <p className="font-medium">Parameters:</p>
+                                            {Object.entries(completedSteps.parameters).map(([k, v]) => (
+                                                <p key={k}><strong>{k}:</strong> {v.toString()}</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {completedSteps.assets && (
+                                        <div>
+                                            <Separator className="my-2" />
+                                            <p className="font-medium">Assets:</p>
+                                            {completedSteps.assets.map((a, i) => (
+                                                <p key={i}><strong>{a.symbol}:</strong> {a.weight}%</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {completedSteps.risk && (
+                                        <div>
+                                            <Separator className="my-2" />
+                                            <p className="font-medium">Risk:</p>
+                                            {Object.entries(completedSteps.risk).map(([k, v]) => (
+                                                <p key={k}><strong>{k}:</strong> {v.toString()}</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        <div className="w-full max-w-3xl space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Label>Name</Label>
+                                    <Input value={name} onChange={e => setName(e.target.value)} />
+                                </div>
+                                <div>
+                                    <Label>Description</Label>
+                                    <Textarea value={description} onChange={e => setDesc(e.target.value)} />
+                                </div>
                             </div>
-                        ))}
+
+                            <div className="flex items-center gap-4">
+                                {steps.map((s, i) => (
+                                    <div key={s} className="flex items-center gap-2 cursor-pointer"
+                                        onClick={() => i <= stepIdx && setStepIdx(i)}>
+                                        <Dot active={i === stepIdx} done={i < stepIdx} />
+                                        <span className={`text-sm ${i === stepIdx ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                                            {labels[s]}
+                                        </span>
+                                        {i < steps.length - 1 && <div className="h-px w-8 bg-muted mx-2" />}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <Card>
+                                <CardContent className="pt-6">
+                                    {cards[steps[stepIdx]]}
+                                </CardContent>
+                                <CardFooter className="flex justify-between">
+                                    {stepIdx > 0 ? (
+                                        <Button variant="outline" onClick={back}>Back</Button>
+                                    ) : <div />}
+                                    <Button
+                                        onClick={stepIdx === steps.length - 1 ? finish : saveAndNext}
+                                        disabled={(stepIdx === 0 && (!type || !nameDescValid)) || (stepIdx === 2 && !allocationValid) || saving}
+                                    >
+                                        {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                        {stepIdx === steps.length - 1 ? "Finish" : "Next"}
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        </div>
                     </div>
-                    {cards[steps[stepIdx]]}
                 </div>
             </SidebarInset>
         </SidebarProvider>

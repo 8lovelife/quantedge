@@ -201,14 +201,28 @@ export default function StrategyBuilderWizard() {
     }
 
     const saveAndUpdate = async () => {
-        if (!editingStep) return
-        setSaving(true)
-        await saveStepAndState(editingStep)
-        setSaving(false)
-        setStepIdx(resumeStepIdx ?? stepIdx)
-        setEditingStep(null)
-        setResumeStepIdx(null)
-    }
+        if (!editingStep) return;
+        setSaving(true);
+
+        try {
+            await saveStepAndState(editingStep);
+
+            // 恢复到之前的步骤
+            const previousStepIdx = resumeStepIdx ?? stepIdx;
+            setStepIdx(previousStepIdx);
+
+            // 清除编辑状态
+            setEditingStep(null);
+            setResumeStepIdx(null);
+
+            // 显示成功提示
+            toast.success("Updated successfully");
+        } catch (error) {
+            toast.error("Failed to update");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const startEditingNameDesc = () => {
         setTempName(name)
@@ -269,10 +283,20 @@ export default function StrategyBuilderWizard() {
 
 
     const handleEdit = (step: string) => {
-        if (step === "type") return
-        setResumeStepIdx(stepIdx)
-        setEditingStep(step)
-    }
+        if (step === "type") return;
+
+        // 保存当前步骤索引用于稍后恢复
+        setResumeStepIdx(stepIdx);
+
+        // 设置编辑状态
+        setEditingStep(step);
+
+        // 更新 stepIdx 到对应步骤
+        const targetStepIdx = steps.findIndex(s => s === step);
+        if (targetStepIdx !== -1) {
+            setStepIdx(targetStepIdx);
+        }
+    };
 
     const handleDelete = async () => {
         if (draftId) {
@@ -283,10 +307,12 @@ export default function StrategyBuilderWizard() {
     }
 
     const goToStep = (index: number) => {
+        if (editingStep) return; // 更新过程中禁止切换步骤
         if (index < stepIdx || completedSteps[steps[index]]) {
-            setStepIdx(index)
+            setStepIdx(index);
         }
-    }
+    };
+
 
     const cards = {
         type: <StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} />,
@@ -762,6 +788,9 @@ export default function StrategyBuilderWizard() {
 
                                                 const isActive = i === stepIdx || step === editingStep;
 
+                                                const isUpdating = editingStep === step; // 添加更新中状态判断
+
+
                                                 return (
                                                     <div
                                                         key={step}
@@ -773,6 +802,7 @@ export default function StrategyBuilderWizard() {
                                                             className={cn(
                                                                 "flex items-center justify-center w-10 h-10 rounded-full mb-2",
                                                                 "transition-all duration-500 ease-in-out", // 添加平滑过渡
+                                                                isUpdating && "ring-2 ring-blue-500 ring-offset-2", // 添加更新中的视觉效果
                                                                 isCompleted
                                                                     ? "bg-green-500 text-white transform scale-105" // 完成时略微放大
                                                                     : isActive
@@ -800,6 +830,7 @@ export default function StrategyBuilderWizard() {
                                             <div
                                                 className={cn(
                                                     "absolute top-1/2 left-0 h-1 -translate-y-1/2 bg-blue-500",
+                                                    editingStep ? "bg-blue-400" : "bg-blue-500", // 更新中使用稍微不同的颜色
                                                     "transition-all duration-500 ease-out" // 添加平滑过渡
                                                 )} style={{
                                                     width: `${(stepIdx / (steps.length - 1)) * 100}%`
@@ -850,7 +881,7 @@ export default function StrategyBuilderWizard() {
                                                     <Button
                                                         variant="outline"
                                                         onClick={saveAndPrevious}
-                                                        disabled={saving}
+                                                        disabled={saving || !!editingStep} // 添加 editingStep 检查
                                                     >
                                                         <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                                                     </Button>

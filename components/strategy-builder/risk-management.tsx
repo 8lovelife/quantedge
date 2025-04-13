@@ -66,9 +66,9 @@ export default function RiskManagement() {
                     </div>
                 </div>
 
-                <Separator />
+                {/* <Separator /> */}
 
-                <div className="space-y-4">
+                {/* <div className="space-y-4">
                     <h4 className="font-medium">Stop Loss & Take Profit</h4>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -111,9 +111,9 @@ export default function RiskManagement() {
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
+                </div> */}
 
-                <Separator />
+                {/* <Separator />
 
                 <div className="space-y-4">
                     <h4 className="font-medium">Risk Limits</h4>
@@ -138,12 +138,12 @@ export default function RiskManagement() {
                     </div>
                 </div>
 
-                <Separator />
+                <Separator /> */}
 
-                <div className="space-y-4">
-                    <h4 className="font-medium">Advanced Risk Settings</h4>
+                {/* <div className="space-y-4">
+                    <h4 className="font-medium">Advanced Risk Settings</h4> */}
 
-                    <div className="space-y-2">
+                {/* <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="use-correlation-filter">Use Correlation Filter</Label>
                             <Switch id="use-correlation-filter" />
@@ -173,7 +173,7 @@ export default function RiskManagement() {
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     )

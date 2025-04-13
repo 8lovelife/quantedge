@@ -5,7 +5,7 @@ export async function POST(
     { params }: { params: { step: string } }
 ) {
     try {
-        const step = params.step
+        const step = (await params).step
         const req = await request.json()
         console.log("req ->", JSON.stringify(req))
         const response = await fetch(`http://localhost:3001/api/strategies/draft/${step}`, {

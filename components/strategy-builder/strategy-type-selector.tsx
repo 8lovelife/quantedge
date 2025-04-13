@@ -39,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { string } from "zod"
 import { AlgorithmOption } from "@/lib/api/algorithms"
+import { cn } from "@/lib/utils"
 
 type StrategyType = "mean-reversion" | "breakout" | "rsi" | "macd" | "custom"
 
@@ -92,20 +93,26 @@ const StrategyCard = memo(function StrategyCard({
     selected,
     onSelect,
     onInfo,
+    isEditMode
 }: {
     s: AlgorithmOption
     selected: boolean
     onSelect: (id: string) => void
     onInfo: () => void
+    isEditMode: boolean
 }) {
 
     const icon = strategyIconMap[s.value] || <BarChart3 className="h-5 w-5" /> // fallback icon
 
     return (
         <div
-            onClick={() => onSelect(s.value)}
-            className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition ${selected ? "border-primary bg-primary/5" : "border-input"
-                }`}
+            onClick={() => !isEditMode && onSelect(s.value)}
+            className={cn(
+                "flex items-center gap-3 rounded-md border p-3 transition",
+                selected ? "border-primary bg-primary/5" : "border-input",
+                !isEditMode && "cursor-pointer",
+                isEditMode && !selected && "opacity-50 cursor-not-allowed"
+            )}
         >
             {icon}
             <div className="flex-1">
@@ -131,10 +138,13 @@ export default function StrategyTypeSelector({
     value,
     onChange,
     strategies,
+    isEditMode = false,
 }: {
     value: string
     onChange: (v: string) => void
     strategies: AlgorithmOption[]
+    isEditMode
+
 }) {
 
     /* custom dialog */
@@ -167,6 +177,7 @@ export default function StrategyTypeSelector({
                         s={s}
                         selected={value === s.value}
                         onSelect={onChange}
+                        isEditMode={isEditMode}
                         onInfo={() => {
                             setInfoId(s.value)
                             setInfoOpen(true)
@@ -280,6 +291,15 @@ export default function StrategyTypeSelector({
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+            )}
+
+            {isEditMode && (
+                <div className="mt-4 rounded-md bg-muted/50 p-4">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                        <Info className="h-4 w-4 mr-2" />
+                        Strategy type cannot be changed after creation to maintain parameter consistency.
+                    </div>
+                </div>
             )}
         </>
     )

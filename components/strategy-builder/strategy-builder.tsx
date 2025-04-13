@@ -83,6 +83,8 @@ export default function StrategyBuilderWizard() {
     const [configExiting, setConfigExiting] = useState(false)
     const [animateTransition, setAnimateTransition] = useState(false)
     const [isAnimatingRight, setIsAnimatingRight] = useState(false)
+    const [latestStepIdx, setLatestStepIdx] = useState(0);
+
 
 
 
@@ -187,19 +189,54 @@ export default function StrategyBuilderWizard() {
     }
 
     const saveAndNext = async () => {
-        setSaving(true)
-        await saveStepAndState(steps[stepIdx])
-        setSaving(false)
-        setStepIdx(i => Math.min(i + 1, steps.length - 1))
-    }
+        setSaving(true);
+        await saveStepAndState(steps[stepIdx]);
+        setSaving(false);
+        const nextStepIdx = Math.min(stepIdx + 1, steps.length - 1);
+        setStepIdx(nextStepIdx);
+        setLatestStepIdx(nextStepIdx); // 更新最新步骤
+    };
+
+    const getLatestIncompleteStep = () => {
+        // 如果是从 type 步骤编辑回来，且 parameters 还未完成，返回 parameters 索引
+        if (editingStep === "type" && !completedSteps.parameters) {
+            return steps.findIndex(s => s === "parameters");
+        }
+
+        // 返回 resumeStepIdx（如果存在），否则保持在当前步骤
+        return resumeStepIdx ?? stepIdx;
+    };
 
     const saveAndPrevious = async () => {
-        setSaving(true)
-        await saveStepAndState(steps[stepIdx])
-        setSaving(false)
-        setStepIdx(i => Math.max(i - 1, 0))
-    }
+        if (stepIdx <= 0) return;
 
+        const previousStep = steps[stepIdx - 1];
+
+        // 如果前一个步骤已完成，则进入编辑模式
+        if (completedSteps[previousStep]) {
+            setResumeStepIdx(stepIdx); // 保存当前步骤
+            setEditingStep(previousStep); // 设置编辑状态
+            setStepIdx(stepIdx - 1); // 移动到前一步
+        } else {
+            // 如果前一步未完成，保持原有逻辑
+            setSaving(true);
+            await saveStepAndState(steps[stepIdx]);
+            setSaving(false);
+            const prevStepIdx = Math.max(stepIdx - 1, 0);
+            setStepIdx(prevStepIdx);
+            setLatestStepIdx(prevStepIdx); // 更新最新步骤
+        }
+    };
+
+    const handleCancel = () => {
+        // 取消编辑时返回到最新步骤
+        setStepIdx(latestStepIdx);
+
+        // 清除编辑状态
+        setEditingStep(null);
+        setResumeStepIdx(null);
+    };
+    // 修改 saveAndUpdate 函数
     const saveAndUpdate = async () => {
         if (!editingStep) return;
         setSaving(true);
@@ -207,15 +244,13 @@ export default function StrategyBuilderWizard() {
         try {
             await saveStepAndState(editingStep);
 
-            // 恢复到之前的步骤
-            const previousStepIdx = resumeStepIdx ?? stepIdx;
-            setStepIdx(previousStepIdx);
+            // 编辑完成后返回到最新步骤
+            setStepIdx(latestStepIdx);
 
             // 清除编辑状态
             setEditingStep(null);
             setResumeStepIdx(null);
 
-            // 显示成功提示
             toast.success("Updated successfully");
         } catch (error) {
             toast.error("Failed to update");
@@ -253,31 +288,49 @@ export default function StrategyBuilderWizard() {
 
     const finish = async () => {
         setSaving(true);
-        await saveStep(draftId, "risk", riskData);
 
-        // 1. 标记 Risk 步骤完成
-        setCompletedSteps(prev => ({
-            ...prev,
-            risk: riskData,
-            // 关键修改：同时设置 completed 步骤为完成
-            completed: true  // 添加这一行
-        }));
+        try {
+            // 1. 保存 Risk 数据
+            await saveStep(draftId, "risk", riskData);
 
-        // 2. 等待 Risk 动画完成
-        await new Promise(resolve => setTimeout(resolve, 600));
+            // 2. 更新 Risk 完成状态
+            setCompletedSteps(prev => ({
+                ...prev,
+                risk: riskData
+            }));
 
-        // 3. 移动到最后一步并确保 completed 状态被设置
-        setStepIdx(steps.length - 1);
+            // 3. 等待 Risk 动画完成
+            await new Promise(resolve => setTimeout(resolve, 600));
 
-        // 4. 给足够时间看到 Completed 的动画
-        await new Promise(resolve => setTimeout(resolve, 1000));
+            // 4. 移动到 Completed 步骤
+            setStepIdx(steps.length - 1);
 
-        // 5. 开始居中动画
-        setIsAnimatingRight(true);
-        setConfigExiting(true);
+            // 5. 等待步骤切换动画
+            await new Promise(resolve => setTimeout(resolve, 300));
 
-        setSaving(false);
-        toast.success("Strategy saved successfully");
+            // 6. 更新为完成状态（这会触发 Completed 步骤的动画）
+            setCompletedSteps(prev => ({
+                ...prev,
+                completed: true
+            }));
+
+            // 7. 更新最新步骤
+            setLatestStepIdx(steps.length - 1);
+
+            // 8. 给足够时间让 Completed 动画完成
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // 9. 触发最终的布局切换动画
+            setIsAnimatingRight(true);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            setConfigExiting(true);
+
+            toast.success("Strategy saved successfully");
+        } catch (error) {
+            toast.error("Failed to save strategy");
+        } finally {
+            setSaving(false);
+        }
     };
 
 
@@ -306,16 +359,36 @@ export default function StrategyBuilderWizard() {
         }
     }
 
+    // const goToStep = (index: number) => {
+    //     if (editingStep) return; // 更新过程中禁止切换步骤
+    //     if (index < stepIdx || completedSteps[steps[index]]) {
+    //         setStepIdx(index);
+    //     }
+    // };
+
+
     const goToStep = (index: number) => {
-        if (editingStep) return; // 更新过程中禁止切换步骤
-        if (index < stepIdx || completedSteps[steps[index]]) {
+        const targetStep = steps[index];
+
+        // 只允许跳转到已完成的步骤或最新步骤
+        if (index > latestStepIdx) return;
+
+        // 如果已经完成了该步骤，并且不是最后一步（completed）
+        if (completedSteps[targetStep] && targetStep !== "completed") {
+            // 直接触发编辑模式
+            setResumeStepIdx(stepIdx); // 保存当前步骤
+            setEditingStep(targetStep); // 设置编辑状态
+            setStepIdx(index); // 更新步骤索引
+        } else if (index <= latestStepIdx) {
+            // 允许跳转到最新步骤及之前的步骤
             setStepIdx(index);
         }
     };
 
-
     const cards = {
-        type: <StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} />,
+        type: <StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} isEditMode={!!completedSteps.parameters}
+
+        />,
         parameters: <StrategyParameters strategyType={type} onChange={setParamData} data={paramData} />,
         assets: <AssetConfiguration onChange={setAssetData} data={assetData} />,
         risk: <RiskManagement onChange={setRiskData} data={riskData} />,
@@ -496,7 +569,8 @@ export default function StrategyBuilderWizard() {
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <Button variant="ghost" size="icon" onClick={handleDelete}>
+                                                            <Button variant="ghost" size="icon" onClick={handleDelete} className="h-8 w-8"
+                                                            >
                                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                                             </Button>
                                                         </TooltipTrigger>
@@ -617,11 +691,11 @@ export default function StrategyBuilderWizard() {
                                                                 <div className="space-y-2">
                                                                     <div className="flex justify-between items-center">
                                                                         <h3 className="font-semibold text-primary">Basic Info</h3>
-                                                                        {!editingNameDesc && (
+                                                                        {/* {!editingNameDesc && (
                                                                             <Button variant="ghost" size="sm" onClick={startEditingNameDesc}>
                                                                                 <Pencil className="h-3 w-3 mr-1" /> Edit
                                                                             </Button>
-                                                                        )}
+                                                                        )} */}
                                                                     </div>
 
                                                                     {editingNameDesc ? (
@@ -642,7 +716,7 @@ export default function StrategyBuilderWizard() {
                                                                             />
 
                                                                             <div className="flex justify-end gap-2 mt-2">
-                                                                                <Button variant="outline" size="sm" onClick={cancelNameDescEdit}>
+                                                                                <Button variant="outline" size="sm" onClick={handleCancel}>
                                                                                     Cancel
                                                                                 </Button>
                                                                                 <Button
@@ -680,13 +754,13 @@ export default function StrategyBuilderWizard() {
                                                                     <div className="space-y-2">
                                                                         <div className="flex justify-between items-center">
                                                                             <h3 className="font-semibold text-primary">Parameters</h3>
-                                                                            <Button
+                                                                            {/* <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
                                                                                 onClick={() => handleEdit("parameters")}
                                                                             >
                                                                                 <Pencil className="h-3 w-3 mr-1" /> Edit
-                                                                            </Button>
+                                                                            </Button> */}
                                                                         </div>
                                                                         <div className="rounded-md bg-muted/50 p-3 space-y-1">
                                                                             {Object.entries(completedSteps.parameters).map(([k, v]) => (
@@ -706,13 +780,13 @@ export default function StrategyBuilderWizard() {
                                                                     <div className="space-y-2">
                                                                         <div className="flex justify-between items-center">
                                                                             <h3 className="font-semibold text-primary">Asset Allocation</h3>
-                                                                            <Button
+                                                                            {/* <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
                                                                                 onClick={() => handleEdit("assets")}
                                                                             >
                                                                                 <Pencil className="h-3 w-3 mr-1" /> Edit
-                                                                            </Button>
+                                                                            </Button> */}
                                                                         </div>
                                                                         <div className="rounded-md bg-muted/50 p-3 space-y-1">
                                                                             {completedSteps.assets.map((a, i) => (
@@ -732,13 +806,13 @@ export default function StrategyBuilderWizard() {
                                                                     <div className="space-y-2">
                                                                         <div className="flex justify-between items-center">
                                                                             <h3 className="font-semibold text-primary">Risk Management</h3>
-                                                                            <Button
+                                                                            {/* <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
                                                                                 onClick={() => handleEdit("risk")}
                                                                             >
                                                                                 <Pencil className="h-3 w-3 mr-1" /> Edit
-                                                                            </Button>
+                                                                            </Button> */}
                                                                         </div>
                                                                         <div className="rounded-md bg-muted/50 p-3 space-y-1">
                                                                             {Object.entries(completedSteps.risk).map(([k, v]) => (
@@ -781,44 +855,59 @@ export default function StrategyBuilderWizard() {
                                             {steps.map((step, i) => {
                                                 const isLastStep = i === steps.length - 1;
                                                 const isCompleted =
-                                                    i < stepIdx || // 之前的步骤
-                                                    !!completedSteps[step] || // 已完成的步骤
-                                                    (isLastStep && completedSteps.completed); // 特别处理最后一步
-
+                                                    i < stepIdx ||
+                                                    !!completedSteps[step] ||
+                                                    (isLastStep && completedSteps.completed);
 
                                                 const isActive = i === stepIdx || step === editingStep;
+                                                const isUpdating = editingStep === step;
+                                                const isLatest = i === latestStepIdx;
 
-                                                const isUpdating = editingStep === step; // 添加更新中状态判断
-
+                                                const isCompletedStep = step === "completed";
+                                                const showCompletedAnimation = isCompletedStep && completedSteps.completed;
 
                                                 return (
                                                     <div
                                                         key={step}
-                                                        className="flex flex-col items-center cursor-pointer"
-                                                        onClick={() => goToStep(i)}
+                                                        className={cn(
+                                                            "flex flex-col items-center",
+                                                            !isCompletedStep && "cursor-pointer",
+                                                            // 为 Completed 步骤添加特殊的动画类
+                                                            showCompletedAnimation && "animate-scale-in"
+                                                        )}
+                                                        onClick={() => !isCompletedStep && goToStep(i)}
                                                     >
-
                                                         <div
                                                             className={cn(
                                                                 "flex items-center justify-center w-10 h-10 rounded-full mb-2",
-                                                                "transition-all duration-500 ease-in-out", // 添加平滑过渡
-                                                                isUpdating && "ring-2 ring-blue-500 ring-offset-2", // 添加更新中的视觉效果
+                                                                "transition-all duration-500 ease-in-out",
+                                                                isUpdating && "ring-2 ring-blue-500 ring-offset-2",
                                                                 isCompleted
-                                                                    ? "bg-green-500 text-white transform scale-105" // 完成时略微放大
+                                                                    ? "bg-green-500 text-white transform scale-105"
                                                                     : isActive
                                                                         ? "bg-blue-500 text-white"
-                                                                        : "bg-muted text-muted-foreground"
+                                                                        : isLatest  // 添加最新步骤的样式
+                                                                            ? "bg-blue-500/50 text-white"  // 半透明的蓝色
+                                                                            : "bg-muted text-muted-foreground"
                                                             )}
                                                         >
-                                                            {isCompleted ? (
+                                                            {isCompleted && !isUpdating ? (
                                                                 <CheckCircle2 className="h-5 w-5" />
+                                                            ) : isUpdating ? (
+                                                                <Loader2 className="h-5 w-5 animate-spin" />
                                                             ) : (
                                                                 <span>{i + 1}</span>
                                                             )}
                                                         </div>
-                                                        <span className={`text-xs font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                                                        <span className={`text-xs font-medium ${isActive ? "text-primary" : "text-muted-foreground"
+                                                            }`}>
                                                             {labels[step]}
                                                         </span>
+                                                        {isUpdating && (
+                                                            <span className="text-xs text-blue-500 animate-pulse mt-1">
+                                                                Updating...
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -890,11 +979,7 @@ export default function StrategyBuilderWizard() {
                                                 {editingStep && (
                                                     <Button
                                                         variant="outline"
-                                                        onClick={() => {
-                                                            setEditingStep(null)
-                                                            setStepIdx(resumeStepIdx ?? stepIdx)
-                                                            setResumeStepIdx(null)
-                                                        }}
+                                                        onClick={handleCancel}
                                                     >
                                                         Cancel
                                                     </Button>

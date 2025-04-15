@@ -98,16 +98,26 @@ export default function StrategyDetails({ id }: { id: number }) {
 
     const handleRunBacktest = () => {
         setIsLoading(true)
-
         // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false)
-            toast({
-                title: "Backtest started",
-                description: "The backtest is now running",
-            })
-            router.push(`/backtest/${id}`)
-        }, 1000)
+        // setTimeout(() => {
+        //     setIsLoading(false)
+        //     toast("Backtest started")
+        //     router.push(`/backtest/${id}`)
+        // }, 1000)
+
+        router.push(`/backtest/${id}`)
+        setIsLoading(false)
+
+
+    }
+
+    // Update the viewBacktestResults function to handle undefined latestVersion
+    const viewBacktestResults = (strategyId: number, latestVersion?: number) => {
+
+        // If latestVersion is undefined, don't include it in the URL
+        // This will show the empty state in the backtest page
+        const versionParam = latestVersion ? `&version=${latestVersion}` : ""
+        router.push(`/backtest/${strategyId}?mode=historical${versionParam}`)
     }
 
     const handleStartPaperTrading = () => {
@@ -550,11 +560,16 @@ export default function StrategyDetails({ id }: { id: number }) {
                                 <div className="flex gap-2">
                                     {strategy.status !== "draft" && (
                                         <>
-                                            <Button variant="outline" size="sm" onClick={handleRunBacktest}>
+                                            {/* <Button variant="outline" size="sm" onClick={handleRunBacktest}>
                                                 <RefreshCw className="mr-2 h-4 w-4" />
                                                 Re-run
-                                            </Button>
-                                            <Button variant="outline" size="sm" onClick={() => router.push(`/backtest/${id}`)}>
+                                            </Button> */}
+                                            <Button variant="outline" size="sm" onClick={() =>
+                                                viewBacktestResults(
+                                                    strategy?.id,
+                                                    strategy?.latestBacktestVersion,
+                                                )
+                                            }>
                                                 <BarChart3 className="mr-2 h-4 w-4" />
                                                 View Details
                                             </Button>
@@ -577,19 +592,19 @@ export default function StrategyDetails({ id }: { id: number }) {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Total Return</div>
-                                            <div className="font-medium text-green-500">+{strategy.performance.return}%</div>
+                                            <div className="font-medium text-green-500">{strategy.backtestPerformance.strategyReturn}%</div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Sharpe Ratio</div>
-                                            <div className="font-medium">{strategy.performance.sharpe}</div>
+                                            <div className="font-medium">{strategy.backtestPerformance.sharpeRatio}</div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Max Drawdown</div>
-                                            <div className="font-medium text-red-500">-{strategy.performance.drawdown}%</div>
+                                            <div className="font-medium text-red-500">-{strategy.backtestPerformance.maxDrawdown}%</div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Win Rate</div>
-                                            <div className="font-medium">{strategy.performance.winRate}%</div>
+                                            <div className="font-medium">{strategy.backtestPerformance.winRate}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -720,7 +735,7 @@ export default function StrategyDetails({ id }: { id: number }) {
                                 </div>
                             ) : (
                                 <div className="max-h-[220px] overflow-y-auto border rounded-md">
-                                    {strategy.logs.slice(0, 5).map((log, index) => (
+                                    {strategy?.logs?.slice(0, 5).map((log, index) => (
                                         <div key={index} className="p-2 text-sm border-b last:border-0 flex items-start gap-3">
                                             <div className="text-muted-foreground whitespace-nowrap text-xs">
                                                 {new Date(log.timestamp).toLocaleTimeString()}

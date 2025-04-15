@@ -13,6 +13,38 @@ export interface Strategy {
     parameters?: Record<string, any>
 }
 
+export interface StrategySummary {
+    id: number
+    name: string
+    type: string
+    status: "draft" | "backtest" | "paper" | "live"
+    description: string
+    created: string
+    updated: string
+    backtestPerformance: {
+        strategyReturn: number
+        maxDrawdown: number
+        winRate: number
+    } | null
+    alerts?: Array<{ type: string; message: string }>
+    isIncomplete: boolean
+}
+
+
+export interface StrategiySummarysResponse {
+    items: StrategySummary[]
+    total: number
+    totalPages: number
+}
+
+export interface FetchStrategySummaryParams {
+    page?: number
+    limit?: number
+    search?: string
+    status?: string
+    sort?: string
+}
+
 // Define an interface for asset with allocation
 export interface AssetWithAllocation {
     symbol: string

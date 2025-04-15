@@ -11,6 +11,12 @@ export const metadata: Metadata = {
 
 export default function CreateStrategyPage() {
     return (
-        <StrategyBuilder />
+        <SidebarProvider>
+            <AppSidebar variant="inset" />
+            <SidebarInset>
+                <SiteHeader />
+                <StrategyBuilder mode="create" />
+            </SidebarInset >
+        </SidebarProvider >
     )
 }

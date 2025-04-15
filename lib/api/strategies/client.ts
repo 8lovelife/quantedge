@@ -1,5 +1,5 @@
 // API client functions for strategies
-import type { Strategy, StrategiesResponse, StrategyFormValues } from "./types"
+import type { Strategy, StrategiesResponse, StrategyFormValues, FetchStrategySummaryParams, StrategiySummarysResponse } from "./types"
 import {
     mockFetchTradingStrategies,
     mockCreateStrategy,
@@ -10,6 +10,35 @@ import {
 
 // Flag to toggle between mock and real API
 const USE_MOCK_API = true
+
+
+export async function fetchStrategies(params?: FetchStrategySummaryParams): Promise<StrategiySummarysResponse> {
+    try {
+        const queryParams = new URLSearchParams()
+        if (params?.page) queryParams.set('page', params.page.toString())
+        if (params?.limit) queryParams.set('limit', params.limit.toString())
+        if (params?.search) queryParams.set('search', params.search)
+        if (params?.status && params.status !== 'all') queryParams.set('status', params.status)
+        if (params?.sort) queryParams.set('sort', params.sort)
+
+        const response = await fetch(`/api/strategies?${queryParams.toString()}`)
+        if (!response.ok) throw new Error('Failed to fetch strategies')
+        const result = await response.json()
+
+        const strategiesResponse = {
+            items: result.data,
+            total: result.total,
+            totalPages: Math.ceil((result.total || result.data.length) / (params?.limit || 8))
+        }
+
+        console.log("Fetched strategies:", strategiesResponse)
+
+        return strategiesResponse
+    } catch (error) {
+        console.error('Error fetching strategies:', error)
+        throw error
+    }
+}
 
 /**
  * Fetch trading strategies with pagination
@@ -153,7 +182,7 @@ export async function deleteStrategy(id: number): Promise<boolean> {
 }
 
 
-export async function saveStep(id: string | null, step: string, data: any): Promise<string | null> {
+export async function saveStep(id: number | null, step: string, data: any): Promise<number | null> {
     const url = `/api/strategies/draft/${step}`
 
     try {

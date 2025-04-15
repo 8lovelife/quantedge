@@ -17,7 +17,6 @@ export default function StrategiesPage() {
                 <SiteHeader />
                 <StrategyDashboard />
             </SidebarInset>
-
         </SidebarProvider>
     )
 }

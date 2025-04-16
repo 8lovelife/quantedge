@@ -39,7 +39,6 @@ import ResultsLoadingSkeleton from "./results-panel-skeleton"
 const CURRENT_USER = "8lovelife"
 const CURRENT_DATE = "2025-04-15 19:46:11"
 
-
 // Add these interfaces at the top of your file
 interface ParameterOptimization {
     param: string
@@ -61,6 +60,52 @@ interface OptimizationResult {
     parameters: ParameterOptimization[]
 }
 
+interface StrategyType {
+    id: string
+    name: string
+    description: string
+    hasSubTypes?: boolean
+}
+
+const strategyTypes: StrategyType[] = [
+    {
+        id: "mean_reversion",
+        name: "Mean Reversion",
+        description: "Trade price reversals to the mean",
+        hasSubTypes: true
+    },
+    {
+        id: "trend_following",
+        name: "Trend Following",
+        description: "Follow established market trends"
+    },
+    {
+        id: "momentum",
+        name: "Momentum",
+        description: "Capitalize on price momentum"
+    }
+]
+
+const meanReversionTypes = [
+    { id: "sma", name: "Simple Moving Average" },
+    { id: "ema", name: "Exponential Moving Average" },
+    { id: "bollinger", name: "Bollinger Bands" }
+]
+
+const maCrossoverTypes = [
+    { id: "sma", name: "Simple Moving Average" },
+    { id: "ema", name: "Exponential Moving Average" },
+    { id: "ema", name: "Exponential Moving Average" }
+]
+
+const timeframes = [
+    { id: "1m", name: "1 Minute" },
+    { id: "5m", name: "5 Minutes" },
+    { id: "15m", name: "15 Minutes" },
+    { id: "1h", name: "1 Hour" },
+    { id: "4h", name: "4 Hours" },
+    { id: "1d", name: "1 Day" }
+]
 
 const defaultParams = {
     lookbackPeriod: 20,
@@ -158,7 +203,7 @@ const recentRuns: BacktestRun[] = [
     // Add more runs...
 ]
 
-interface Parameter {
+export interface Parameter {
     name: string
     key: keyof typeof defaultParams
     description: string
@@ -168,7 +213,6 @@ interface Parameter {
     unit?: string
     category: "core" | "risk" | "position"
 }
-
 
 const parameters: Parameter[] = [
     {
@@ -261,21 +305,6 @@ const parameters: Parameter[] = [
     }
 ]
 
-interface BacktestRun {
-    id: string
-    date: string
-    params: typeof defaultParams
-    performance: {
-        returnRate: number
-        winRate: number
-        sharpeRatio: number
-        maxDrawdown: number
-        totalTrades: number
-    }
-}
-
-// Removed duplicate declaration of recentRuns
-
 const optimizedParams = {
     lookbackPeriod: 25,
     entryThreshold: 2.5,
@@ -297,6 +326,13 @@ export default function BacktestPanel() {
     const [isLoading, setIsLoading] = useState(true)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+    // Add new state variables
+    const [selectedStrategy, setSelectedStrategy] = useState("mean_reversion")
+    const [selectedMeanType, setSelectedMeanType] = useState("sma")
+    const [selectedTimeframe, setSelectedTimeframe] = useState("1h")
+    const [selectedBenchmark, setSelectedBenchmark] = useState("BTC/USDT")
+    const [selectedPairs, setSelectedPairs] = useState(["BTC/USDT"])
+    const [initialCapital, setInitialCapital] = useState(10000)
 
     const renderResultsPanel = () => {
         if (isInitialLoad || isLoading) {
@@ -327,7 +363,6 @@ export default function BacktestPanel() {
 
         return <ResultsPanel data={backtestData} isLoading={isLoading} />
     }
-
 
     // 加载最新的回测数据
     const loadLatestBacktest = async () => {
@@ -470,7 +505,7 @@ export default function BacktestPanel() {
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="parameters">
                                     <Settings className="h-4 w-4 mr-2" />
-                                    Parameters
+                                    Run Backtest
                                 </TabsTrigger>
                                 <TabsTrigger value="optimize">
                                     <Zap className="h-4 w-4 mr-2" />
@@ -485,100 +520,184 @@ export default function BacktestPanel() {
                             <TabsContent value="parameters">
                                 <Card>
                                     <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <CardTitle>Strategy Parameters</CardTitle>
-                                                <CardDescription>Configure backtest parameters</CardDescription>
-                                            </div>
-                                            <Button variant="outline" size="sm" onClick={resetToDefault}>
-                                                <Settings className="h-4 w-4 mr-2" />
-                                                Reset
-                                            </Button>
-                                        </div>
+                                        <CardTitle>Strategy Parameters</CardTitle>
+                                        <CardDescription>Configure backtest parameters</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
-                                        {/* Trading Pairs Selection */}
-                                        <div className="space-y-2">
-                                            <Label>Trading Pairs</Label>
-                                            <Select>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select trading pairs" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
-                                                    <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
-                                                    <SelectItem value="BNB/USDT">BNB/USDT</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Date Range */}
-                                        <div className="space-y-2">
-                                            <Label>Backtest Period</Label>
-                                            <div className="flex items-center gap-2">
-                                                <div className="relative flex-1">
-                                                    <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                    <Input type="date" className="pl-8" />
+                                        {/* Strategy Configuration Section */}
+                                        <div className="space-y-6">
+                                            {/* Strategy and Mean Type Selection in Grid */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {/* Strategy Type Selection */}
+                                                <div className="space-y-2">
+                                                    <Label>Strategy Type</Label>
+                                                    <Select value={selectedStrategy} onValueChange={setSelectedStrategy}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select strategy type" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {strategyTypes.map(strategy => (
+                                                                <SelectItem key={strategy.id} value={strategy.id}>
+                                                                    {strategy.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {strategyTypes.find(s => s.id === selectedStrategy)?.description}
+                                                    </p>
                                                 </div>
-                                                <ChevronRight className="h-4 w-4" />
-                                                <div className="relative flex-1">
-                                                    <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                    <Input type="date" className="pl-8" />
+
+                                                {/* Mean Reversion Type - Only show if mean reversion is selected */}
+                                                {selectedStrategy === "mean_reversion" && (
+                                                    <div className="space-y-2">
+                                                        <Label>Mean Type</Label>
+                                                        <Select value={selectedMeanType} onValueChange={setSelectedMeanType}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select mean type" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {meanReversionTypes.map(type => (
+                                                                    <SelectItem key={type.id} value={type.id}>
+                                                                        {type.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Market Configuration */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {/* Trading Pairs */}
+                                                <div className="space-y-2">
+                                                    <Label>Trading Pairs</Label>
+                                                    <Select>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select trading pairs" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
+                                                            <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
+                                                            <SelectItem value="BNB/USDT">BNB/USDT</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                {/* Benchmark */}
+                                                {/* <div className="space-y-2">
+                                                    <Label>Benchmark</Label>
+                                                    <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select benchmark" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
+                                                            <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div> */}
+
+                                                {/* Timeframe */}
+                                                <div className="space-y-2">
+                                                    <Label>Timeframe</Label>
+                                                    <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select timeframe" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {timeframes.map(tf => (
+                                                                <SelectItem key={tf.id} value={tf.id}>
+                                                                    {tf.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                {/* Add Initial Capital Input */}
+                                                <div className="space-y-2">
+                                                    <Label>Initial Capital</Label>
+                                                    <div className="flex items-center gap-2">
+                                                        <Input
+                                                            type="number"
+                                                            value={initialCapital}
+                                                            onChange={(e) => setInitialCapital(Number(e.target.value))}
+                                                            min={1000}
+                                                            step={1000}
+                                                        />
+                                                        <span className="text-xs text-muted-foreground w-8">USDT</span>
+
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <Separator />
+                                            <Separator />
 
-                                        {/* Parameters */}
-                                        {["core", "risk", "position"].map((category) => (
-                                            <div key={category} className="space-y-4">
-                                                <Label className="capitalize">{category} Parameters</Label>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {parameters
-                                                        .filter(p => p.category === category)
-                                                        .map((param) => (
-                                                            <div key={param.key} className="space-y-2">
-                                                                <HoverCard>
-                                                                    <HoverCardTrigger asChild>
-                                                                        <Label
-                                                                            htmlFor={param.key}
-                                                                            className="text-sm flex items-center gap-1 cursor-help"
-                                                                        >
-                                                                            {param.name}
-                                                                            <Info className="h-3 w-3" />
-                                                                        </Label>
-                                                                    </HoverCardTrigger>
-                                                                    <HoverCardContent>
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-sm">{param.description}</p>
-                                                                            <div className="text-xs text-muted-foreground">
-                                                                                Range: {param.min} - {param.max} {param.unit}
+                                            {/* Existing Parameters Section */}
+                                            {["core", "risk", "position"].map((category) => (
+                                                <div key={category} className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="capitalize">{category} Parameters</Label>
+                                                        {category === "core" && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={resetToDefault}
+                                                                className="h-8"
+                                                            >
+                                                                <Settings className="h-4 w-4 mr-2" />
+                                                                Reset
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        {parameters
+                                                            .filter(p => p.category === category)
+                                                            .map((param) => (
+                                                                <div key={param.key} className="space-y-2">
+                                                                    <HoverCard>
+                                                                        <HoverCardTrigger asChild>
+                                                                            <Label
+                                                                                htmlFor={param.key}
+                                                                                className="text-sm flex items-center gap-1 cursor-help"
+                                                                            >
+                                                                                {param.name}
+                                                                                <Info className="h-3 w-3" />
+                                                                            </Label>
+                                                                        </HoverCardTrigger>
+                                                                        <HoverCardContent>
+                                                                            <div className="space-y-2">
+                                                                                <p className="text-sm">{param.description}</p>
+                                                                                <div className="text-xs text-muted-foreground">
+                                                                                    Range: {param.min} - {param.max} {param.unit}
+                                                                                </div>
                                                                             </div>
-                                                                        </div>
-                                                                    </HoverCardContent>
-                                                                </HoverCard>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Input
-                                                                        id={param.key}
-                                                                        type="number"
-                                                                        value={params[param.key]}
-                                                                        onChange={(e) => handleParamChange(param, e.target.value)}
-                                                                        step={param.step}
-                                                                        min={param.min}
-                                                                        max={param.max}
-                                                                    />
-                                                                    {param.unit && (
-                                                                        <span className="text-xs text-muted-foreground w-8">
-                                                                            {param.unit}
-                                                                        </span>
-                                                                    )}
+                                                                        </HoverCardContent>
+                                                                    </HoverCard>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Input
+                                                                            id={param.key}
+                                                                            type="number"
+                                                                            value={params[param.key]}
+                                                                            onChange={(e) => handleParamChange(param, e.target.value)}
+                                                                            step={param.step}
+                                                                            min={param.min}
+                                                                            max={param.max}
+                                                                        />
+                                                                        {param.unit && (
+                                                                            <span className="text-xs text-muted-foreground w-8">
+                                                                                {param.unit}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
+                                                            ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </CardContent>
                                     <CardFooter>
                                         <Button
@@ -845,13 +964,12 @@ export default function BacktestPanel() {
                         </Tabs>
                     </div>
 
-                    {/* Results Panel */}
-                    {/* <Card className="col-span-1 md:col-span-2"> */}
-                    {/* <ResultsPanel data={backtestData} isLoading={isLoading} /> */}
-                    {/* </Card> */}
-
-                    {renderResultsPanel()}
-
+                    {/* Results Panel - Add sticky positioning */}
+                    <div className="md:col-span-2">
+                        <div className="sticky top-4">
+                            {renderResultsPanel()}
+                        </div>
+                    </div>
                 </div>
             </main >
         </div >

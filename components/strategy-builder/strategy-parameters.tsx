@@ -9,6 +9,10 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card"
+import { Parameter, ParameterField, parameters, parameterSchemas } from "@/lib/api/algorithms"
+import { toast } from "sonner"
+import DynamicStrategyParameters from "./strategy-dynamic-parameters"
 
 interface StrategyParametersProps {
     strategyType: string
@@ -16,10 +20,48 @@ interface StrategyParametersProps {
     onChange: (data: Record<string, any>) => void
 }
 
+const defaultParams = {
+    lookbackPeriod: 20,
+    entryThreshold: 2,
+    exitThreshold: 0.5,
+    stopLoss: 2,
+    takeProfit: 4,
+    positionSize: 100,
+    riskPerTrade: 1,
+    maxPositions: 3,
+    minVolume: 1000000
+}
+
+
+const validateParam = (param: Parameter, value: number) => {
+    if (value < param.min || value > param.max) {
+        toast.error(`${param.name} must be between ${param.min} and ${param.max}`)
+        return false
+    }
+    return true
+}
+
 export default function StrategyParameters({ strategyType, data, onChange }: StrategyParametersProps) {
+
+
     const handleChange = (key: string, value: any) => {
         onChange({ ...data, [key]: value })
     }
+
+
+    // const [params, setParams] = useState(data)
+
+    // const handleParamChange = (param: Parameter, value: string) => {
+    //     const numValue = parseFloat(value)
+    //     if (validateParam(param, numValue)) {
+    //         setParams(prev => ({
+    //             ...prev,
+    //             [param.key]: numValue
+    //         }))
+    //     }
+    // }
+
+
 
     return (
         <div className="space-y-6">
@@ -345,6 +387,110 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
+                </div>
+            )}
+
+
+            {strategyType === "ma-crossover" && (
+                <div className="space-y-4">
+                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="fast-period">Fast Period</Label>
+                            <Input
+                                id="fast-period"
+                                type="number"
+                                value={data.fastPeriod ?? ""}
+                                placeholder="10"
+                                onChange={(e) => handleChange("fast_period", Number(e.target.value))}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="slow-period">Slow Period</Label>
+                            <Input
+                                id="slow-period"
+                                type="number"
+                                value={data.slowPeriod ?? ""}
+                                placeholder="30"
+                                onChange={(e) => handleChange("slow_period", Number(e.target.value))}
+                            />
+                        </div>
+                    </div> */}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="ma-type">MA Type</Label>
+                            <Select
+                                value={data.maType}
+                                onValueChange={(v) => handleChange("maType", v)}
+                            >
+                                <SelectTrigger id="ma-type">
+                                    <SelectValue placeholder="Select MA Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="sma">Simple Moving Average</SelectItem>
+                                    <SelectItem value="ema">Exponential Moving Average</SelectItem>
+                                    <SelectItem value="wma">Weighted Moving Average</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="position-type">Position Type</Label>
+                            <Select
+                                value={data.positionType}
+                                onValueChange={(v) => handleChange("position_type", v)}
+                            >
+                                <SelectTrigger id="position-type">
+                                    <SelectValue placeholder="Select position type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="long">Long Only</SelectItem>
+                                    <SelectItem value="short">Short Only</SelectItem>
+                                    <SelectItem value="both">Long & Short</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="rebalance-interval">Rebalance Interval</Label>
+                        <Select
+                            value={data.rebalanceInterval}
+                            onValueChange={(v) => handleChange("rebalance_interval", v)}
+                        >
+                            <SelectTrigger id="rebalance-interval">
+                                <SelectValue placeholder="Select interval" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1h">1 Hour</SelectItem>
+                                <SelectItem value="4h">4 Hours</SelectItem>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <DynamicStrategyParameters
+                        strategyType={strategyType}
+                        params={data}
+                        schemas={parameterSchemas[strategyType]}
+                        onChange={onChange} />
+
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="advanced">
+                            <AccordionTrigger>Advanced Parameters</AccordionTrigger>
+                            <AccordionContent>
+                                <DynamicStrategyParameters
+                                    strategyType={strategyType}
+                                    params={data}
+                                    category="Advanced"
+                                    schemas={parameterSchemas[strategyType]}
+                                    onChange={onChange} />
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+
                 </div>
             )}
 

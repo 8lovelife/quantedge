@@ -8,8 +8,19 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import DynamicStrategyParameters from "./strategy-dynamic-parameters"
+import { riskSchemas } from "@/lib/api/algorithms"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion"
 
-export default function RiskManagement() {
+
+interface StrategyRiskProps {
+    strategyType: string
+    data: Record<string, any>
+    onChange: (data: Record<string, any>) => void
+}
+
+
+export default function RiskManagement({ strategyType, data, onChange }: StrategyRiskProps) {
     const [useTrailingStop, setUseTrailingStop] = useState(false)
 
     return (
@@ -22,8 +33,29 @@ export default function RiskManagement() {
 
             <div className="space-y-6">
                 <div className="space-y-4">
-                    <h4 className="font-medium">Position Sizing</h4>
+                    <DynamicStrategyParameters
+                        strategyType="risk"
+                        params={data}
+                        category="core"
+                        schemas={riskSchemas["risk"]}
+                        onChange={onChange} />
 
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="advanced">
+                            <AccordionTrigger>Advanced Parameters</AccordionTrigger>
+                            <AccordionContent>
+                                <DynamicStrategyParameters
+                                    strategyType="risk"
+                                    category="position"
+                                    params={data}
+                                    schemas={riskSchemas["risk"]}
+                                    onChange={onChange} />
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+
+
+                    {/* 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <div className="flex items-center">
@@ -48,9 +80,9 @@ export default function RiskManagement() {
                             <Label htmlFor="max-positions">Maximum Open Positions</Label>
                             <Input id="max-positions" type="number" defaultValue="5" min="1" />
                         </div>
-                    </div>
+                    </div> */}
 
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                         <Label htmlFor="position-sizing-method">Position Sizing Method</Label>
                         <Select defaultValue="fixed">
                             <SelectTrigger id="position-sizing-method">
@@ -63,7 +95,7 @@ export default function RiskManagement() {
                                 <SelectItem value="equal">Equal Weighting</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* <Separator /> */}

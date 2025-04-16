@@ -75,7 +75,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
 
     // Form data
     const [name, setName] = useState("")
-    const [type, setType] = useState("mean-reversion")
+    const [type, setType] = useState("ma-crossover")
     const [description, setDesc] = useState("")
     const [paramData, setParamData] = useState<Record<string, any>>({})
     const [assetData, setAssetData] = useState<AssetAllocationData[]>([])
@@ -643,7 +643,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
                 </Button>
                 <div>
                     <h1 className="text-2xl font-bold flex items-center">
-                        <span>{mode === 'edit' ? 'Edit Strategy' : 'Strategy Builder'}</span>
+                        <span>{mode === 'edit' ? 'Edit Strategy' : 'Strategy Setup'}</span>
                         {currentStep === "completed" ? (
                             <Badge variant="secondary" className="ml-2">
                                 Completed

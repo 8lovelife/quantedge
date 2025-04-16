@@ -106,9 +106,9 @@ export default function AssetConfiguration({ data, onChange }: AssetConfiguratio
                     <Select value={direction} onValueChange={(v) => setDirection(v as any)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="long">Long</SelectItem>
-                            <SelectItem value="short">Short</SelectItem>
-                            <SelectItem value="both">Both</SelectItem>
+                            <SelectItem value="long">Long Only</SelectItem>
+                            <SelectItem value="short">Short Only</SelectItem>
+                            <SelectItem value="both">Long & Short</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

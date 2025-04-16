@@ -461,14 +461,14 @@ export function TradesTab({
                         <div className="space-y-4">
                             <div>
                                 <div className="text-sm text-muted-foreground mb-1">Total Trades</div>
-                                <div className="text-xl font-bold">{metrics?.totalTrades}</div>
+                                <div className="text-xl font-bold">{Number(metrics?.totalTrades).toFixed(2)}</div>
                             </div>
 
                             <Separator />
 
                             <div>
                                 <div className="text-sm text-muted-foreground mb-1">Win Rate</div>
-                                <div className="text-xl font-bold">{metrics?.winRate}%</div>
+                                <div className="text-xl font-bold">{Number(metrics?.winRate).toFixed(2)}%</div>
                             </div>
 
                             <Separator />
@@ -477,8 +477,8 @@ export function TradesTab({
                                 <div className="text-sm text-muted-foreground mb-1">Average Profit</div>
                                 <div className="text-xl font-bold text-green-500">
                                     $
-                                    {tradeData.filter((t) => t.profit > 0).reduce((sum, t) => sum + t.profit, 0) /
-                                        Math.max(1, tradeData.filter((t) => t.profit > 0).length).toFixed(2)}
+                                    {Number(tradeData.filter((t) => t.profit > 0).reduce((sum, t) => sum + t.profit, 0) /
+                                        Number(Math.max(1, tradeData.filter((t) => t.profit > 0).length).toFixed(2))).toFixed(2)}
                                 </div>
                             </div>
 
@@ -488,8 +488,8 @@ export function TradesTab({
                                 <div className="text-sm text-muted-foreground mb-1">Average Loss</div>
                                 <div className="text-xl font-bold text-red-500">
                                     $
-                                    {tradeData.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0) /
-                                        Math.max(1, tradeData.filter((t) => t.profit < 0).length).toFixed(2)}
+                                    {Number(tradeData.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0) /
+                                        Number(Math.max(1, tradeData.filter((t) => t.profit < 0).length).toFixed(2))).toFixed(2)}
                                 </div>
                             </div>
 
@@ -622,7 +622,7 @@ export function StatisticsTab({
                                 <div
                                     className={`text-lg font-bold ${Number(metrics?.strategyReturn) >= 0 ? "text-green-500" : "text-red-500"}`}
                                 >
-                                    {metrics?.strategyReturn}%
+                                    {Number(metrics?.strategyReturn).toFixed(2)}%
                                 </div>
                             </div>
 
@@ -631,30 +631,30 @@ export function StatisticsTab({
                                 <div
                                     className={`text-lg font-bold ${Number(metrics?.marketReturn) >= 0 ? "text-green-500" : "text-red-500"}`}
                                 >
-                                    {metrics?.marketReturn}%
+                                    {Number(metrics?.marketReturn).toFixed(2)}%
                                 </div>
                             </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Alpha</div>
                                 <div className={`text-lg font-bold ${Number(metrics?.alpha) >= 0 ? "text-green-500" : "text-red-500"}`}>
-                                    {metrics?.alpha}%
+                                    {Number(metrics?.alpha).toFixed(2)}%
                                 </div>
                             </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Sharpe Ratio</div>
-                                <div className="text-lg font-bold">{metrics?.sharpeRatio}</div>
+                                <div className="text-lg font-bold">{Number(metrics?.sharpeRatio).toFixed(2)}</div>
                             </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Max Drawdown</div>
-                                <div className="text-lg font-bold text-red-500">{metrics?.maxDrawdown}%</div>
+                                <div className="text-lg font-bold text-red-500">{Number(metrics?.maxDrawdown).toFixed(2)}%</div>
                             </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Win Rate</div>
-                                <div className="text-lg font-bold">{metrics?.winRate}%</div>
+                                <div className="text-lg font-bold">{Number(metrics?.winRate).toFixed(2)}%</div>
                             </div>
 
                             <div className="flex justify-between items-center">

@@ -1,6 +1,72 @@
 // Mock data generation for backtest API
 import type { BacktestResponse, ComparisonResponse, BacktestData, BacktestParameters } from "./types"
 
+// Add these helper functions after existing imports
+function generateMonthlyReturns(days: number): MonthlyReturnData[] {
+    const monthlyReturns: MonthlyReturnData[] = []
+    const date = new Date()
+    date.setDate(date.getDate() - days)
+
+    // Get unique months from the date range
+    const months = new Set<string>()
+    for (let i = 0; i < days; i++) {
+        const currentDate = new Date(date)
+        currentDate.setDate(date.getDate() + i)
+        months.add(currentDate.toISOString().slice(0, 7)) // Format: YYYY-MM
+    }
+
+    // Generate returns for each month
+    Array.from(months).forEach(month => {
+        // Generate realistic returns between -10% and +10%
+        const strategyReturn = (Math.random() * 20 - 10) + Math.sin(new Date(month).getMonth() * 0.5) * 3
+        const marketReturn = (Math.random() * 16 - 8) + Math.sin(new Date(month).getMonth() * 0.5) * 2
+
+        monthlyReturns.push({
+            month,
+            strategyReturn: Number(strategyReturn.toFixed(2)),
+            marketReturn: Number(marketReturn.toFixed(2))
+        })
+    })
+
+    return monthlyReturns.sort((a, b) => a.month.localeCompare(b.month))
+}
+
+function generateDistributionData(trades: any[]): DistributionData[] {
+    // Define return ranges
+    const bins = [
+        { min: -Infinity, max: -20, label: "< -20%" },
+        { min: -20, max: -15, label: "-20% to -15%" },
+        { min: -15, max: -10, label: "-15% to -10%" },
+        { min: -10, max: -5, label: "-10% to -5%" },
+        { min: -5, max: 0, label: "-5% to 0%" },
+        { min: 0, max: 5, label: "0% to 5%" },
+        { min: 5, max: 10, label: "5% to 10%" },
+        { min: 10, max: 15, label: "10% to 15%" },
+        { min: 15, max: 20, label: "15% to 20%" },
+        { min: 20, max: Infinity, label: "> 20%" }
+    ]
+
+    // Initialize distribution data
+    const distribution: DistributionData[] = bins.map(bin => ({
+        bin: bin.label,
+        count: 0,
+        binValue: (bin.min + bin.max) / 2
+    }))
+
+    // Count trades in each bin
+    trades.forEach(trade => {
+        const returnPercentage = (trade.profit / 10000) * 100 // Assuming initial balance of 10000
+        const binIndex = bins.findIndex(bin =>
+            returnPercentage > bin.min && returnPercentage <= bin.max
+        )
+        if (binIndex >= 0) {
+            distribution[binIndex].count++
+        }
+    })
+
+    return distribution
+}
+
 // Simulate a delay for API response
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -166,6 +232,8 @@ export const generateHistoricalBacktestData = (
         trades,
         params,
         metrics,
+        monthlyReturns: generateMonthlyReturns(days),
+        returnDistribution: generateDistributionData(trades)
     }
 }
 
@@ -207,7 +275,7 @@ export const mockRunBacktest = async (
     // Create response
     return {
         success: true,
-        runId: version,
+        version: version,
         date: new Date().toISOString(),
         strategyId,
         timeframe,
@@ -261,7 +329,7 @@ export const mockGetHistoricalBacktest = async (
     // Create response
     return {
         success: true,
-        runId: version,
+        version: version,
         date: new Date().toISOString(),
         strategyId,
         timeframe,

@@ -34,10 +34,22 @@
 
     --radius: 0.5rem;
 
-    --chart-1: hsl(222.2 47.4% 11.2%);
-    --chart-2: hsl(215 25% 27%);
-    --chart-3: hsl(217 33% 17%);
-    --chart-4: hsl(219 14% 51%);
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 212 95% 68%;
+    --chart-3: 216 92% 60%;
+    --chart-4: 210 98% 78%;
+    --chart-5: 212 97% 87%;
+
+    --chart-primary: var(--primary);
+    --chart-secondary: var(--secondary);
+    --chart-primary-gradient: linear-gradient(to bottom,
+        hsl(var(--primary) / 0.2),
+        hsl(var(--primary) / 0));
+    --chart-secondary-gradient: linear-gradient(to bottom,
+        hsl(var(--secondary) / 0.2),
+        hsl(var(--secondary) / 0));
+    --chart-grid: var(--border);
+
   }
 
   .dark {
@@ -73,6 +85,16 @@
     --chart-2: hsl(217.2 32.6% 60%);
     --chart-3: hsl(215 20.2% 65.1%);
     --chart-4: hsl(212.7 26.8% 83.9%);
+
+    --chart-primary: var(--primary);
+    --chart-secondary: var(--secondary);
+    --chart-primary-gradient: linear-gradient(to bottom,
+        hsl(var(--primary) / 0.2),
+        hsl(var(--primary) / 0));
+    --chart-secondary-gradient: linear-gradient(to bottom,
+        hsl(var(--secondary) / 0.2),
+        hsl(var(--secondary) / 0));
+    --chart-grid: var(--border);
   }
 
   @theme inline {
@@ -110,6 +132,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -152,6 +175,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

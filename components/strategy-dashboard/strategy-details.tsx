@@ -592,19 +592,27 @@ export default function StrategyDetails({ id }: { id: number }) {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Total Return</div>
-                                            <div className="font-medium text-green-500">{strategy.backtestPerformance.strategyReturn}%</div>
+                                            <div className="font-medium text-green-500">
+                                                {Number(strategy.backtestPerformance.strategyReturn).toFixed(2)}%
+                                            </div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Sharpe Ratio</div>
-                                            <div className="font-medium">{strategy.backtestPerformance.sharpeRatio}</div>
+                                            <div className="font-medium">
+                                                {Number(strategy.backtestPerformance.sharpeRatio).toFixed(2)}
+                                            </div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Max Drawdown</div>
-                                            <div className="font-medium text-red-500">-{strategy.backtestPerformance.maxDrawdown}%</div>
+                                            <div className="font-medium text-red-500">
+                                                -{Number(strategy.backtestPerformance.maxDrawdown).toFixed(2)}%
+                                            </div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Win Rate</div>
-                                            <div className="font-medium">{strategy.backtestPerformance.winRate}%</div>
+                                            <div className="font-medium">
+                                                {Number(strategy.backtestPerformance.winRate).toFixed(2)}%
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -619,26 +627,24 @@ export default function StrategyDetails({ id }: { id: number }) {
                     {/* Live Performance */}
                     <Card>
                         <CardHeader className="pb-3">
-                            <div className="flex justify-between items-center w-full">
-                                <CardTitle className="flex items-center gap-2">
-                                    <LineChart className="h-5 w-5" />
-                                    {strategy.status === "live"
-                                        ? "Live Performance"
-                                        : strategy.status === "paper"
-                                            ? "Paper Trading Performance"
-                                            : "Performance"}
-                                </CardTitle>
-                                {(strategy.status === "live" || strategy.status === "paper") && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => router.push(`/${strategy.status === "live" ? "live-trading" : "paper-trading"}/${id}`)}
-                                    >
-                                        <LineChart className="mr-2 h-4 w-4" />
-                                        View Details
-                                    </Button>
-                                )}
-                            </div>
+                            <CardTitle className="flex items-center gap-2">
+                                <LineChart className="h-5 w-5" />
+                                {strategy.status === "live"
+                                    ? "Live Performance"
+                                    : strategy.status === "paper"
+                                        ? "Paper Trading Performance"
+                                        : "Performance"}
+                            </CardTitle>
+                            {(strategy.status === "live" || strategy.status === "paper") && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => router.push(`/${strategy.status === "live" ? "live-trading" : "paper-trading"}/${id}`)}
+                                >
+                                    <LineChart className="mr-2 h-4 w-4" />
+                                    View Details
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent>
                             {strategy.status === "live" || strategy.status === "paper" ? (

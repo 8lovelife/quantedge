@@ -483,19 +483,19 @@ export default function StrategiesPage() {
                                                     <div className="bg-muted/30 p-2 rounded-md h-[72px] flex flex-col justify-center">
                                                         <div className="text-xs text-muted-foreground">Return</div>
                                                         <div className="text-sm font-bold text-green-500">
-                                                            {strategy.backtestPerformance?.strategyReturn || 0}%
+                                                            {Number(strategy.backtestPerformance?.strategyReturn || 0).toFixed(2)}%
                                                         </div>
                                                     </div>
                                                     <div className="bg-muted/30 p-2 rounded-md h-[72px] flex flex-col justify-center">
                                                         <div className="text-xs text-muted-foreground">Win Rate</div>
                                                         <div className="text-sm font-bold">
-                                                            {strategy.backtestPerformance?.winRate || 0}%
+                                                            {Number(strategy.backtestPerformance?.winRate || 0).toFixed(2)}%
                                                         </div>
                                                     </div>
                                                     <div className="bg-muted/30 p-2 rounded-md h-[72px] flex flex-col justify-center">
                                                         <div className="text-xs text-muted-foreground">Drawdown</div>
                                                         <div className="text-sm font-bold text-red-500">
-                                                            {strategy.backtestPerformance?.maxDrawdown || 0}%
+                                                            {Number(strategy.backtestPerformance?.maxDrawdown || 0).toFixed(2)}%
                                                         </div>
                                                     </div>
                                                 </div>

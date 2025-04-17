@@ -484,7 +484,7 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                                 <DynamicStrategyParameters
                                     strategyType={strategyType}
                                     params={data}
-                                    category="Advanced"
+                                    category="advanced"
                                     schemas={parameterSchemas[strategyType]}
                                     onChange={onChange} />
                             </AccordionContent>

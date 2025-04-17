@@ -95,8 +95,6 @@ export default function BacktestPage() {
             // Call the API to run the backtest
             const response = await runBacktest(params, timeframe, strategyId)
 
-            console.log("run backtest result " + JSON.stringify(response))
-
             if (response.success) {
                 setBacktestData(response.data)
 

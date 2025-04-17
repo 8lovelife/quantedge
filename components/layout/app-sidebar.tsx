@@ -55,6 +55,11 @@ const data = {
             icon: BarChartIcon,
         },
         {
+            title: "Lab",
+            url: "/lab",
+            icon: FolderIcon
+        },
+        {
             title: "Market Overview",
             url: "/dashboard",
             icon: FolderIcon,

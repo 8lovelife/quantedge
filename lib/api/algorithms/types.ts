@@ -1,11 +1,12 @@
 export interface AlgorithmOption {
+    id?: number,
     value: string
     label: string
     desc: string,
     info: string,
     defaultParameters?: Record<string, any> // ← most JSON-friendly
-
     defaultRisk?: Record<string, any> // ← most JSON-friendly
+    defaultExecution?: Record<string, any> // ← most JSON-friendly
 }
 
 
@@ -146,7 +147,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 200,
             step: 1,
             unit: "bars",
-            category: "Core"
+            category: "core"
         },
         {
             key: "slowPeriod",
@@ -156,7 +157,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 500,
             step: 1,
             unit: "bars",
-            category: "Core"
+            category: "core"
         },
         {
             key: "entryThreshold",
@@ -166,7 +167,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 10,
             step: 0.1,
             unit: "σ",
-            category: "Advanced"
+            category: "advanced"
         },
         {
             key: "exitThreshold",
@@ -176,7 +177,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 2,
             step: 0.1,
             unit: "σ",
-            category: "Advanced"
+            category: "advanced"
         }
     ],
     "mean-reversion": [
@@ -188,7 +189,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 100,
             step: 1,
             unit: "bars",
-            category: "Core"
+            category: "core"
         },
         {
             key: "entry_threshold",
@@ -198,7 +199,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 5,
             step: 0.1,
             unit: "",
-            category: "Core"
+            category: "core"
         },
         {
             key: "exit_threshold",
@@ -208,7 +209,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 2,
             step: 0.1,
             unit: "",
-            category: "Core"
+            category: "core"
         }
     ]
 }
@@ -265,4 +266,41 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             category: "position"
         }
     ]
+}
+
+
+export const defaultParams2 = {
+    fastPeriod: 10,
+    slowPeriod: 30,
+    subType: "sma",
+    entryThreshold: 1,
+    exitThreshold: 0.5,
+    stopLoss: 0.05,
+    takeProfit: 0.1,
+    riskPerTrade: 0.02,
+    positionSize: 0.3,
+    maxConcurrentPositions: 1,
+    slippage: 0.001,
+    commission: 0.0005,
+    entryDelay: 1,
+    minHoldingPeriod: 3,
+    maxHoldingPeriod: 10
+};
+
+export interface StrategyDefaultParams {
+    fastPeriod: number;
+    slowPeriod: number;
+    maType: string;
+    entryThreshold: number;
+    exitThreshold: number;
+    stopLoss: number;
+    takeProfit: number;
+    riskPerTrade: number;
+    positionSize: number;
+    maxConcurrentPositions: number;
+    slippage: number;
+    commission: number;
+    entryDelay: number;
+    minHoldingPeriod: number;
+    maxHoldingPeriod: number;
 }

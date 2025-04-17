@@ -18,7 +18,7 @@ interface DynamicStrategyParametersProps {
 
 export default function DynamicStrategyParameters({
     strategyType,
-    category = "Core",
+    category = "core",
     params,
     schemas,
     onChange

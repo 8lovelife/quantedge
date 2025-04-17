@@ -506,7 +506,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
         />,
         parameters: <StrategyParameters strategyType={type} onChange={setParamData} data={paramData} />,
         assets: <AssetConfiguration onChange={setAssetData} data={assetData} />,
-        risk: <RiskManagement onChange={setRiskData} data={riskData} />,
+        risk: <RiskManagement strategyType={type} onChange={setRiskData} data={riskData} />,
         completed: (
             <div className={cn(
                 "w-full max-w-7xl mx-auto p-6",

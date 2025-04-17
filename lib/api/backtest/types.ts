@@ -109,3 +109,15 @@ export interface BacktestRunHistoryResponse {
     error?: string
 }
 
+
+export interface LabRunBacktestRequest {
+    templateId: number
+    type: string
+    subType: string
+    params: Record<string, any>,
+    pairs: string
+    timeframe: string
+    initialCapital: number
+    positionType: string
+
+}

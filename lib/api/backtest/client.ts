@@ -1,4 +1,4 @@
-import type { BacktestParameters, BacktestResponse, BacktestRunHistoryItem, BacktestRunHistoryResponse } from "./types"
+import type { BacktestParameters, BacktestResponse, BacktestRunHistoryItem, BacktestRunHistoryResponse, LabRunBacktestRequest } from "./types"
 
 /**
  * Run a backtest with the provided parameters
@@ -153,6 +153,32 @@ export async function addRunToHistory(
     } catch (error) {
         console.error("Failed to add run to history:", error)
         return false
+    }
+}
+
+
+
+export async function runLabBacktest(
+    labRun: LabRunBacktestRequest
+): Promise<BacktestResponse> {
+    try {
+        const response = await fetch("/api/lab/run", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(labRun),
+        })
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to run backtest:", error)
+        throw error
     }
 }
 

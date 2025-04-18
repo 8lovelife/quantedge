@@ -31,12 +31,12 @@ export interface BacktestParameters {
 
 // Performance metrics
 export interface BacktestMetrics {
-    strategyReturn: string
-    marketReturn: string
-    alpha: string
-    maxDrawdown: string
-    winRate: string
-    sharpeRatio: string
+    strategyReturn: number
+    marketReturn: number
+    alpha: number
+    maxDrawdown: number
+    winRate: number
+    sharpeRatio: number
     totalTrades: number
 }
 
@@ -119,5 +119,4 @@ export interface LabRunBacktestRequest {
     timeframe: string
     initialCapital: number
     positionType: string
-
 }

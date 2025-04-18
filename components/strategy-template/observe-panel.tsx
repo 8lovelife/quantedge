@@ -27,18 +27,19 @@ import {
     HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { cn, formatDuration } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "../ui/avatar"
-import { BacktestData, BacktestParameters, LabRunBacktestRequest } from "@/lib/api/backtest/types"
+import { BacktestData, BacktestMetrics, BacktestParameters, LabRunBacktestRequest } from "@/lib/api/backtest/types"
 import { mockRunBacktest } from "@/lib/api/backtest/mock"
 import DynamicStrategyParameters from "../strategy-builder/strategy-dynamic-parameters"
-import { AlgorithmOption, algorithmOption, defaultParams2, fetchAlgorithm, parameterSchemas, riskSchemas, StrategyDefaultParams } from "@/lib/api/algorithms"
+import { AlgorithmOption, algorithmOption, defaultParams2, fetchAlgorithm, labRunHistory, LabRunHistory, labRunHistoryBacktest, LabRunHistoryResponse, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
 import StrategyTempleteObserveResultsLoadingSkeleton from "./observe-results-panel-skeleton"
 import StrategyTempleteObserveResultsPanel from "./observe-results-panel"
 import { useParams } from "next/navigation"
 import ConfigurationPanelSkeleton from "./observe-config-skeleton"
 import { sub } from "date-fns"
 import { runLabBacktest } from "@/lib/api/backtest/client"
+import { MultiSelect } from "../ui/multi-select"
 
 // ... keep your existing chart imports ...
 
@@ -95,13 +96,14 @@ const strategyTypes: StrategyType[] = [
 const meanReversionTypes = [
     { id: "sma", name: "Simple Moving Average" },
     { id: "ema", name: "Exponential Moving Average" },
+    { id: "wma", name: "Weighted Moving Average" },
     { id: "bollinger", name: "Bollinger Bands" }
 ]
 
 const maCrossoverTypes = [
     { id: "sma", name: "Simple Moving Average" },
     { id: "ema", name: "Exponential Moving Average" },
-    { id: "ema", name: "Exponential Moving Average" }
+    { id: "wma", name: "Weighted Moving Average" },
 ]
 
 const timeframes = [
@@ -135,15 +137,9 @@ interface BacktestRun {
     id: string
     date: string
     params: Record<string, any>,
-    performance: {
-        returnRate: number
-        winRate: number
-        sharpeRatio: number
-        maxDrawdown: number
-        totalTrades: number
-    }
+    performance: BacktestMetrics,
     duration: string
-    status: "completed" | "failed" | "running"
+    status: string
 }
 
 // Add mock data
@@ -178,6 +174,8 @@ const optimizationResult: OptimizationResult = {
         // Add more parameter optimizations...
     ]
 }
+
+
 
 const recentRuns: BacktestRun[] = [
     {
@@ -318,6 +316,16 @@ const parameters: Parameter[] = [
     }
 ]
 
+const GRID_PRESETS: Record<string, number[]> = {
+    fastPeriod: [5, 10, 15],
+    slowPeriod: [20, 30, 50],
+    entryThreshold: [1, 2],
+    exitThreshold: [0.5, 1],
+    stopLoss: [3, 5],
+    takeProfit: [8, 10],
+    positionSize: [2, 3],
+}
+
 const optimizedParams = {
     lookbackPeriod: 25,
     entryThreshold: 2.5,
@@ -356,6 +364,15 @@ const mockFetchDefaultParams = async (templateId: string) => {
     });
 };
 
+const optimizeParams = [
+    { name: "Fast Period", key: "fastPeriod" },
+    { name: "Slow Period", key: "slowPeriod" },
+    { name: "Entry Threshold", key: "entryThreshold" },
+    { name: "Exit Threshold", key: "exitThreshold" },
+    // { name: "Risk Per Trade", key: "riskPerTrade" },
+    // { name: "Stop Loss", key: "stopLoss" }
+]
+
 export default function StrategyTempleteObservePage() {
 
     const pathParams = useParams()
@@ -369,6 +386,7 @@ export default function StrategyTempleteObservePage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+
     // Add new state variables
     const [selectedStrategy, setSelectedStrategy] = useState("ma-crossover")
     const [selectedMeanType, setSelectedMeanType] = useState("sma")
@@ -378,10 +396,67 @@ export default function StrategyTempleteObservePage() {
     const [initialCapital, setInitialCapital] = useState(10000)
     const [direction, setDirection] = useState<"long" | "short" | "both">("both")
     const [showAdvanced, setShowAdvanced] = useState(false)
+    const [rangeInputs, setRangeInputs] = useState<Record<string, number[]>>(
+        Object.fromEntries(
+            Object.keys(GRID_PRESETS).map(k => [k, []])
+        )
+    )
+    const [gridResults, setGridResults] = useState<any[]>([])
+    const [bestParams, setBestParams] = useState<Record<string, any> | null>(null)
+
+    const [runHistory, setRunHistory] = useState<LabRunHistoryResponse>()
+    const [selectedRun, setSelectedRun] = useState(() => runHistory?.historys?.[0] || null);
 
 
     const templateId = typeof pathParams.id === "string" ? pathParams.id : "1"
 
+
+    // const handleRangeInputChange = (key: string, value: string) => {
+    //     setRangeInputs((prev) => ({ ...prev, [key]: value }))
+    // }
+
+
+    function generateCombinations(grid: Record<string, number[]>): Record<string, any>[] {
+        const keys = Object.keys(grid)
+        const cartesian = (arr: number[][]): number[][] =>
+            arr.reduce((acc, val) =>
+                acc.flatMap(d => val.map(v => [...d, v])), [[]]
+            )
+
+        const values = Object.values(grid)
+        return cartesian(values).map(comb =>
+            Object.fromEntries(comb.map((v, i) => [keys[i], v]))
+        )
+    }
+
+
+    const handleRunGridSearch = async () => {
+        const parsedGrid = rangeInputs
+
+        const allCombos = generateCombinations(parsedGrid)
+        const backtestRequest = {
+            templateId: parseInt(templateId),
+            type: selectedStrategy,
+            subType: selectedMeanType,
+            gridParams: parsedGrid,
+            pairs: selectedPairs,
+            timeframe: selectedTimeframe,
+            initialCapital: initialCapital,
+            positionType: direction
+        }
+
+        console.log("Grid search request:", JSON.stringify(backtestRequest))
+        // const results = []
+        // for (const combo of allCombos) {
+        //     const result = await runLabBacktest({ ...backtestRequest, params: combo })
+        //     results.push({ ...result.data.metrics, params: combo })
+        // }
+
+        // // sort by return - drawdown
+        // const sorted = results.sort((a, b) => (b.strategyReturn - b.maxDrawdown) - (a.strategyReturn - a.maxDrawdown))
+        // setGridResults(sorted)
+        // setBestParams(sorted[0]?.params)
+    }
 
     const loadTemplateParameters = async () => {
         try {
@@ -396,6 +471,9 @@ export default function StrategyTempleteObservePage() {
                 setParams(combinedDefaults);
                 setAlgorithmOption(fetchedParams);
             }
+
+            loadRunHistoryData(parseInt(templateId))
+
         } catch (error) {
             console.error("Failed to load latest template parameters:", error)
         } finally {
@@ -446,6 +524,7 @@ export default function StrategyTempleteObservePage() {
             if (response.success) {
                 setBacktestData(response.data)
             }
+
         } catch (error) {
             console.error("Failed to load latest backtest:", error)
         } finally {
@@ -454,29 +533,46 @@ export default function StrategyTempleteObservePage() {
         }
     }
 
+
+    const loadHistoryBacktest = async (latestRun) => {
+        try {
+
+            setIsInitialLoad(true);
+            let version = latestRun.id;
+            setSelectedRun(latestRun)
+            const response = await labRunHistoryBacktest(parseInt(templateId), version)
+            if (response.success) {
+                setBacktestData(response.data)
+            }
+        } catch (error) {
+            console.error("Failed to load latest backtest:", error)
+        } finally {
+            setIsInitialLoad(false)
+        }
+    }
+
     useEffect(() => {
         loadLatestBacktest()
     }, [])
 
-    // Define loadBacktestData outside of useEffect so it can be called from the button
-    const loadBacktestData = async (customParams: LabRunBacktestRequest) => {
+    const runBacktestData = async (customParams: LabRunBacktestRequest) => {
         try {
             setIsInitialLoad(true)
 
-            // Use provided parameters or default ones
-            // const params = customParams
-
-            // Call the API to run the backtest
 
             const response = await runLabBacktest(customParams);
-
-            // const response = await mockRunBacktest(params, "1m", "1")
-
             if (response.success) {
                 setBacktestData(response.data)
             } else {
                 throw new Error(response.error || "Failed to run backtest")
             }
+
+
+            // Fetch the latest run history after running the backtest
+            const data = await labRunHistory(customParams.templateId);
+            setSelectedRun(data.historys?.[0] || null)
+            setRunHistory(data)
+
         } catch (err) {
             console.error("Failed to fetch backtest data:", err)
             // Show error message to user
@@ -485,6 +581,17 @@ export default function StrategyTempleteObservePage() {
             setIsInitialLoad(false)
         }
     }
+
+    const loadRunHistoryData = async (templateId: number) => {
+        try {
+            const data = await labRunHistory(templateId);
+            setSelectedRun(data.historys?.[0] || null)
+            setRunHistory(data)
+        } catch (err) {
+            console.error("Failed to fetch backtest data:", err)
+        }
+    }
+
 
     const validateParam = (param: Parameter, value: number) => {
         if (value < param.min || value > param.max) {
@@ -522,7 +629,7 @@ export default function StrategyTempleteObservePage() {
         const backtestRequest = {
             templateId: parseInt(templateId),
             type: selectedStrategy,
-            subType: params.subType,
+            subType: selectedMeanType,
             params,
             pairs: selectedPairs,
             timeframe: selectedTimeframe,
@@ -530,10 +637,11 @@ export default function StrategyTempleteObservePage() {
             positionType: direction
         }
 
-        loadBacktestData(backtestRequest)
+        runBacktestData(backtestRequest)
 
         setIsRunning(false)
     }
+
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -607,7 +715,7 @@ export default function StrategyTempleteObservePage() {
                                         <Zap className="h-4 w-4 mr-2" />
                                         Optimize
                                     </TabsTrigger>
-                                    <TabsTrigger value="history">
+                                    <TabsTrigger value="history" disabled={isRunning}>
                                         <History className="h-4 w-4 mr-2" />
                                         History
                                     </TabsTrigger>
@@ -630,7 +738,7 @@ export default function StrategyTempleteObservePage() {
                                                             <SelectValue placeholder="Select mean type" />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {meanReversionTypes.map(type => (
+                                                            {maCrossoverTypes.map(type => (
                                                                 <SelectItem key={type.id} value={type.id}>
                                                                     {type.name}
                                                                 </SelectItem>
@@ -651,7 +759,7 @@ export default function StrategyTempleteObservePage() {
                                                         <SelectContent>
                                                             <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
                                                             <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
-                                                            <SelectItem value="BNB/USDT">BNB/USDT</SelectItem>
+                                                            <SelectItem value="BNB/USDT">SOL/USDT</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -826,28 +934,85 @@ export default function StrategyTempleteObservePage() {
                                 <TabsContent value="optimize">
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Parameter Optimization</CardTitle>
+                                            <CardTitle>Grid Search Optimization</CardTitle>
                                             <CardDescription>
-                                                Optimized parameters based on historical performance
+                                                Define parameter ranges and run batch optimization using grid search.
                                             </CardDescription>
                                         </CardHeader>
-                                        <CardContent>
-                                            {/* Add optimization results and suggestions */}
+                                        <CardContent className="space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* Parameter Ranges UI */}
+                                                {optimizeParams.map((param) => (
+                                                    <div key={param.key} className="space-y-2">
+                                                        <Label>{param.name}</Label>
+
+                                                        <MultiSelect
+                                                            values={rangeInputs[param.key] || []}
+                                                            options={GRID_PRESETS[param.key] ?? []}
+                                                            placeholder="Select..."
+                                                            onChange={(newArr) =>
+                                                                setRangeInputs(prev => ({ ...prev, [param.key]: newArr }))
+                                                            }
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-sm text-muted-foreground">
+                                                    Total Combinations:
+                                                </div>
+                                                <Button onClick={handleRunGridSearch}>
+                                                    <Zap className="h-4 w-4 mr-2" />
+                                                    Run Grid Search
+                                                </Button>
+                                            </div>
                                         </CardContent>
                                         <CardFooter>
-                                            <Button
-                                                className="w-full"
-                                                onClick={applyOptimizedParams}
-                                                variant="outline"
-                                            >
-                                                <Zap className="h-4 w-4 mr-2" />
-                                                Apply Optimized Parameters
+                                            <Button disabled={!bestParams}>
+                                                Apply Best Result
                                             </Button>
                                         </CardFooter>
                                     </Card>
+
+                                    {/* Optimization Result Table */}
+                                    {gridResults.length > 0 && (
+                                        <Card className="mt-6">
+                                            <CardHeader>
+                                                <CardTitle>Optimization Results</CardTitle>
+                                                <CardDescription>Sorted by Return - Drawdown</CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="border-b">
+                                                            <th className="text-left py-1">Return</th>
+                                                            <th className="text-left py-1">Drawdown</th>
+                                                            <th className="text-left py-1">Sharpe</th>
+                                                            <th className="text-left py-1">Params</th>
+                                                        </tr>
+                                                    </thead>
+                                                    {/* <tbody>
+                                                        {gridResults.map((res, i) => (
+                                                            <tr key={i} className="border-b hover:bg-muted/50 cursor-pointer">
+                                                                <td className="py-1 text-green-500 font-medium">{res.strategyReturn}%</td>
+                                                                <td className="py-1 text-red-500">{res.maxDrawdown}%</td>
+                                                                <td className="py-1">{res.sharpeRatio}</td>
+                                                                <td className="py-1">
+                                                                    {Object.entries(res.params).map(([k, v]) => (
+                                                                        <Badge key={k} variant="outline" className="mr-1">{k}: {v}</Badge>
+                                                                    ))}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody> */}
+                                                </table>
+                                            </CardContent>
+                                        </Card>
+                                    )}
                                 </TabsContent>
 
-                                <TabsContent value="history">
+                                {/* <TabsContent value="history">
                                     <Card>
                                         <CardHeader>
                                             <CardTitle>Recent Backtests</CardTitle>
@@ -856,10 +1021,9 @@ export default function StrategyTempleteObservePage() {
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent>
-                                            {/* Add backtest history list */}
                                         </CardContent>
                                     </Card>
-                                </TabsContent>
+                                </TabsContent> */}
 
                                 <TabsContent value="optimize">
                                     <div className="space-y-4">
@@ -992,20 +1156,23 @@ export default function StrategyTempleteObservePage() {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="space-y-4">
-                                                {recentRuns.map((run) => (
+                                                {runHistory?.historys?.map((run) => (
                                                     <div
                                                         key={run.id}
-                                                        className="flex flex-col space-y-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                                                        className={cn(
+                                                            "flex flex-col space-y-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors",
+                                                            selectedRun?.id === run.id && "border-second bg-muted"
+                                                        )} onClick={() => loadHistoryBacktest(run)}
                                                     >
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="font-medium">{run.id}</div>
+                                                                <div className="font-medium">Run {run.id}</div>
                                                                 <Badge variant="outline">
                                                                     {run.status}
                                                                 </Badge>
                                                             </div>
                                                             <div className="text-sm text-muted-foreground">
-                                                                {new Date(run.date).toLocaleString()}
+                                                                {new Date(run.startTime).toLocaleString()}
                                                             </div>
                                                         </div>
 
@@ -1013,37 +1180,72 @@ export default function StrategyTempleteObservePage() {
                                                             <div>
                                                                 <div className="text-xs text-muted-foreground">Return</div>
                                                                 <div className="text-sm font-medium text-green-500">
-                                                                    +{run.performance.returnRate}%
+                                                                    {Number(run.performance.strategyReturn).toFixed(2)}%
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <div className="text-xs text-muted-foreground">Win Rate</div>
                                                                 <div className="text-sm font-medium">
-                                                                    {run.performance.winRate}%
+                                                                    {Number(run.performance.winRate).toFixed(2)}%
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <div className="text-xs text-muted-foreground">Sharpe</div>
                                                                 <div className="text-sm font-medium">
-                                                                    {run.performance.sharpeRatio}
+                                                                    {Number(run.performance.sharpeRatio).toFixed(2)}
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <div className="text-xs text-muted-foreground">Drawdown</div>
                                                                 <div className="text-sm font-medium text-red-500">
-                                                                    {run.performance.maxDrawdown}%
+                                                                    {Number(run.performance.maxDrawdown).toFixed(2)}%
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <div className="text-xs text-muted-foreground">Duration</div>
                                                                 <div className="text-sm font-medium">
-                                                                    {run.duration}
+                                                                    {formatDuration(run.startTime, run.endTime)}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+
+                                                        {/* New grid for the additional parameters */}
+                                                        <div className="grid grid-cols-5 gap-4">
+                                                            <div>
+                                                                <div className="text-xs text-muted-foreground">Mean Type</div>
+                                                                <div className="text-sm font-medium">
+                                                                    {run.marketDetails.subType || "-"}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs text-muted-foreground">Trading Pair</div>
+                                                                <div className="text-sm font-medium">
+                                                                    {run.marketDetails.pairs || "-"}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs text-muted-foreground">Timeframe</div>
+                                                                <div className="text-sm font-medium">
+                                                                    {run.marketDetails.timeframe || "-"}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs text-muted-foreground">Initial Capital</div>
+                                                                <div className="text-sm font-medium">
+                                                                    {run.marketDetails.initialCapital ? `$${run.marketDetails.initialCapital}` : "-"}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs text-muted-foreground">Direction</div>
+                                                                <div className="text-sm font-medium">
+                                                                    {run.marketDetails.positionType || "-"}
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex gap-2 flex-wrap">
-                                                            {Object.entries(run.params)
+                                                            {Object.entries(run.parameters)
                                                                 .filter(([key, value]) =>
                                                                     value !== defaultParams2[key as keyof typeof defaultParams2]
                                                                 )

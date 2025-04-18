@@ -26,6 +26,7 @@ export async function POST(request: Request) {
         });
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
         const data = await response.json();
+
         const result: BacktestResponse = {
             success: true,
             version: data.version,
@@ -34,6 +35,10 @@ export async function POST(request: Request) {
             timeframe: "1h",
             data: data,
         }
+
+
+        console.log("Backtest result:", JSON.stringify(result))
+
 
         return NextResponse.json(result)
     } catch (error) {

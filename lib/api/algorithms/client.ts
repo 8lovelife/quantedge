@@ -1,5 +1,6 @@
+import { BacktestResponse } from "../backtest/types"
 import { algorithmOptions } from "./mock"
-import { AlgorithmOption } from "./types"
+import { AlgorithmOption, LabRunHistoryResponse } from "./types"
 
 export async function fetchAlgorithms(): Promise<AlgorithmOption[]> {
     try {
@@ -71,5 +72,39 @@ export const algorithmOption = {
         entryDelay: 1,
         minHoldingPeriod: 3,
         maxHoldingPeriod: 10
+    }
+}
+
+
+export async function labRunHistoryBacktest(
+    templateId: number, version: number
+): Promise<BacktestResponse> {
+    try {
+        const response = await fetch(`/api/lab/run/backtest?templateId=${templateId}&version=${version}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to run history lab backtest:", error)
+        throw error
+    }
+}
+
+
+export async function labRunHistory(
+    templateId: number
+): Promise<LabRunHistoryResponse> {
+    try {
+        const response = await fetch(`/api/lab/run/history?templateId=${templateId}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to lab run history:", error)
+        throw error
     }
 }

@@ -20,6 +20,8 @@ import {
     Star,
     ChevronRight,
     Loader2,
+    BarChart3,
+    ChevronLeft,
 } from "lucide-react"
 import {
     HoverCard,
@@ -32,14 +34,20 @@ import { Avatar, AvatarFallback } from "../ui/avatar"
 import { BacktestData, BacktestMetrics, BacktestParameters, LabRunBacktestRequest } from "@/lib/api/backtest/types"
 import { mockRunBacktest } from "@/lib/api/backtest/mock"
 import DynamicStrategyParameters from "../strategy-builder/strategy-dynamic-parameters"
-import { AlgorithmOption, algorithmOption, defaultParams2, fetchAlgorithm, labRunHistory, LabRunHistory, labRunHistoryBacktest, LabRunHistoryResponse, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
+import { AlgorithmOption, algorithmOption, defaultParams2, fetchAlgorithm, LabRunComparison, labRunHistory, LabRunHistory, labRunHistoryBacktest, labRunHistoryComparison, LabRunHistoryResponse, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
 import StrategyTempleteObserveResultsLoadingSkeleton from "./observe-results-panel-skeleton"
 import StrategyTempleteObserveResultsPanel from "./observe-results-panel"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import ConfigurationPanelSkeleton from "./observe-config-skeleton"
 import { sub } from "date-fns"
 import { runLabBacktest } from "@/lib/api/backtest/client"
 import { MultiSelect } from "../ui/multi-select"
+import router from "next/router"
+import RunSelectionCard from "./comparison/run-selection-card"
+import BasicTabContent from "./comparison/basic-tab-content"
+import AdvancedTabContent from "./comparison/advanced-tab-content"
+import { calculateExtendedMetrics, getBestMetricValues, mergeDrawdowns, mergeLines, prepareRadarData, prepareWinLossData } from "./comparison/chart-utils"
+import StrategyObserveComparisonPanel from "./observe-comparison"
 
 // ... keep your existing chart imports ...
 
@@ -376,6 +384,8 @@ const optimizeParams = [
 export default function StrategyTempleteObservePage() {
 
     const pathParams = useParams()
+    const router = useRouter();
+
 
     const [isRunning, setIsRunning] = useState(false)
     const [params, setParams] = useState<Record<string, any>>()
@@ -385,6 +395,8 @@ export default function StrategyTempleteObservePage() {
     const [backtestData, setBacktestData] = useState<BacktestData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
 
 
     // Add new state variables
@@ -401,11 +413,18 @@ export default function StrategyTempleteObservePage() {
             Object.keys(GRID_PRESETS).map(k => [k, []])
         )
     )
+    const [selected, setSelected] = useState<number[]>([]);
+
     const [gridResults, setGridResults] = useState<any[]>([])
     const [bestParams, setBestParams] = useState<Record<string, any> | null>(null)
 
     const [runHistory, setRunHistory] = useState<LabRunHistoryResponse>()
     const [selectedRun, setSelectedRun] = useState(() => runHistory?.historys?.[0] || null);
+    const [runsToBacktest, setRunsToBacktest] = useState<Record<number, LabRunComparison>>({});
+    const [pareto, setPareto] = useState<number[]>([]);
+    const [isComparisonLoading, setIsComparisonLoading] = useState(false)
+
+
 
 
     const templateId = typeof pathParams.id === "string" ? pathParams.id : "1"
@@ -414,6 +433,17 @@ export default function StrategyTempleteObservePage() {
     // const handleRangeInputChange = (key: string, value: string) => {
     //     setRangeInputs((prev) => ({ ...prev, [key]: value }))
     // }
+
+
+    // Update the viewComparisonResults function
+    const viewComparisonResults = (templateId: string) => {
+
+        console.log("templateId", templateId)
+
+        // If latestVersion is undefined, don't include it in the URL
+        // This will show the empty state in the backtest page
+        router.push(`/lab/${templateId}/observe/comparison`)
+    }
 
 
     function generateCombinations(grid: Record<string, number[]>): Record<string, any>[] {
@@ -484,7 +514,38 @@ export default function StrategyTempleteObservePage() {
 
     useEffect(() => {
         loadTemplateParameters()
+
+        loadLatestBacktest()
+
     }, [templateId]);
+
+    // useEffect(() => {
+    //     loadLatestBacktest()
+    // }, [])
+
+    useEffect(() => {
+        const ids: number[] = [];
+        const list = effectiveSelected
+            .map(id => runsToBacktest[id])
+            .filter(Boolean);
+        list.forEach(a => {
+            const dom = list.some(b =>
+                b.runId !== a.runId &&
+                b.backtestData.metrics.strategyReturn >= a.backtestData.metrics.strategyReturn &&
+                b.backtestData.metrics.maxDrawdown <= a.backtestData.metrics.maxDrawdown &&
+                b.backtestData.metrics.sharpeRatio >= a.backtestData.metrics.sharpeRatio &&
+                (
+                    b.backtestData.metrics.strategyReturn > a.backtestData.metrics.strategyReturn ||
+                    b.backtestData.metrics.maxDrawdown < a.backtestData.metrics.maxDrawdown ||
+                    b.backtestData.metrics.sharpeRatio > a.backtestData.metrics.sharpeRatio
+                )
+            );
+
+            if (!dom) ids.push(a.runId);
+        });
+
+        setPareto(ids);
+    }, [selected, runsToBacktest]);
 
 
     const renderResultsPanel = () => {
@@ -492,7 +553,7 @@ export default function StrategyTempleteObservePage() {
             return <StrategyTempleteObserveResultsLoadingSkeleton />
         }
 
-        if (!backtestData) {
+        if (!backtestData || !selectedRun) {
             return (
                 <Card className="col-span-1 md:col-span-2">
                     <div className="flex flex-col items-center justify-center h-[600px] space-y-4">
@@ -514,7 +575,7 @@ export default function StrategyTempleteObservePage() {
             )
         }
 
-        return <StrategyTempleteObserveResultsPanel data={backtestData} isLoading={isLoading} />
+        return <StrategyTempleteObserveResultsPanel data={backtestData} isLoading={isLoading} templateId={templateId} version={selectedRun.id} strategy={selectedStrategy} />
     }
 
     const loadLatestBacktest = async () => {
@@ -551,9 +612,22 @@ export default function StrategyTempleteObservePage() {
         }
     }
 
-    useEffect(() => {
-        loadLatestBacktest()
-    }, [])
+    const fetchComparisonData = async () => {
+        try {
+            setIsComparisonLoading(true);
+            const comparisonData = await labRunHistoryComparison(parseInt(templateId));
+            if (comparisonData?.length) {
+                setSelected([comparisonData[0].runId]);
+                setRunsToBacktest(Object.fromEntries(comparisonData.map(item => [item.runId, item])));
+            }
+        } catch (err) {
+            console.error("Failed to fetch run backtest data", err);
+        } finally {
+            setIsComparisonLoading(false);
+        }
+    };
+
+
 
     const runBacktestData = async (customParams: LabRunBacktestRequest) => {
         try {
@@ -623,7 +697,6 @@ export default function StrategyTempleteObservePage() {
 
     const runBacktest = () => {
 
-
         setIsRunning(true)
 
         const backtestRequest = {
@@ -642,6 +715,101 @@ export default function StrategyTempleteObservePage() {
         setIsRunning(false)
     }
 
+    useEffect(() => {
+        if (activeTab !== "comparison") return
+        if (isComparisonLoading) return
+        fetchComparisonData()
+    }, [activeTab, templateId])
+
+
+    const toggle = (id: number) => {
+        setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+    };
+
+
+    const effectiveSelected: number[] = selected.map(id => typeof id === "string" ? parseInt(id, 10) : id);
+
+    // const palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+
+    const palette = [
+        "rgba(137, 170, 255, 0.7)",
+        "rgba(180, 210, 255, 0.7)",
+        "rgba(120, 168, 255, 0.7)",
+        "rgba(155, 185, 230, 0.7)",
+
+        "rgba(160, 175, 210, 0.7)",
+        "rgba(180, 195, 205, 0.7)",
+        "rgba(170, 185, 200, 0.7)",
+        "rgba(145, 160, 175, 0.7)",
+
+        "rgba(150, 210, 220, 0.7)",
+        "rgba(170, 200, 190, 0.7)",
+        "rgba(135, 185, 175, 0.7)",
+        "rgba(120, 200, 200, 0.7)",
+
+        "rgba(190, 200, 230, 0.7)",
+        "rgba(200, 210, 250, 0.7)",
+        "rgba(170, 170, 210, 0.7)",
+        "rgba(160, 180, 230, 0.7)",
+
+        "rgba(200, 180, 210, 0.7)",
+        "rgba(215, 190, 220, 0.7)",
+        "rgba(195, 175, 200, 0.7)",
+        "rgba(225, 205, 230, 0.7)"
+    ]
+
+
+    // Data for charts
+    const lineData = mergeLines(effectiveSelected, runsToBacktest);
+    const drawdownData = mergeDrawdowns(effectiveSelected, runsToBacktest);
+    const winLossData = prepareWinLossData(effectiveSelected, runsToBacktest);
+    const radarData = prepareRadarData(effectiveSelected, runsToBacktest);
+    const scatter = effectiveSelected.map((id, idx) => {
+        const numericId = typeof id === "string" ? parseInt(id, 10) : id;
+
+        return {
+            id: numericId,
+            ret: runsToBacktest[numericId]?.backtestData?.metrics.strategyReturn,
+            dd: runsToBacktest[numericId]?.backtestData?.metrics.maxDrawdown,
+            color: pareto.includes(numericId) ? "#ff7f0e" : ["#1f77b4", "#2ca02c", "#d62728", "#9467bd"][idx % 4]
+        };
+    });
+
+
+    const runsToParameters = Object.fromEntries(
+        (runHistory?.historys ?? []).map(run => [Number(run.id), run.parameters])
+    )
+
+    const months = Array.from(new Set(
+        effectiveSelected.flatMap(id => {
+            const run = runsToBacktest?.[id];
+            return run?.backtestData?.monthlyReturns?.map(m => m.month) ?? [];
+        })
+    )).sort();
+
+    const monthlyData = months.map(m => {
+        const row: any = { month: m }
+        effectiveSelected.forEach(id => {
+            const rec = runsToBacktest[id].backtestData.monthlyReturns.find(x => x.month === m)
+            if (rec) row[`run${id}`] = +(+rec.strategyReturn * 100).toFixed(2)
+        })
+        return row
+    })
+
+    const metricsTableData = effectiveSelected
+        .map(id => {
+            const run = runsToBacktest[id]?.backtestData;
+            if (!run) return null;
+            return {
+                id,
+                ...calculateExtendedMetrics(run)
+            };
+        })
+        .filter(Boolean);
+
+    const bestValues = getBestMetricValues(metricsTableData);
+
+    const gridColsClass = sidebarCollapsed ? "grid-cols-1" : "md:grid-cols-3"
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -697,75 +865,81 @@ export default function StrategyTempleteObservePage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`grid grid-cols-1 ${sidebarCollapsed ? "" : "md:grid-cols-3"} gap-4`}>
                     {/* Configuration Panel */}
-                    <div className="space-y-4">
-                        {isLoading ? (
-                            <ConfigurationPanelSkeleton />
-                        ) : (
+                    <div className="relative">
+                        {!sidebarCollapsed && (
+                            <div className="space-y-4">
+                                {isLoading ? (
+                                    <ConfigurationPanelSkeleton />
+                                ) : (
 
 
-                            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="parameters">
-                                        <Settings className="h-4 w-4 mr-2" />
-                                        Run Backtest
-                                    </TabsTrigger>
-                                    <TabsTrigger value="optimize">
-                                        <Zap className="h-4 w-4 mr-2" />
-                                        Optimize
-                                    </TabsTrigger>
-                                    <TabsTrigger value="history" disabled={isRunning}>
-                                        <History className="h-4 w-4 mr-2" />
-                                        History
-                                    </TabsTrigger>
-                                </TabsList>
+                                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                                        <TabsList className="grid w-full grid-cols-4">
+                                            <TabsTrigger value="parameters">
+                                                <Settings className="h-4 w-4 mr-2" />
+                                                Run Backtest
+                                            </TabsTrigger>
+                                            <TabsTrigger value="optimize">
+                                                <Zap className="h-4 w-4 mr-2" />
+                                                Optimize
+                                            </TabsTrigger>
+                                            <TabsTrigger value="history" disabled={isRunning}>
+                                                <History className="h-4 w-4 mr-2" />
+                                                History
+                                            </TabsTrigger>
+                                            <TabsTrigger value="comparison">
+                                                <BarChart3 className="h-4 w-4 mr-2" />
+                                                Comparison
+                                            </TabsTrigger>
+                                        </TabsList>
 
-                                <TabsContent value="parameters">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Backtest Configuration</CardTitle>
-                                            <CardDescription>Configure strategy and market parameters for backtesting</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-6">
-                                            {/* Strategy Configuration and Market Configuration stay the same */}
-                                            {/* Mean Reversion Type - Only show if mean reversion is selected */}
-                                            {selectedStrategy === "ma-crossover" && (
-                                                <div className="space-y-2">
-                                                    <Label>Mean Type</Label>
-                                                    <Select value={selectedMeanType} onValueChange={setSelectedMeanType}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select mean type" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {maCrossoverTypes.map(type => (
-                                                                <SelectItem key={type.id} value={type.id}>
-                                                                    {type.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
-                                            {/* Market Configuration */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {/* Trading Pairs */}
-                                                <div className="space-y-2">
-                                                    <Label>Trading Pairs</Label>
-                                                    <Select value={selectedPairs} onValueChange={setSelectedPairs}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select trading pairs" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
-                                                            <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
-                                                            <SelectItem value="BNB/USDT">SOL/USDT</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
+                                        <TabsContent value="parameters">
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle>Backtest Configuration</CardTitle>
+                                                    <CardDescription>Configure strategy and market parameters for backtesting</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-6">
+                                                    {/* Strategy Configuration and Market Configuration stay the same */}
+                                                    {/* Mean Reversion Type - Only show if mean reversion is selected */}
+                                                    {selectedStrategy === "ma-crossover" && (
+                                                        <div className="space-y-2">
+                                                            <Label>Mean Type</Label>
+                                                            <Select value={selectedMeanType} onValueChange={setSelectedMeanType}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select mean type" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {maCrossoverTypes.map(type => (
+                                                                        <SelectItem key={type.id} value={type.id}>
+                                                                            {type.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
+                                                    {/* Market Configuration */}
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        {/* Trading Pairs */}
+                                                        <div className="space-y-2">
+                                                            <Label>Trading Pairs</Label>
+                                                            <Select value={selectedPairs} onValueChange={setSelectedPairs}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select trading pairs" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
+                                                                    <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
+                                                                    <SelectItem value="BNB/USDT">SOL/USDT</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
 
-                                                {/* Benchmark */}
-                                                {/* <div className="space-y-2">
+                                                        {/* Benchmark */}
+                                                        {/* <div className="space-y-2">
                                                     <Label>Benchmark</Label>
                                                     <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
                                                         <SelectTrigger>
@@ -778,90 +952,90 @@ export default function StrategyTempleteObservePage() {
                                                     </Select>
                                                 </div> */}
 
-                                                {/* Timeframe */}
-                                                <div className="space-y-2">
-                                                    <Label>Timeframe</Label>
-                                                    <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select timeframe" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {timeframes.map(tf => (
-                                                                <SelectItem key={tf.id} value={tf.id}>
-                                                                    {tf.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
+                                                        {/* Timeframe */}
+                                                        <div className="space-y-2">
+                                                            <Label>Timeframe</Label>
+                                                            <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select timeframe" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {timeframes.map(tf => (
+                                                                        <SelectItem key={tf.id} value={tf.id}>
+                                                                            {tf.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
 
-                                                {/* Add Initial Capital Input */}
-                                                <div className="space-y-2">
-                                                    <Label>Initial Capital</Label>
-                                                    <div className="flex items-center gap-2">
-                                                        <Input
-                                                            type="number"
-                                                            value={initialCapital}
-                                                            onChange={(e) => setInitialCapital(Number(e.target.value))}
-                                                            min={1000}
-                                                            step={1000}
-                                                        />
-                                                        <span className="text-xs text-muted-foreground w-8">USDT</span>
+                                                        {/* Add Initial Capital Input */}
+                                                        <div className="space-y-2">
+                                                            <Label>Initial Capital</Label>
+                                                            <div className="flex items-center gap-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    value={initialCapital}
+                                                                    onChange={(e) => setInitialCapital(Number(e.target.value))}
+                                                                    min={1000}
+                                                                    step={1000}
+                                                                />
+                                                                <span className="text-xs text-muted-foreground w-8">USDT</span>
+
+                                                            </div>
+                                                        </div>
+
+
+                                                        <div className="space-y-2">
+                                                            <Label>Direction</Label>
+                                                            <Select value={direction} onValueChange={(v) => setDirection(v as any)}>
+                                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="long">Long Only</SelectItem>
+                                                                    <SelectItem value="short">Short Only</SelectItem>
+                                                                    <SelectItem value="both">Long & Short</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
 
                                                     </div>
-                                                </div>
+                                                    <Separator />
 
+                                                    {/* Core Parameters */}
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label>Core Parameters</Label>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={resetToDefault}
+                                                                className="h-8"
+                                                            >
+                                                                <Settings className="h-4 w-4 mr-2" />
+                                                                Reset
+                                                            </Button>
+                                                        </div>
 
-                                                <div className="space-y-2">
-                                                    <Label>Direction</Label>
-                                                    <Select value={direction} onValueChange={(v) => setDirection(v as any)}>
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="long">Long Only</SelectItem>
-                                                            <SelectItem value="short">Short Only</SelectItem>
-                                                            <SelectItem value="both">Long & Short</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-
-
-                                            </div>
-                                            <Separator />
-
-                                            {/* Core Parameters */}
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <Label>Core Parameters</Label>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={resetToDefault}
-                                                        className="h-8"
-                                                    >
-                                                        <Settings className="h-4 w-4 mr-2" />
-                                                        Reset
-                                                    </Button>
-                                                </div>
-
-                                                <DynamicStrategyParameters
-                                                    strategyType={selectedStrategy}
-                                                    category="core"
-                                                    params={params}
-                                                    schemas={parameterSchemas[selectedStrategy]}
-                                                    onChange={setParams}
-                                                />
+                                                        <DynamicStrategyParameters
+                                                            strategyType={selectedStrategy}
+                                                            category="core"
+                                                            params={params}
+                                                            schemas={parameterSchemas[selectedStrategy]}
+                                                            onChange={setParams}
+                                                        />
 
 
 
-                                                <DynamicStrategyParameters
-                                                    strategyType={selectedStrategy}
-                                                    category="core"
-                                                    params={params}
-                                                    schemas={riskSchemas["risk"]}
-                                                    onChange={setParams}
-                                                />
+                                                        <DynamicStrategyParameters
+                                                            strategyType={selectedStrategy}
+                                                            category="core"
+                                                            params={params}
+                                                            schemas={riskSchemas["risk"]}
+                                                            onChange={setParams}
+                                                        />
 
-                                                {/* <Accordion type="single" collapsible className="w-full">
+                                                        {/* <Accordion type="single" collapsible className="w-full">
                                                 <AccordionItem value="advanced">
                                                     <AccordionTrigger>Advanced Core Parameters</AccordionTrigger>
                                                     <AccordionContent>
@@ -875,124 +1049,124 @@ export default function StrategyTempleteObservePage() {
                                                     </AccordionContent>
                                                 </AccordionItem>
                                             </Accordion> */}
-                                            </div>
-
-                                            {/* Advanced Parameters Section */}
-                                            <div className="space-y-4">
-                                                <Button
-                                                    variant="ghost"
-                                                    className="w-full justify-between"
-                                                    onClick={() => setShowAdvanced(!showAdvanced)}
-                                                >
-                                                    <span>Advanced Parameters</span>
-                                                    <ChevronRight className={cn(
-                                                        "h-4 w-4 transition-transform",
-                                                        showAdvanced && "transform rotate-90"
-                                                    )} />
-                                                </Button>
-
-                                                {showAdvanced && (
-                                                    <div className="space-y-6">
-                                                        <DynamicStrategyParameters
-                                                            strategyType={selectedStrategy}
-                                                            category="advanced"
-                                                            params={params}
-                                                            schemas={parameterSchemas[selectedStrategy]}
-                                                            onChange={setParams}
-                                                        />
-
-                                                        <DynamicStrategyParameters
-                                                            strategyType={selectedStrategy}
-                                                            category="position"
-                                                            params={params}
-                                                            schemas={riskSchemas["risk"]}
-                                                            onChange={setParams}
-                                                        />
                                                     </div>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                        <CardFooter>
-                                            <Button
-                                                className="w-full"
-                                                onClick={runBacktest}
-                                                disabled={isRunning}
-                                            >
-                                                {isRunning ? (
-                                                    <>Running Backtest...</>
-                                                ) : (
-                                                    <>
-                                                        <Play className="h-4 w-4 mr-2" />
-                                                        Run Backtest
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </CardFooter>
-                                    </Card>
-                                </TabsContent>
 
-                                <TabsContent value="optimize">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Grid Search Optimization</CardTitle>
-                                            <CardDescription>
-                                                Define parameter ranges and run batch optimization using grid search.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {/* Parameter Ranges UI */}
-                                                {optimizeParams.map((param) => (
-                                                    <div key={param.key} className="space-y-2">
-                                                        <Label>{param.name}</Label>
+                                                    {/* Advanced Parameters Section */}
+                                                    <div className="space-y-4">
+                                                        <Button
+                                                            variant="ghost"
+                                                            className="w-full justify-between"
+                                                            onClick={() => setShowAdvanced(!showAdvanced)}
+                                                        >
+                                                            <span>Advanced Parameters</span>
+                                                            <ChevronRight className={cn(
+                                                                "h-4 w-4 transition-transform",
+                                                                showAdvanced && "transform rotate-90"
+                                                            )} />
+                                                        </Button>
 
-                                                        <MultiSelect
-                                                            values={rangeInputs[param.key] || []}
-                                                            options={GRID_PRESETS[param.key] ?? []}
-                                                            placeholder="Select..."
-                                                            onChange={(newArr) =>
-                                                                setRangeInputs(prev => ({ ...prev, [param.key]: newArr }))
-                                                            }
-                                                        />
+                                                        {showAdvanced && (
+                                                            <div className="space-y-6">
+                                                                <DynamicStrategyParameters
+                                                                    strategyType={selectedStrategy}
+                                                                    category="advanced"
+                                                                    params={params}
+                                                                    schemas={parameterSchemas[selectedStrategy]}
+                                                                    onChange={setParams}
+                                                                />
+
+                                                                <DynamicStrategyParameters
+                                                                    strategyType={selectedStrategy}
+                                                                    category="position"
+                                                                    params={params}
+                                                                    schemas={riskSchemas["risk"]}
+                                                                    onChange={setParams}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </CardContent>
+                                                <CardFooter>
+                                                    <Button
+                                                        className="w-full"
+                                                        onClick={runBacktest}
+                                                        disabled={isRunning}
+                                                    >
+                                                        {isRunning ? (
+                                                            <>Running Backtest...</>
+                                                        ) : (
+                                                            <>
+                                                                <Play className="h-4 w-4 mr-2" />
+                                                                Run Backtest
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </CardFooter>
+                                            </Card>
+                                        </TabsContent>
 
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm text-muted-foreground">
-                                                    Total Combinations:
-                                                </div>
-                                                <Button onClick={handleRunGridSearch}>
-                                                    <Zap className="h-4 w-4 mr-2" />
-                                                    Run Grid Search
-                                                </Button>
-                                            </div>
-                                        </CardContent>
-                                        <CardFooter>
-                                            <Button disabled={!bestParams}>
-                                                Apply Best Result
-                                            </Button>
-                                        </CardFooter>
-                                    </Card>
+                                        <TabsContent value="optimize">
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle>Grid Search Optimization</CardTitle>
+                                                    <CardDescription>
+                                                        Define parameter ranges and run batch optimization using grid search.
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {/* Parameter Ranges UI */}
+                                                        {optimizeParams.map((param) => (
+                                                            <div key={param.key} className="space-y-2">
+                                                                <Label>{param.name}</Label>
 
-                                    {/* Optimization Result Table */}
-                                    {gridResults.length > 0 && (
-                                        <Card className="mt-6">
-                                            <CardHeader>
-                                                <CardTitle>Optimization Results</CardTitle>
-                                                <CardDescription>Sorted by Return - Drawdown</CardDescription>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="text-left py-1">Return</th>
-                                                            <th className="text-left py-1">Drawdown</th>
-                                                            <th className="text-left py-1">Sharpe</th>
-                                                            <th className="text-left py-1">Params</th>
-                                                        </tr>
-                                                    </thead>
-                                                    {/* <tbody>
+                                                                <MultiSelect
+                                                                    values={rangeInputs[param.key] || []}
+                                                                    options={GRID_PRESETS[param.key] ?? []}
+                                                                    placeholder="Select..."
+                                                                    onChange={(newArr) =>
+                                                                        setRangeInputs(prev => ({ ...prev, [param.key]: newArr }))
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-sm text-muted-foreground">
+                                                            Total Combinations:
+                                                        </div>
+                                                        <Button onClick={handleRunGridSearch}>
+                                                            <Zap className="h-4 w-4 mr-2" />
+                                                            Run Grid Search
+                                                        </Button>
+                                                    </div>
+                                                </CardContent>
+                                                <CardFooter>
+                                                    <Button disabled={!bestParams}>
+                                                        Apply Best Result
+                                                    </Button>
+                                                </CardFooter>
+                                            </Card>
+
+                                            {/* Optimization Result Table */}
+                                            {gridResults.length > 0 && (
+                                                <Card className="mt-6">
+                                                    <CardHeader>
+                                                        <CardTitle>Optimization Results</CardTitle>
+                                                        <CardDescription>Sorted by Return - Drawdown</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr className="border-b">
+                                                                    <th className="text-left py-1">Return</th>
+                                                                    <th className="text-left py-1">Drawdown</th>
+                                                                    <th className="text-left py-1">Sharpe</th>
+                                                                    <th className="text-left py-1">Params</th>
+                                                                </tr>
+                                                            </thead>
+                                                            {/* <tbody>
                                                         {gridResults.map((res, i) => (
                                                             <tr key={i} className="border-b hover:bg-muted/50 cursor-pointer">
                                                                 <td className="py-1 text-green-500 font-medium">{res.strategyReturn}%</td>
@@ -1006,13 +1180,13 @@ export default function StrategyTempleteObservePage() {
                                                             </tr>
                                                         ))}
                                                     </tbody> */}
-                                                </table>
-                                            </CardContent>
-                                        </Card>
-                                    )}
-                                </TabsContent>
+                                                        </table>
+                                                    </CardContent>
+                                                </Card>
+                                            )}
+                                        </TabsContent>
 
-                                {/* <TabsContent value="history">
+                                        {/* <TabsContent value="history">
                                     <Card>
                                         <CardHeader>
                                             <CardTitle>Recent Backtests</CardTitle>
@@ -1025,258 +1199,310 @@ export default function StrategyTempleteObservePage() {
                                     </Card>
                                 </TabsContent> */}
 
-                                <TabsContent value="optimize">
-                                    <div className="space-y-4">
-                                        <Card>
-                                            <CardHeader>
-                                                <CardTitle>Parameter Optimization</CardTitle>
-                                                <CardDescription>
-                                                    AI-powered parameter suggestions based on historical data
-                                                </CardDescription>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <div className="space-y-6">
-                                                    {/* Expected Performance */}
-                                                    <div>
-                                                        <h4 className="text-sm font-medium mb-4">Expected Performance</h4>
-                                                        <div className="grid grid-cols-4 gap-4">
-                                                            <div className="bg-muted/50 p-3 rounded-lg">
-                                                                <div className="text-xs text-muted-foreground">Return</div>
-                                                                <div className="text-lg font-bold text-green-500">
-                                                                    +{optimizationResult.expectedReturn}%
+                                        <TabsContent value="optimize">
+                                            <div className="space-y-4">
+                                                <Card>
+                                                    <CardHeader>
+                                                        <CardTitle>Parameter Optimization</CardTitle>
+                                                        <CardDescription>
+                                                            AI-powered parameter suggestions based on historical data
+                                                        </CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <div className="space-y-6">
+                                                            {/* Expected Performance */}
+                                                            <div>
+                                                                <h4 className="text-sm font-medium mb-4">Expected Performance</h4>
+                                                                <div className="grid grid-cols-4 gap-4">
+                                                                    <div className="bg-muted/50 p-3 rounded-lg">
+                                                                        <div className="text-xs text-muted-foreground">Return</div>
+                                                                        <div className="text-lg font-bold text-green-500">
+                                                                            +{optimizationResult.expectedReturn}%
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="bg-muted/50 p-3 rounded-lg">
+                                                                        <div className="text-xs text-muted-foreground">Win Rate</div>
+                                                                        <div className="text-lg font-bold">
+                                                                            {optimizationResult.winRate}%
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="bg-muted/50 p-3 rounded-lg">
+                                                                        <div className="text-xs text-muted-foreground">Sharpe</div>
+                                                                        <div className="text-lg font-bold">
+                                                                            {optimizationResult.sharpeRatio}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="bg-muted/50 p-3 rounded-lg">
+                                                                        <div className="text-xs text-muted-foreground">Drawdown</div>
+                                                                        <div className="text-lg font-bold text-red-500">
+                                                                            {optimizationResult.maxDrawdown}%
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="bg-muted/50 p-3 rounded-lg">
-                                                                <div className="text-xs text-muted-foreground">Win Rate</div>
-                                                                <div className="text-lg font-bold">
-                                                                    {optimizationResult.winRate}%
-                                                                </div>
-                                                            </div>
-                                                            <div className="bg-muted/50 p-3 rounded-lg">
-                                                                <div className="text-xs text-muted-foreground">Sharpe</div>
-                                                                <div className="text-lg font-bold">
-                                                                    {optimizationResult.sharpeRatio}
-                                                                </div>
-                                                            </div>
-                                                            <div className="bg-muted/50 p-3 rounded-lg">
-                                                                <div className="text-xs text-muted-foreground">Drawdown</div>
-                                                                <div className="text-lg font-bold text-red-500">
-                                                                    {optimizationResult.maxDrawdown}%
+
+                                                            {/* Parameter Suggestions */}
+                                                            <div>
+                                                                <h4 className="text-sm font-medium mb-4">Suggested Parameters</h4>
+                                                                <div className="space-y-4">
+                                                                    {optimizationResult.parameters.map((param) => (
+                                                                        <div
+                                                                            key={param.param}
+                                                                            className="bg-muted/30 p-4 rounded-lg space-y-3"
+                                                                        >
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div>
+                                                                                    <div className="font-medium">{param.param}</div>
+                                                                                    <div className="text-sm text-muted-foreground">
+                                                                                        Expected improvement: +{param.improvement}%
+                                                                                    </div>
+                                                                                </div>
+                                                                                <Badge variant="secondary">
+                                                                                    {param.confidence}% confidence
+                                                                                </Badge>
+                                                                            </div>
+
+                                                                            <div className="grid grid-cols-2 gap-4">
+                                                                                <div>
+                                                                                    <div className="text-sm text-muted-foreground">Current</div>
+                                                                                    <div className="text-lg">{param.current}</div>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <div className="text-sm text-muted-foreground">Suggested</div>
+                                                                                    <div className="text-lg font-medium text-primary">
+                                                                                        {param.suggested}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div>
+                                                                                <div className="text-sm text-muted-foreground mb-2">
+                                                                                    Parameter Correlations
+                                                                                </div>
+                                                                                <div className="flex gap-2">
+                                                                                    {param.correlation.map((corr) => (
+                                                                                        <Badge
+                                                                                            key={corr.param}
+                                                                                            variant="outline"
+                                                                                            className={cn(
+                                                                                                "cursor-help",
+                                                                                                corr.value > 0 ? "text-green-500" : "text-red-500"
+                                                                                            )}
+                                                                                        >
+                                                                                            {corr.param}: {corr.value > 0 ? "+" : ""}{corr.value}
+                                                                                        </Badge>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </CardContent>
+                                                    <CardFooter className="flex gap-2">
+                                                        <Button
+                                                            className="flex-1"
+                                                            onClick={applyOptimizedParams}
+                                                        >
+                                                            <Zap className="h-4 w-4 mr-2" />
+                                                            Apply All Suggestions
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                        // onClick={() => setIsOptimizing(true)}
+                                                        >
+                                                            <Settings className="h-4 w-4 mr-2" />
+                                                            Run New Optimization
+                                                        </Button>
+                                                    </CardFooter>
+                                                </Card>
+                                            </div>
+                                        </TabsContent>
 
-                                                    {/* Parameter Suggestions */}
-                                                    <div>
-                                                        <h4 className="text-sm font-medium mb-4">Suggested Parameters</h4>
-                                                        <div className="space-y-4">
-                                                            {optimizationResult.parameters.map((param) => (
-                                                                <div
-                                                                    key={param.param}
-                                                                    className="bg-muted/30 p-4 rounded-lg space-y-3"
-                                                                >
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div>
-                                                                            <div className="font-medium">{param.param}</div>
-                                                                            <div className="text-sm text-muted-foreground">
-                                                                                Expected improvement: +{param.improvement}%
-                                                                            </div>
-                                                                        </div>
-                                                                        <Badge variant="secondary">
-                                                                            {param.confidence}% confidence
+                                        <TabsContent value="history">
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle>Backtest History</CardTitle>
+                                                    <CardDescription>
+                                                        Your recent 10 backtest runs and their results
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="space-y-4">
+                                                        {runHistory?.historys?.map((run) => (
+                                                            <div
+                                                                key={run.id}
+                                                                className={cn(
+                                                                    "flex flex-col space-y-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors",
+                                                                    selectedRun?.id === run.id && "border-second bg-muted"
+                                                                )} onClick={() => loadHistoryBacktest(run)}
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="font-medium">Run {run.id}</div>
+                                                                        <Badge variant="outline">
+                                                                            {run.status}
                                                                         </Badge>
                                                                     </div>
-
-                                                                    <div className="grid grid-cols-2 gap-4">
-                                                                        <div>
-                                                                            <div className="text-sm text-muted-foreground">Current</div>
-                                                                            <div className="text-lg">{param.current}</div>
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="text-sm text-muted-foreground">Suggested</div>
-                                                                            <div className="text-lg font-medium text-primary">
-                                                                                {param.suggested}
-                                                                            </div>
-                                                                        </div>
+                                                                    <div className="text-sm text-muted-foreground">
+                                                                        {new Date(run.startTime).toLocaleString()}
                                                                     </div>
+                                                                </div>
 
+                                                                <div className="grid grid-cols-5 gap-4">
                                                                     <div>
-                                                                        <div className="text-sm text-muted-foreground mb-2">
-                                                                            Parameter Correlations
+                                                                        <div className="text-xs text-muted-foreground">Return</div>
+                                                                        <div className="text-sm font-medium text-green-500">
+                                                                            {Number(run.performance.strategyReturn).toFixed(2)}%
                                                                         </div>
-                                                                        <div className="flex gap-2">
-                                                                            {param.correlation.map((corr) => (
-                                                                                <Badge
-                                                                                    key={corr.param}
-                                                                                    variant="outline"
-                                                                                    className={cn(
-                                                                                        "cursor-help",
-                                                                                        corr.value > 0 ? "text-green-500" : "text-red-500"
-                                                                                    )}
-                                                                                >
-                                                                                    {corr.param}: {corr.value > 0 ? "+" : ""}{corr.value}
-                                                                                </Badge>
-                                                                            ))}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Win Rate</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {Number(run.performance.winRate).toFixed(2)}%
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Sharpe</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {Number(run.performance.sharpeRatio).toFixed(2)}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Drawdown</div>
+                                                                        <div className="text-sm font-medium text-red-500">
+                                                                            {Number(run.performance.maxDrawdown).toFixed(2)}%
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Duration</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {formatDuration(run.startTime, run.endTime)}
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-                                                        </div>
+
+                                                                {/* New grid for the additional parameters */}
+                                                                <div className="grid grid-cols-5 gap-4">
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Mean Type</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {run.marketDetails.subType || "-"}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Trading Pair</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {run.marketDetails.pairs || "-"}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Timeframe</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {run.marketDetails.timeframe || "-"}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Initial Capital</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {run.marketDetails.initialCapital ? `$${run.marketDetails.initialCapital}` : "-"}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-xs text-muted-foreground">Direction</div>
+                                                                        <div className="text-sm font-medium">
+                                                                            {run.marketDetails.positionType || "-"}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex gap-2 flex-wrap">
+                                                                    {Object.entries(run.parameters)
+                                                                        .filter(([key, value]) =>
+                                                                            value !== defaultParams2[key as keyof typeof defaultParams2]
+                                                                        )
+                                                                        .map(([key, value]) => (
+                                                                            <Badge key={key} variant="outline">
+                                                                                {key}: {value}
+                                                                            </Badge>
+                                                                        ))
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                </div>
-                                            </CardContent>
-                                            <CardFooter className="flex gap-2">
-                                                <Button
-                                                    className="flex-1"
-                                                    onClick={applyOptimizedParams}
-                                                >
-                                                    <Zap className="h-4 w-4 mr-2" />
-                                                    Apply All Suggestions
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                // onClick={() => setIsOptimizing(true)}
-                                                >
-                                                    <Settings className="h-4 w-4 mr-2" />
-                                                    Run New Optimization
-                                                </Button>
-                                            </CardFooter>
-                                        </Card>
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="history">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Backtest History</CardTitle>
-                                            <CardDescription>
-                                                Your recent backtest runs and their results
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-4">
-                                                {runHistory?.historys?.map((run) => (
-                                                    <div
-                                                        key={run.id}
-                                                        className={cn(
-                                                            "flex flex-col space-y-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors",
-                                                            selectedRun?.id === run.id && "border-second bg-muted"
-                                                        )} onClick={() => loadHistoryBacktest(run)}
-                                                    >
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="font-medium">Run {run.id}</div>
-                                                                <Badge variant="outline">
-                                                                    {run.status}
-                                                                </Badge>
-                                                            </div>
-                                                            <div className="text-sm text-muted-foreground">
-                                                                {new Date(run.startTime).toLocaleString()}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-5 gap-4">
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Return</div>
-                                                                <div className="text-sm font-medium text-green-500">
-                                                                    {Number(run.performance.strategyReturn).toFixed(2)}%
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Win Rate</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {Number(run.performance.winRate).toFixed(2)}%
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Sharpe</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {Number(run.performance.sharpeRatio).toFixed(2)}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Drawdown</div>
-                                                                <div className="text-sm font-medium text-red-500">
-                                                                    {Number(run.performance.maxDrawdown).toFixed(2)}%
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Duration</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {formatDuration(run.startTime, run.endTime)}
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                </CardContent>
+                                                {/* <CardFooter>
+                                                    <Button variant="outline" className="w-full">
+                                                        <History className="h-4 w-4 mr-2" />
+                                                        View Full History
+                                                    </Button>
+                                                </CardFooter> */}
+                                            </Card>
+                                        </TabsContent>
 
 
-                                                        {/* New grid for the additional parameters */}
-                                                        <div className="grid grid-cols-5 gap-4">
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Mean Type</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {run.marketDetails.subType || "-"}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Trading Pair</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {run.marketDetails.pairs || "-"}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Timeframe</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {run.marketDetails.timeframe || "-"}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Initial Capital</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {run.marketDetails.initialCapital ? `$${run.marketDetails.initialCapital}` : "-"}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-xs text-muted-foreground">Direction</div>
-                                                                <div className="text-sm font-medium">
-                                                                    {run.marketDetails.positionType || "-"}
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                        <TabsContent value="comparison">
+                                            <RunSelectionCard
+                                                runHistorys={runHistory?.historys}
+                                                selected={selected}
+                                                toggle={toggle}
+                                            />
+                                        </TabsContent>
+                                    </Tabs>)}
+                            </div>
+                        )}
 
-                                                        <div className="flex gap-2 flex-wrap">
-                                                            {Object.entries(run.parameters)
-                                                                .filter(([key, value]) =>
-                                                                    value !== defaultParams2[key as keyof typeof defaultParams2]
-                                                                )
-                                                                .map(([key, value]) => (
-                                                                    <Badge key={key} variant="outline">
-                                                                        {key}: {value}
-                                                                    </Badge>
-                                                                ))
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </CardContent>
-                                        <CardFooter>
-                                            <Button variant="outline" className="w-full">
-                                                <History className="h-4 w-4 mr-2" />
-                                                View Full History
-                                            </Button>
-                                        </CardFooter>
-                                    </Card>
-                                </TabsContent>
-                            </Tabs>)}
+
+
                     </div>
 
                     {/* Results Panel - Add sticky positioning */}
-                    <div className="md:col-span-2">
+                    <div className={sidebarCollapsed ? "" : "md:col-span-2"}>
+
                         <div className="sticky top-4">
-                            {renderResultsPanel()}
+
+                            <button
+                                onClick={() => setSidebarCollapsed(prev => !prev)}
+                                className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-background border rounded-full p-1 shadow hover:bg-muted transition-colors"
+                            >
+                                {sidebarCollapsed
+                                    ? <ChevronRight className="h-4 w-4" />
+                                    : <ChevronLeft className="h-4 w-4" />
+                                }
+                            </button>
+
+
+                            {activeTab === "comparison"
+                                ? (
+                                    <StrategyObserveComparisonPanel
+                                        selected={selected}
+                                        runs={runsToBacktest}
+                                        lineData={lineData}
+                                        monthlyData={monthlyData}
+                                        scatter={scatter}
+                                        pareto={pareto}
+                                        drawdownData={drawdownData}
+                                        radarData={radarData}
+                                        winLossData={winLossData}
+                                        metricsTableData={metricsTableData}
+                                        bestValues={bestValues}
+                                        palette={palette}
+                                        runsToParameters={runsToParameters}
+                                        strategyKey={selectedStrategy}
+                                    />
+                                )
+                                : renderResultsPanel()
+                            }
+
+
+
+
                         </div>
                     </div>
+
+
                 </div>
             </main >
         </div >

@@ -1,4 +1,6 @@
 // components/backtest/ResultsPanel.tsx
+
+"use client";
 import { useEffect } from "react"
 import {
     Area,
@@ -22,7 +24,10 @@ import {
     BacktestTrade,
 } from "@/lib/api/backtest/types"
 import { BacktestTooltip, TradeTooltip } from "../backtest/backtest-components"
-
+import { Button } from "../ui/button"
+import { BarChart3, ChevronRight, Eye, MoreHorizontal } from "lucide-react"
+import { useRouter } from "next/navigation";
+import { Tooltip as Tp, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 // Utility function to format numbers
 function formatNumber(value: number, decimals: number): string {
     return value.toFixed(decimals)
@@ -55,6 +60,9 @@ const sampleDistribution = [
 interface ResultsPanelProps {
     data: BacktestData | null
     isLoading: boolean
+    templateId: string
+    version: string
+    strategy: string
     onShare?: () => void
     onExport?: () => void
 }
@@ -69,30 +77,49 @@ const prepareTradeData = (trades: BacktestTrade[]) => {
     }))
 }
 
-export default function StrategyTempleteObserveResultsPanel({ data, isLoading }: ResultsPanelProps) {
+export default function StrategyTempleteObserveResultsPanel({ data, isLoading, templateId, version, strategy }: ResultsPanelProps) {
     if (!data) return null
+
+
+    const router = useRouter();
+
 
     const tradeData = prepareTradeData(data.trades)
 
-    // Use actual data if available, otherwise fall back to sample data
-    const monthlyData = data.monthlyReturns && data.monthlyReturns.length > 0
-        ? data.monthlyReturns
-        : sampleMonthlyReturns;
+    // Update the viewBacktestResults function to handle undefined latestVersion
+    const viewBacktestResults = (templateId: string, version: string, strategy: string) => {
 
-    const distributionData = data.returnDistribution && data.returnDistribution.length > 0
-        ? data.returnDistribution
-        : sampleDistribution;
+        console.log("templateId", templateId)
+
+        // If latestVersion is undefined, don't include it in the URL
+        // This will show the empty state in the backtest page
+        const versionParam = templateId ? `&version=${version}` : ""
+        router.push(`/lab/${templateId}/observe/backtest?strategy=${strategy}&mode=historical${versionParam}`)
+    }
 
     return (
         <Card className="col-span-1 md:col-span-2">
             <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between">
                     <div>
                         <CardTitle>Backtest Results</CardTitle>
-                        <CardDescription>
-                            Performance analysis and statistics
-                        </CardDescription>
+                        <CardDescription>Performance analysis and statistics</CardDescription>
                     </div>
+                    <Tp>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-foreground"
+                                onClick={() => viewBacktestResults(templateId, version, strategy)}
+                            >
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                            More details
+                        </TooltipContent>
+                    </Tp>
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">

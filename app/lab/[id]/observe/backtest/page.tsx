@@ -24,6 +24,19 @@ import { DashboardLayout } from "@/components/layout/layout"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SiteHeader } from "@/components/layout/site-header"
+import { LabRunHistory, labRunHistory, labRunHistoryBacktest } from "@/lib/api/algorithms"
+
+
+function convertLabRunHistoryToBacktestHistory(
+    history: LabRunHistory[]
+): BacktestRunHistoryItem[] {
+    return history.map((item) => ({
+        id: parseInt(item.id),
+        date: new Date(item.startTime).toISOString(),
+        version: parseInt(item.id),
+        result: item.status
+    }));
+}
 
 export default function BacktestPage() {
     const params = useParams()
@@ -54,13 +67,16 @@ export default function BacktestPage() {
     const isHistorical = searchParams.get("mode") === "historical"
 
     // Get strategy ID from URL params
-    const strategyId = typeof params.strategyId === "string" ? params.strategyId : "1"
+    const templateId = typeof params.id === "string" ? params.id : "1"
+
+    const strategy = searchParams.get("strategy")
 
     // Load run history from API
     const loadRunHistory = async () => {
         try {
             setIsLoadingHistory(true)
-            const history = await getBacktestRunHistory(strategyId)
+            const data = await labRunHistory(parseInt(templateId));
+            const history = convertLabRunHistoryToBacktestHistory(data.historys);
             setRunHistory(history)
         } catch (err) {
             console.error("Failed to load run history:", err)
@@ -69,70 +85,12 @@ export default function BacktestPage() {
         }
     }
 
-    // Define loadBacktestData outside of useEffect so it can be called from the button
-    const loadBacktestData = async (customParams: BacktestParameters | null = null) => {
-        try {
-            setIsLoading(true)
-            setIsCalculating(true)
-            setProgress(0)
-            setShowRunHistory(false)
-
-            // Use provided parameters or default ones
-            const params = customParams || backtestParams
-
-            // Simulate progress updates while waiting for API response
-            const progressInterval = setInterval(() => {
-                setProgress((prev) => {
-                    if (prev >= 95) {
-                        clearInterval(progressInterval)
-                        return prev
-                    }
-                    return prev + Math.floor(Math.random() * 10) + 1
-                })
-            }, 300)
-
-            // Call the API to run the backtest
-            const response = await runBacktest(params, timeframe, strategyId)
-
-            if (response.success) {
-                setBacktestData(response.data)
-
-                // Complete the progress
-                setProgress(100)
-                clearInterval(progressInterval)
-
-                // Set the selected run version
-                setSelectedRunVersion(response.version)
-
-                // Reload run history
-                await loadRunHistory()
-
-                // Hide the progress bar after a short delay
-                setTimeout(() => {
-                    setIsCalculating(false)
-                    setShowRunHistory(true)
-                }, 500)
-            } else {
-                throw new Error(response.error || "Failed to run backtest")
-            }
-        } catch (err) {
-            console.error("Failed to fetch backtest data:", err)
-            setIsCalculating(false)
-            // Show error message to user
-            alert("Failed to run backtest. Please try again.")
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
     // Load historical data without simulation
     const loadHistoricalData = async (version = 1) => {
         try {
             setIsLoading(true)
-
             // Call the API to get historical backtest data
-            const response = await getHistoricalBacktest(version, timeframe, strategyId)
-
+            const response = await labRunHistoryBacktest(parseInt(templateId), version)
             if (response.success) {
                 setBacktestData(response.data)
                 setSelectedRunVersion(version)
@@ -153,12 +111,12 @@ export default function BacktestPage() {
         loadHistoricalData(version)
     }
 
-    // Handle form submission for backtest parameters
-    const onSubmitParams = (values: BacktestParamsFormValues) => {
-        setBacktestParams(values)
-        setIsParamsDialogOpen(false)
-        loadBacktestData(values)
-    }
+    // // Handle form submission for backtest parameters
+    // const onSubmitParams = (values: BacktestParamsFormValues) => {
+    //     setBacktestParams(values)
+    //     setIsParamsDialogOpen(false)
+    //     loadBacktestData(values)
+    // }
 
     // Toggle run selection for comparison
     const toggleRunSelection = (version: number) => {
@@ -177,7 +135,7 @@ export default function BacktestPage() {
         }
 
         router.push(
-            `/backtest/${strategyId}/compare?versions=${selectedRunsForComparison.join(",")}&timeframe=${timeframe}`,
+            `/backtest/${templateId}/compare?versions=${selectedRunsForComparison.join(",")}&timeframe=${timeframe}`,
         )
     }
 
@@ -193,12 +151,6 @@ export default function BacktestPage() {
 
         // Load run history
         loadRunHistory()
-
-        // Get timeframe from URL if available
-        const urlTimeframe = searchParams.get("timeframe")
-        if (urlTimeframe) {
-            setTimeframe(urlTimeframe)
-        }
 
         // Get version from URL if available
         const urlVersion = searchParams.get("version")
@@ -224,7 +176,7 @@ export default function BacktestPage() {
             // Don't auto-load backtest data, wait for user to configure parameters
             setIsLoading(false)
         }
-    }, [strategyId, isHistorical, searchParams])
+    }, [templateId, isHistorical, searchParams])
 
     return (
         <SidebarProvider>
@@ -236,7 +188,7 @@ export default function BacktestPage() {
                     <main className="flex-1 space-y-4 p-4 md:p-6">
                         <BacktestHeader
                             title="Strategy Backtest Results"
-                            strategyName="Moving Average Crossover"
+                            strategyName={strategy}
                             isHistorical={isHistorical}
                             selectedRunVersion={selectedRunVersion}
                             timeframe={timeframe}
@@ -325,16 +277,6 @@ export default function BacktestPage() {
                                 />
                             </TabsContent>
                         </Tabs>
-
-                        {/* Backtest Parameters Dialog */}
-                        <BacktestParametersDialog
-                            isOpen={isParamsDialogOpen}
-                            onOpenChange={setIsParamsDialogOpen}
-                            defaultParams={backtestParams}
-                            onSubmit={onSubmitParams}
-                            progress={progress}
-                            isCalculating={isCalculating}
-                        />
                     </main>
                 </div>
             </SidebarInset>

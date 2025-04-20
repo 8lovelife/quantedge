@@ -1,6 +1,6 @@
 import { BacktestResponse } from "../backtest/types"
 import { algorithmOptions } from "./mock"
-import { AlgorithmOption, LabRunHistoryResponse } from "./types"
+import { AlgorithmOption, LabRunComparison, LabRunHistoryResponse } from "./types"
 
 export async function fetchAlgorithms(): Promise<AlgorithmOption[]> {
     try {
@@ -98,6 +98,22 @@ export async function labRunHistory(
 ): Promise<LabRunHistoryResponse> {
     try {
         const response = await fetch(`/api/lab/run/history?templateId=${templateId}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to lab run history:", error)
+        throw error
+    }
+}
+
+export async function labRunHistoryComparison(
+    templateId: number
+): Promise<LabRunComparison[]> {
+    try {
+        const response = await fetch(`/api/lab/run/comparison?templateId=${templateId}`);
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
         }

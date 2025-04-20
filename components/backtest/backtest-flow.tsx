@@ -357,7 +357,6 @@ export default function BacktestFlow() {
         try {
             setIsLoadingHistory(true)
             const history = await getBacktestRunHistory(strategyId)
-            console.log("history result " + JSON.stringify(history))
             setRunHistory(history)
         } catch (err) {
             console.error("Failed to load run history:", err)

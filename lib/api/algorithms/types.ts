@@ -322,6 +322,13 @@ export interface LabRunHistoryResponse {
     historys: LabRunHistory[]
 }
 
+export interface LabRunComparison {
+    runId: number,
+    labRunHistory: LabRunHistory,
+    backtestData: BacktestData,
+}
+
+
 
 
 
@@ -355,7 +362,7 @@ export interface GridResult {
 ies: []
 // mock/grid-result.ts
 import { GridResult } from "@/app/lab/[id]/observe/optimize-result/page"; // adjust path if needed
-import { BacktestMetrics } from "../backtest/types"
+import { BacktestData, BacktestMetrics, BacktestResponse } from "../backtest/types"
 
 export const mockGridResult: GridResult = {
     generatedAt: new Date().toISOString(),

@@ -90,7 +90,7 @@ export default function StrategyLabPage() {
             id: 1,
             name: "Mean Reversion",
             description: "Exploits price reversals to profit from short-term deviations from the average.",
-            type: "mean_reversion",
+            type: "mean-reversion",
             updated: new Date().toISOString(),
             backtestPerformance: {
                 strategyReturn: 15.2,
@@ -120,7 +120,7 @@ export default function StrategyLabPage() {
             id: 3,
             name: "MA Crossover",
             description: "Uses moving average crossovers to identify potential trend changes.",
-            type: "ma_crossover",
+            type: "ma-crossover",
             updated: new Date().toISOString(),
             backtestPerformance: {
                 strategyReturn: 18.5,

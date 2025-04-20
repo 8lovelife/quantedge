@@ -41,7 +41,7 @@ export function BacktestMetricsCards({ metrics }: { metrics: BacktestMetrics | u
     if (!metrics) return null
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-5 mb-6">
             <Card>
                 <CardContent className="pt-6">
                     <div className="text-sm text-muted-foreground">Strategy Return</div>
@@ -70,6 +70,13 @@ export function BacktestMetricsCards({ metrics }: { metrics: BacktestMetrics | u
                 <CardContent className="pt-6">
                     <div className="text-sm text-muted-foreground">Win Rate</div>
                     <div className="text-2xl font-bold">{Number(metrics.winRate).toFixed(2)}%</div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardContent className="pt-6">
+                    <div className="text-sm text-muted-foreground">Sharp Rate</div>
+                    <div className="text-2xl font-bold">{Number(metrics.sharpeRatio).toFixed(2)}%</div>
                 </CardContent>
             </Card>
         </div>

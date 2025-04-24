@@ -21,9 +21,6 @@ const ParametersTable = ({ selected, runsToParameters, strategyKey, highlightedR
     const effectiveSelected = selected.length === 0 ? [1] : selected
     const schema = flattenSchemas(strategyKey)
 
-
-    console.log("run to parameters " + JSON.stringify(runsToParameters))
-
     return (
         <Card className="h-full flex flex-col">
             <CardHeader>

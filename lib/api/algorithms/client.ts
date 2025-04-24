@@ -1,6 +1,7 @@
 import { BacktestResponse } from "../backtest/types"
+import { FetchStrategySummaryParams } from "../strategies"
 import { algorithmOptions } from "./mock"
-import { AlgorithmOption, LabRunComparison, LabRunHistoryResponse } from "./types"
+import { AlgorithmOption, FetchStrategyTemplateParams, LabRunComparison, LabRunHistoryResponse, StrategyTemplate, StrategyTemplatesResponse } from "./types"
 
 export async function fetchAlgorithms(): Promise<AlgorithmOption[]> {
     try {
@@ -20,6 +21,52 @@ export async function fetchAlgorithms(): Promise<AlgorithmOption[]> {
     }
 }
 
+
+
+export async function fetchStrategyTemplate(params?: FetchStrategyTemplateParams): Promise<StrategyTemplatesResponse> {
+    try {
+        const queryParams = new URLSearchParams()
+        if (params?.page) queryParams.set('page', params.page.toString())
+        if (params?.limit) queryParams.set('limit', params.limit.toString())
+        if (params?.search) queryParams.set('search', params.search)
+        if (params?.status && params.status !== 'all') queryParams.set('status', params.status)
+        if (params?.sort) queryParams.set('sort', params.sort)
+
+        const response = await fetch(`/api/lab?${queryParams.toString()}`)
+        if (!response.ok) throw new Error('Failed to fetch strategy template')
+        const result = await response.json()
+
+        console.log("fetchStrategyTemplate result " + JSON.stringify(result));
+
+        const strategyTemplatesResponse = {
+            items: result.data,
+            total: result.total,
+            totalPages: Math.ceil((result.total || result.data.length) / (params?.limit || 8))
+        }
+
+        console.log("Fetched strategy template:", strategyTemplatesResponse)
+
+        return strategyTemplatesResponse
+    } catch (error) {
+        console.error('Error fetching strategies:', error)
+        throw error
+    }
+}
+
+
+export async function fetchStrategyTemplateById(templateId: string): Promise<StrategyTemplate> {
+    try {
+        const response = await fetch(`/api/lab/${templateId}`)
+        if (!response.ok) throw new Error('Failed to fetch strategy template')
+        const result = await response.json()
+
+        console.log("fetchStrategyTemplate result " + JSON.stringify(result));
+        return result
+    } catch (error) {
+        console.error('Error fetching strategies:', error)
+        throw error
+    }
+}
 
 export async function fetchAlgorithm(templateId: string): Promise<AlgorithmOption> {
     try {
@@ -81,9 +128,21 @@ export async function labRunHistoryBacktest(
 ): Promise<BacktestResponse> {
     try {
         const response = await fetch(`/api/lab/run/backtest?templateId=${templateId}&version=${version}`);
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`)
+        console.log("response status " + response.status)
+
+
+        if (response.status === 404) {
+            return {
+                success: false,
+                data: null,
+                error: "Backtest not found",
+            };
         }
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`)
+        }
+
         const result = await response.json()
         return result
     } catch (error) {

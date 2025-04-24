@@ -46,9 +46,9 @@ export function BacktestMetricsCards({ metrics }: { metrics: BacktestMetrics | u
                 <CardContent className="pt-6">
                     <div className="text-sm text-muted-foreground">Strategy Return</div>
                     <div
-                        className={`text-2xl font-bold ${Number(metrics.strategyReturn) >= 0 ? "text-green-500" : "text-red-500"}`}
+                        className={`text-2xl font-bold ${Number(metrics.strategyReturn * 100) >= 0 ? "text-green-500" : "text-red-500"}`}
                     >
-                        {Number(metrics.strategyReturn).toFixed(2)}%
+                        {Number(metrics.strategyReturn * 100).toFixed(2)}%
                     </div>
                 </CardContent>
             </Card>
@@ -63,13 +63,13 @@ export function BacktestMetricsCards({ metrics }: { metrics: BacktestMetrics | u
             <Card>
                 <CardContent className="pt-6">
                     <div className="text-sm text-muted-foreground">Max Drawdown</div>
-                    <div className="text-2xl font-bold text-red-500">{Number(metrics.maxDrawdown).toFixed(2)}%</div>
+                    <div className="text-2xl font-bold text-red-500">{Number(metrics.maxDrawdown * 100).toFixed(2)}%</div>
                 </CardContent>
             </Card>
             <Card>
                 <CardContent className="pt-6">
                     <div className="text-sm text-muted-foreground">Win Rate</div>
-                    <div className="text-2xl font-bold">{Number(metrics.winRate).toFixed(2)}%</div>
+                    <div className="text-2xl font-bold">{Number(metrics.winRate * 100).toFixed(2)}%</div>
                 </CardContent>
             </Card>
 

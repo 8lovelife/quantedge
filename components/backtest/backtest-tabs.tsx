@@ -620,18 +620,18 @@ export function StatisticsTab({
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Total Return</div>
                                 <div
-                                    className={`text-lg font-bold ${Number(metrics?.strategyReturn) >= 0 ? "text-green-500" : "text-red-500"}`}
+                                    className={`text-lg font-bold ${Number(metrics?.strategyReturn * 100) >= 0 ? "text-green-500" : "text-red-500"}`}
                                 >
-                                    {Number(metrics?.strategyReturn).toFixed(2)}%
+                                    {Number(metrics?.strategyReturn * 100).toFixed(2)}%
                                 </div>
                             </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Market Return</div>
                                 <div
-                                    className={`text-lg font-bold ${Number(metrics?.marketReturn) >= 0 ? "text-green-500" : "text-red-500"}`}
+                                    className={`text-lg font-bold ${Number(metrics?.marketReturn * 100) >= 0 ? "text-green-500" : "text-red-500"}`}
                                 >
-                                    {Number(metrics?.marketReturn).toFixed(2)}%
+                                    {Number(metrics?.marketReturn * 100).toFixed(2)}%
                                 </div>
                             </div>
 
@@ -649,12 +649,12 @@ export function StatisticsTab({
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Max Drawdown</div>
-                                <div className="text-lg font-bold text-red-500">{Number(metrics?.maxDrawdown).toFixed(2)}%</div>
+                                <div className="text-lg font-bold text-red-500">{Number(metrics?.maxDrawdown * 100).toFixed(2)}%</div>
                             </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">Win Rate</div>
-                                <div className="text-lg font-bold">{Number(metrics?.winRate).toFixed(2)}%</div>
+                                <div className="text-lg font-bold">{Number(metrics?.winRate * 100).toFixed(2)}%</div>
                             </div>
 
                             <div className="flex justify-between items-center">

@@ -45,26 +45,11 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SiteHeader } from "@/components/layout/site-header"
+import { fetchAlgorithms, fetchStrategyTemplate, StrategyTemplate } from "@/lib/api/algorithms"
 
 const CURRENT_USER = "8lovelife"
 const CURRENT_DATE = "2025-04-16 18:30:32"
 
-// Define the interface for a strategy template
-interface StrategyTemplate {
-    id: number;
-    name: string;
-    description: string;
-    type: string; // E.g., "mean_reversion", "macd"
-    updated: string; // ISO string
-    backtestPerformance?: {
-        strategyReturn?: number;
-        winRate?: number;
-        maxDrawdown?: number;
-    }
-    likes: number;
-    usageCount: number;
-    author: string;
-}
 
 export default function StrategyLabPage() {
     const router = useRouter()
@@ -84,101 +69,6 @@ export default function StrategyLabPage() {
     const paginationRef = useRef<HTMLDivElement>(null)
     const [showFloatingPagination, setShowFloatingPagination] = useState(false)
 
-    // Mock Data for Strategy Templates
-    const mockTemplates: StrategyTemplate[] = [
-        {
-            id: 1,
-            name: "Mean Reversion",
-            description: "Exploits price reversals to profit from short-term deviations from the average.",
-            type: "mean-reversion",
-            updated: new Date().toISOString(),
-            backtestPerformance: {
-                strategyReturn: 15.2,
-                winRate: 65.0,
-                maxDrawdown: -7.5
-            },
-            likes: 42,
-            usageCount: 128,
-            author: "tradingmaster"
-        },
-        {
-            id: 2,
-            name: "MACD Crossover",
-            description: "Identifies potential buy and sell signals by tracking crossovers between moving averages.",
-            type: "macd",
-            updated: new Date().toISOString(),
-            backtestPerformance: {
-                strategyReturn: 22.8,
-                winRate: 72.5,
-                maxDrawdown: -9.2
-            },
-            likes: 78,
-            usageCount: 256,
-            author: "algowizard"
-        },
-        {
-            id: 3,
-            name: "MA Crossover",
-            description: "Uses moving average crossovers to identify potential trend changes.",
-            type: "ma-crossover",
-            updated: new Date().toISOString(),
-            backtestPerformance: {
-                strategyReturn: 18.5,
-                winRate: 68.0,
-                maxDrawdown: -8.0
-            },
-            likes: 60,
-            usageCount: 180,
-            author: "trendtrader"
-        },
-        {
-            id: 4,
-            name: "Trend Following",
-            description: "Captures profits by aligning with the direction of existing market trends.",
-            type: "trend",
-            updated: new Date().toISOString(),
-            backtestPerformance: {
-                strategyReturn: 30.8,
-                winRate: 80.5,
-                maxDrawdown: -10.2
-            },
-            likes: 120,
-            usageCount: 512,
-            author: "quantking"
-        },
-        {
-            id: 5,
-            name: "Bollinger Band",
-            description: "Utilizes volatility-based bands to identify overbought/oversold conditions.",
-            type: "bollinger_band",
-            updated: new Date().toISOString(),
-            backtestPerformance: {
-                strategyReturn: 22.8,
-                winRate: 62.5,
-                maxDrawdown: -9.2
-            },
-            likes: 30,
-            usageCount: 90,
-            author: "volatilityvanguard"
-        },
-        {
-            id: 6,
-            name: "Ichimoku Cloud",
-            description: "Comprehensive indicator to define support, resistance, trend, and momentum.",
-            type: "ichimoku_cloud",
-            updated: new Date().toISOString(),
-            backtestPerformance: {
-                strategyReturn: 28.8,
-                winRate: 72.5,
-                maxDrawdown: -9.2
-            },
-            likes: 95,
-            usageCount: 384,
-            author: "cloudconqueror"
-        },
-        // Add more mock templates as needed
-    ];
-
     // Fetch strategies - Replace with your actual API call if you have one
     useEffect(() => {
         async function loadTemplates() {
@@ -187,25 +77,19 @@ export default function StrategyLabPage() {
                 // Simulate API Call
                 await new Promise(resolve => setTimeout(resolve, 500));
                 // Filter templates based on active tab
-                const filteredTemplates = activeTab === "lab" ? mockTemplates : mockTemplates.filter(t => t.author !== "tradingmaster");
-                setTemplates(filteredTemplates);
-                setTotalItems(filteredTemplates.length);
-                setTotalPages(1);
-                setError(null)
-
-                // Real API call would look something like this:
-                /*
-                const response = await fetchTemplateStrategies({
+                // const filteredTemplates = activeTab === "lab" ? mockTemplates : mockTemplates.filter(t => t.author !== "tradingmaster");
+                const strategyTemplates = await fetchStrategyTemplate({
                     page: currentPage,
                     limit: itemsPerPage,
                     search: searchQuery,
                     status: activeTab,
                     sort: sortBy
                 });
-                setTemplates(response.items);
-                setTotalItems(response.total);
-                setTotalPages(response.totalPages);
-                */
+
+                setTemplates(strategyTemplates.items);
+                setTotalItems(strategyTemplates.total);
+                setTotalPages(strategyTemplates.totalPages);
+                setError(null)
             } catch (err) {
                 console.error('Failed to load strategies:', err)
                 setError('Failed to load strategies')
@@ -413,7 +297,7 @@ export default function StrategyLabPage() {
                                                         <div className="flex items-center text-muted-foreground text-xs">
                                                             <div className="flex items-center gap-1 mr-2">
                                                                 <Heart className="w-3 h-3" /> {template.likes}
-                                                                <Download className="w-3 h-3" /> {template.usageCount}
+                                                                <Download className="w-3 h-3" /> {template.usage}
                                                             </div>
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
@@ -431,19 +315,19 @@ export default function StrategyLabPage() {
                                                         <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
                                                             <div className="text-xs text-muted-foreground">Return</div>
                                                             <div className="text-sm font-bold text-green-500">
-                                                                {Number(template.backtestPerformance?.strategyReturn || 0).toFixed(2)}%
+                                                                {Number(template.performance?.strategyReturn * 100 || 0).toFixed(2)}%
                                                             </div>
                                                         </div>
                                                         <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
                                                             <div className="text-xs text-muted-foreground">Win Rate</div>
                                                             <div className="text-sm font-bold">
-                                                                {Number(template.backtestPerformance?.winRate || 0).toFixed(2)}%
+                                                                {Number(template.performance?.winRate * 100 || 0).toFixed(2)}%
                                                             </div>
                                                         </div>
                                                         <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
                                                             <div className="text-xs text-muted-foreground">Drawdown</div>
                                                             <div className="text-sm font-bold text-red-500">
-                                                                {Number(template.backtestPerformance?.maxDrawdown || 0).toFixed(2)}%
+                                                                {Number(template.performance?.maxDrawdown * 100 || 0).toFixed(2)}%
                                                             </div>
                                                         </div>
                                                     </div>
@@ -530,7 +414,7 @@ export default function StrategyLabPage() {
                                                         <div className="flex items-center text-muted-foreground text-xs">
                                                             <div className="flex items-center gap-1 mr-2">
                                                                 <Heart className="w-3 h-3" /> {template.likes}
-                                                                <Download className="w-3 h-3" /> {template.usageCount}
+                                                                <Download className="w-3 h-3" /> {template.usage}
                                                             </div>
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
@@ -548,19 +432,19 @@ export default function StrategyLabPage() {
                                                         <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
                                                             <div className="text-xs text-muted-foreground">Return</div>
                                                             <div className="text-sm font-bold text-green-500">
-                                                                {Number(template.backtestPerformance?.strategyReturn || 0).toFixed(2)}%
+                                                                {Number(template.performance?.strategyReturn || 0).toFixed(2)}%
                                                             </div>
                                                         </div>
                                                         <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
                                                             <div className="text-xs text-muted-foreground">Win Rate</div>
                                                             <div className="text-sm font-bold">
-                                                                {Number(template.backtestPerformance?.winRate || 0).toFixed(2)}%
+                                                                {Number(template.performance?.winRate || 0).toFixed(2)}%
                                                             </div>
                                                         </div>
                                                         <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
                                                             <div className="text-xs text-muted-foreground">Drawdown</div>
                                                             <div className="text-sm font-bold text-red-500">
-                                                                {Number(template.backtestPerformance?.maxDrawdown || 0).toFixed(2)}%
+                                                                {Number(template.performance?.maxDrawdown || 0).toFixed(2)}%
                                                             </div>
                                                         </div>
                                                     </div>

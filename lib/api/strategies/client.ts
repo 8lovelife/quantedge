@@ -182,7 +182,7 @@ export async function deleteStrategy(id: number): Promise<boolean> {
 }
 
 
-export async function saveStep(id: number | null, step: string, data: any): Promise<number | null> {
+export async function saveStep(id: number | null, step: string, data: any): Promise<any | null> {
     const url = `/api/strategies/draft/${step}`
 
     try {
@@ -193,7 +193,7 @@ export async function saveStep(id: number | null, step: string, data: any): Prom
         })
         if (!res.ok) throw new Error()
         const resData = await res.json()
-        return resData.strategy.id ?? id ?? null
+        return resData
     } catch (error) {
         console.error("Failed to save strategy:", error)
         throw error

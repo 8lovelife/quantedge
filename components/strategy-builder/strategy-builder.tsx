@@ -42,7 +42,7 @@ import {
     deleteStrategy,
     fetchStrategyDetails,
 } from "@/lib/api/strategies"
-import { AlgorithmOption, fetchAlgorithms } from "@/lib/api/algorithms"
+import { AlgorithmOption, fetchAlgorithms, fetchStrategyTemplate, fetchStrategyTemplateById, filterParamsByStyle, normalizeParams, normalizeParams2, parameterSchemas, StrategyTemplate } from "@/lib/api/algorithms"
 import { cn } from "@/lib/utils"
 
 const steps = ["type", "parameters", "assets", "risk", "completed"] as const;
@@ -82,7 +82,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
     const [riskData, setRiskData] = useState<Record<string, any>>({})
 
     // UI state
-    const [strategyTypes, setStrategyTypes] = useState<AlgorithmOption[]>([])
+    const [strategyTypes, setStrategyTypes] = useState<StrategyTemplate[]>([])
     const [editingStep, setEditingStep] = useState<string | null>(null)
     const [resumeStepIdx, setResumeStepIdx] = useState<number | null>(null)
     const [editingNameDesc, setEditingNameDesc] = useState(false)
@@ -213,18 +213,23 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
 
     useEffect(() => {
         const loadStrategyTypes = async () => {
-            const strategyTypes = await fetchAlgorithms()
-            setStrategyTypes(strategyTypes)
+            // const strategyTypes = await fetchAlgorithms()
+            const templateReq = {
+                page: 0,
+                limit: 1000,
+            };
+            const strategyTemplate = await fetchStrategyTemplate(templateReq);
+            setStrategyTypes(strategyTemplate.items)
         }
         loadStrategyTypes()
     }, [])
 
     useEffect(() => {
         if (!type || strategyTypes.length === 0) return
-        const selected = strategyTypes.find((s) => s.value === type)
+        const selected = strategyTypes.find((s) => s.type === type)
         if (selected) {
-            setParamData(selected.defaultParameters ?? {})
-            setRiskData(selected.defaultRisk ?? {})
+            setParamData(selected.parameters.default ?? {})
+            setRiskData(selected.risk ?? {})
         }
     }, [type, strategyTypes])
 
@@ -288,7 +293,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
 
         if (stepName === "type") {
             payload = { name, type, description }
-            const label = strategyTypes.find(s => s.value === type)?.label || type
+            const label = strategyTypes.find(s => s.type === type)?.name || type
             setCompletedSteps((prev: any) => ({ ...prev, type: { name, description, strategyName: label } }))
         }
         if (stepName === "parameters") setCompletedSteps((prev: any) => ({ ...prev, parameters: paramData }))
@@ -299,7 +304,21 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
         if (stepName === "assets") payload = assetData
         if (stepName === "risk") payload = riskData
 
-        const id = await saveStep(draftId, stepName, payload)
+        let normalized = payload;
+        if (stepName === "parameters") {
+            normalized = filterParamsByStyle(payload)
+        }
+
+        const data = await saveStep(draftId, stepName, normalized)
+
+        const parameters = data.strategy.configuration.parameters
+        setCompletedSteps(prev => ({
+            ...prev,
+            parameters: parameters
+        }))
+
+        const id = data.strategy.id ?? draftId ?? null
+
         if (!draftId && id) setDraftId(id)
     }
 
@@ -385,7 +404,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
         setSaving(true)
         setName(tempName)
         setDesc(tempDesc)
-        const label = strategyTypes.find(s => s.value === type)?.label || type
+        const label = strategyTypes.find(s => s.type === type)?.name || type
         setCompletedSteps((prev: any) => ({
             ...prev,
             type: { ...prev.type, name: tempName, description: tempDesc, strategyName: label }
@@ -501,7 +520,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
     };
 
     const cards = {
-        type: <StrategyTypeSelector strategies={strategyTypes} value={type} onChange={setType} isEditMode={!!completedSteps.parameters}
+        type: <StrategyTypeSelector strategyTemplates={strategyTypes} value={type} onChange={setType} isEditMode={!!completedSteps.parameters}
 
         />,
         parameters: <StrategyParameters strategyType={type} onChange={setParamData} data={paramData} />,

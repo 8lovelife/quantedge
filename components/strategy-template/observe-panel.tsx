@@ -33,8 +33,7 @@ import { cn, formatDuration } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "../ui/avatar"
 import { BacktestData, BacktestMetrics, BacktestParameters, LabRunBacktestRequest } from "@/lib/api/backtest/types"
 import { mockRunBacktest } from "@/lib/api/backtest/mock"
-import DynamicStrategyParameters from "../strategy-builder/strategy-dynamic-parameters"
-import { AlgorithmOption, algorithmOption, defaultParams2, fetchAlgorithm, LabRunComparison, labRunHistory, LabRunHistory, labRunHistoryBacktest, labRunHistoryComparison, LabRunHistoryResponse, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
+import { AlgorithmOption, algorithmOption, defaultParams2, fetchAlgorithm, fetchStrategyTemplateById, LabRunComparison, labRunHistory, LabRunHistory, labRunHistoryBacktest, labRunHistoryComparison, LabRunHistoryResponse, normalizeParams, parameterSchemas, riskSchemas, StrategyTemplate } from "@/lib/api/algorithms"
 import StrategyTempleteObserveResultsLoadingSkeleton from "./observe-results-panel-skeleton"
 import StrategyTempleteObserveResultsPanel from "./observe-results-panel"
 import { useParams, useRouter } from "next/navigation"
@@ -48,6 +47,7 @@ import BasicTabContent from "./comparison/basic-tab-content"
 import AdvancedTabContent from "./comparison/advanced-tab-content"
 import { calculateExtendedMetrics, getBestMetricValues, mergeDrawdowns, mergeLines, prepareRadarData, prepareWinLossData } from "./comparison/chart-utils"
 import StrategyObserveComparisonPanel from "./observe-comparison"
+import DynamicStrategyParameters from "../parameters-configuration"
 
 // ... keep your existing chart imports ...
 
@@ -389,19 +389,21 @@ export default function StrategyTempleteObservePage() {
 
     const [isRunning, setIsRunning] = useState(false)
     const [params, setParams] = useState<Record<string, any>>()
-    const [algorithmOption, setAlgorithmOption] = useState<AlgorithmOption>()
+    const [algorithmOption, setAlgorithmOption] = useState<StrategyTemplate>()
     const [selectedAssets, setSelectedAssets] = useState<string[]>(["BTC/USDT"])
     const [activeTab, setActiveTab] = useState("parameters")
     const [backtestData, setBacktestData] = useState<BacktestData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+    const [configPanelExpanded, setConfigPanelExpanded] = useState(false);
+
 
 
 
     // Add new state variables
     const [selectedStrategy, setSelectedStrategy] = useState("ma-crossover")
-    const [selectedMeanType, setSelectedMeanType] = useState("sma")
+    // const [selectedMeanType, setSelectedMeanType] = useState("sma")
     const [selectedTimeframe, setSelectedTimeframe] = useState("1h")
     const [selectedBenchmark, setSelectedBenchmark] = useState("BTC/USDT")
     const [selectedPairs, setSelectedPairs] = useState("BTC/USDT")
@@ -423,9 +425,6 @@ export default function StrategyTempleteObservePage() {
     const [runsToBacktest, setRunsToBacktest] = useState<Record<number, LabRunComparison>>({});
     const [pareto, setPareto] = useState<number[]>([]);
     const [isComparisonLoading, setIsComparisonLoading] = useState(false)
-
-
-
 
     const templateId = typeof pathParams.id === "string" ? pathParams.id : "1"
 
@@ -467,7 +466,6 @@ export default function StrategyTempleteObservePage() {
         const backtestRequest = {
             templateId: parseInt(templateId),
             type: selectedStrategy,
-            subType: selectedMeanType,
             gridParams: parsedGrid,
             pairs: selectedPairs,
             timeframe: selectedTimeframe,
@@ -492,17 +490,18 @@ export default function StrategyTempleteObservePage() {
         try {
             setIsLoading(true)
             if (templateId) {
-                const fetchedParams = await fetchAlgorithm(templateId);
+                const fetchedParams = await fetchStrategyTemplateById(templateId);
                 const combinedDefaults: Record<string, any> = {
-                    ...fetchedParams.defaultParameters,
-                    ...fetchedParams.defaultRisk,
-                    ...fetchedParams.defaultExecution
+                    ...fetchedParams.parameters.default,
+                    ...fetchedParams.risk,
+                    ...fetchedParams.execution
                 }
                 setParams(combinedDefaults);
                 setAlgorithmOption(fetchedParams);
+                setSelectedStrategy(fetchedParams.type)
+                loadRunHistoryData(parseInt(templateId))
+                return fetchedParams.latest_lab_backtest_version;
             }
-
-            loadRunHistoryData(parseInt(templateId))
 
         } catch (error) {
             console.error("Failed to load latest template parameters:", error)
@@ -511,12 +510,13 @@ export default function StrategyTempleteObservePage() {
 
         }
     }
-
     useEffect(() => {
-        loadTemplateParameters()
-
-        loadLatestBacktest()
-
+        (async () => {
+            const latestVersion = await loadTemplateParameters();
+            if (latestVersion !== undefined) {
+                await loadLatestBacktest(latestVersion);
+            }
+        })();
     }, [templateId]);
 
     // useEffect(() => {
@@ -578,10 +578,10 @@ export default function StrategyTempleteObservePage() {
         return <StrategyTempleteObserveResultsPanel data={backtestData} isLoading={isLoading} templateId={templateId} version={selectedRun.id} strategy={selectedStrategy} />
     }
 
-    const loadLatestBacktest = async () => {
+    const loadLatestBacktest = async (version) => {
         try {
             setIsLoading(true)
-            const response = await mockRunBacktest(defaultParams2, "6m", "1")
+            const response = await labRunHistoryBacktest(parseInt(templateId), version);
             if (response.success) {
                 setBacktestData(response.data)
             }
@@ -699,11 +699,23 @@ export default function StrategyTempleteObservePage() {
 
         setIsRunning(true)
 
+
+        const paramsSchema = parameterSchemas[selectedStrategy] || [];
+        // const riskScheam = riskSchemas["risk"] || [];
+        // const combinedSchema = [
+        //     ...paramsSchema,
+        //     ...riskScheam,
+        // ];
+
+        // console.log("combinedSchema " + JSON.stringify(combinedSchema))
+
+        const normalized = normalizeParams(params, paramsSchema)
+
+
         const backtestRequest = {
             templateId: parseInt(templateId),
             type: selectedStrategy,
-            subType: selectedMeanType,
-            params,
+            params: normalized,
             pairs: selectedPairs,
             timeframe: selectedTimeframe,
             initialCapital: initialCapital,
@@ -828,11 +840,11 @@ export default function StrategyTempleteObservePage() {
                             ) : (
                                 <>
                                     <div className="flex items-center gap-2">
-                                        <h1 className="text-2xl font-bold">{algorithmOption.label}</h1>
+                                        <h1 className="text-2xl font-bold">{algorithmOption.name}</h1>
                                         <Badge variant="secondary">v1.0.0</Badge>
                                     </div>
                                     <p className="text-muted-foreground">
-                                        {algorithmOption.desc}
+                                        {algorithmOption.description}
                                     </p>
                                 </>
                             )}
@@ -865,9 +877,12 @@ export default function StrategyTempleteObservePage() {
                     </div>
                 </div>
 
-                <div className={`grid grid-cols-1 ${sidebarCollapsed ? "" : "md:grid-cols-3"} gap-4`}>
-                    {/* Configuration Panel */}
+                <div
+                    className={`grid grid-cols-1 ${configPanelExpanded ? "md:grid-cols-1" : sidebarCollapsed ? "" : "md:grid-cols-3"
+                        } gap-4`}
+                >                    {/* Configuration Panel */}
                     <div className="relative">
+
                         {!sidebarCollapsed && (
                             <div className="space-y-4">
                                 {isLoading ? (
@@ -902,26 +917,6 @@ export default function StrategyTempleteObservePage() {
                                                     <CardDescription>Configure strategy and market parameters for backtesting</CardDescription>
                                                 </CardHeader>
                                                 <CardContent className="space-y-6">
-                                                    {/* Strategy Configuration and Market Configuration stay the same */}
-                                                    {/* Mean Reversion Type - Only show if mean reversion is selected */}
-                                                    {selectedStrategy === "ma-crossover" && (
-                                                        <div className="space-y-2">
-                                                            <Label>Mean Type</Label>
-                                                            <Select value={selectedMeanType} onValueChange={setSelectedMeanType}>
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select mean type" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {maCrossoverTypes.map(type => (
-                                                                        <SelectItem key={type.id} value={type.id}>
-                                                                            {type.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    )}
-                                                    {/* Market Configuration */}
                                                     <div className="grid grid-cols-2 gap-4">
                                                         {/* Trading Pairs */}
                                                         <div className="space-y-2">
@@ -937,20 +932,6 @@ export default function StrategyTempleteObservePage() {
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
-
-                                                        {/* Benchmark */}
-                                                        {/* <div className="space-y-2">
-                                                    <Label>Benchmark</Label>
-                                                    <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select benchmark" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
-                                                            <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div> */}
 
                                                         {/* Timeframe */}
                                                         <div className="space-y-2">
@@ -1027,28 +1008,14 @@ export default function StrategyTempleteObservePage() {
 
 
 
-                                                        <DynamicStrategyParameters
+                                                        {/* <DynamicStrategyParameters
                                                             strategyType={selectedStrategy}
                                                             category="core"
                                                             params={params}
                                                             schemas={riskSchemas["risk"]}
                                                             onChange={setParams}
-                                                        />
+                                                        /> */}
 
-                                                        {/* <Accordion type="single" collapsible className="w-full">
-                                                <AccordionItem value="advanced">
-                                                    <AccordionTrigger>Advanced Core Parameters</AccordionTrigger>
-                                                    <AccordionContent>
-                                                        <DynamicStrategyParameters
-                                                            strategyType={selectedStrategy}
-                                                            category="advanced"
-                                                            params={params}
-                                                            schemas={parameterSchemas[selectedStrategy]}
-                                                            onChange={setParams}
-                                                        />
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            </Accordion> */}
                                                     </div>
 
                                                     {/* Advanced Parameters Section */}
@@ -1075,13 +1042,13 @@ export default function StrategyTempleteObservePage() {
                                                                     onChange={setParams}
                                                                 />
 
-                                                                <DynamicStrategyParameters
+                                                                {/* <DynamicStrategyParameters
                                                                     strategyType={selectedStrategy}
                                                                     category="position"
                                                                     params={params}
                                                                     schemas={riskSchemas["risk"]}
                                                                     onChange={setParams}
-                                                                />
+                                                                /> */}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1354,13 +1321,13 @@ export default function StrategyTempleteObservePage() {
                                                                     <div>
                                                                         <div className="text-xs text-muted-foreground">Return</div>
                                                                         <div className="text-sm font-medium text-green-500">
-                                                                            {Number(run.performance.strategyReturn).toFixed(2)}%
+                                                                            {Number(run.performance.strategyReturn * 100).toFixed(2)}%
                                                                         </div>
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-xs text-muted-foreground">Win Rate</div>
                                                                         <div className="text-sm font-medium">
-                                                                            {Number(run.performance.winRate).toFixed(2)}%
+                                                                            {Number(run.performance.winRate * 100).toFixed(2)}%
                                                                         </div>
                                                                     </div>
                                                                     <div>
@@ -1372,7 +1339,7 @@ export default function StrategyTempleteObservePage() {
                                                                     <div>
                                                                         <div className="text-xs text-muted-foreground">Drawdown</div>
                                                                         <div className="text-sm font-medium text-red-500">
-                                                                            {Number(run.performance.maxDrawdown).toFixed(2)}%
+                                                                            {Number(run.performance.maxDrawdown * 100).toFixed(2)}%
                                                                         </div>
                                                                     </div>
                                                                     <div>
@@ -1417,7 +1384,7 @@ export default function StrategyTempleteObservePage() {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex gap-2 flex-wrap">
+                                                                {/* <div className="flex gap-2 flex-wrap">
                                                                     {Object.entries(run.parameters)
                                                                         .filter(([key, value]) =>
                                                                             value !== defaultParams2[key as keyof typeof defaultParams2]
@@ -1428,7 +1395,7 @@ export default function StrategyTempleteObservePage() {
                                                                             </Badge>
                                                                         ))
                                                                     }
-                                                                </div>
+                                                                </div> */}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1454,53 +1421,62 @@ export default function StrategyTempleteObservePage() {
                             </div>
                         )}
 
-
-
                     </div>
 
                     {/* Results Panel - Add sticky positioning */}
-                    <div className={sidebarCollapsed ? "" : "md:col-span-2"}>
+                    {!configPanelExpanded && (
 
-                        <div className="sticky top-4">
+                        <div className={sidebarCollapsed ? "" : "md:col-span-2"}>
 
-                            <button
-                                onClick={() => setSidebarCollapsed(prev => !prev)}
-                                className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-background border rounded-full p-1 shadow hover:bg-muted transition-colors"
-                            >
-                                {sidebarCollapsed
-                                    ? <ChevronRight className="h-4 w-4" />
-                                    : <ChevronLeft className="h-4 w-4" />
+                            <div className="sticky top-4">
+
+                                {/* 
+                                <button
+                                    onClick={() => setConfigPanelExpanded((prev) => !prev)}
+                                    className="absolute top-1/4 -right-3 transform -translate-y-1/2 bg-background border rounded-full p-1 shadow hover:bg-muted transition-colors z-20"
+                                >
+                                    {configPanelExpanded ? (
+                                        <ChevronLeft className="h-4 w-4" />
+                                    ) : (
+                                        <ChevronRight className="h-4 w-4" />
+                                    )}
+                                </button> */}
+
+                                <button
+                                    onClick={() => setSidebarCollapsed(prev => !prev)}
+                                    className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-background border rounded-full p-1 shadow hover:bg-muted transition-colors"
+                                >
+                                    {sidebarCollapsed
+                                        ? <ChevronRight className="h-4 w-4" />
+                                        : <ChevronLeft className="h-4 w-4" />
+                                    }
+                                </button>
+
+
+                                {activeTab === "comparison"
+                                    ? (
+                                        <StrategyObserveComparisonPanel
+                                            selected={selected}
+                                            runs={runsToBacktest}
+                                            lineData={lineData}
+                                            monthlyData={monthlyData}
+                                            scatter={scatter}
+                                            pareto={pareto}
+                                            drawdownData={drawdownData}
+                                            radarData={radarData}
+                                            winLossData={winLossData}
+                                            metricsTableData={metricsTableData}
+                                            bestValues={bestValues}
+                                            palette={palette}
+                                            runsToParameters={runsToParameters}
+                                            strategyKey={selectedStrategy}
+                                        />
+                                    )
+                                    : renderResultsPanel()
                                 }
-                            </button>
 
-
-                            {activeTab === "comparison"
-                                ? (
-                                    <StrategyObserveComparisonPanel
-                                        selected={selected}
-                                        runs={runsToBacktest}
-                                        lineData={lineData}
-                                        monthlyData={monthlyData}
-                                        scatter={scatter}
-                                        pareto={pareto}
-                                        drawdownData={drawdownData}
-                                        radarData={radarData}
-                                        winLossData={winLossData}
-                                        metricsTableData={metricsTableData}
-                                        bestValues={bestValues}
-                                        palette={palette}
-                                        runsToParameters={runsToParameters}
-                                        strategyKey={selectedStrategy}
-                                    />
-                                )
-                                : renderResultsPanel()
-                            }
-
-
-
-
-                        </div>
-                    </div>
+                            </div>
+                        </div>)}
 
 
                 </div>

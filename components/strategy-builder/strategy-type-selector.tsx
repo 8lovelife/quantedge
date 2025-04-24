@@ -38,7 +38,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { string } from "zod"
-import { AlgorithmOption } from "@/lib/api/algorithms"
+import { AlgorithmOption, StrategyTemplate } from "@/lib/api/algorithms"
 import { cn } from "@/lib/utils"
 
 type StrategyType = "mean-reversion" | "breakout" | "rsi" | "macd" | "custom"
@@ -95,18 +95,18 @@ const StrategyCard = memo(function StrategyCard({
     onInfo,
     isEditMode
 }: {
-    s: AlgorithmOption
+    s: StrategyTemplate
     selected: boolean
     onSelect: (id: string) => void
     onInfo: () => void
     isEditMode: boolean
 }) {
 
-    const icon = strategyIconMap[s.value] || <BarChart3 className="h-5 w-5" /> // fallback icon
+    const icon = strategyIconMap[s.type] || <BarChart3 className="h-5 w-5" /> // fallback icon
 
     return (
         <div
-            onClick={() => !isEditMode && onSelect(s.value)}
+            onClick={() => !isEditMode && onSelect(s.type)}
             className={cn(
                 "flex items-center gap-3 rounded-md border p-3 transition",
                 selected ? "border-primary bg-primary/5" : "border-input",
@@ -116,8 +116,8 @@ const StrategyCard = memo(function StrategyCard({
         >
             {icon}
             <div className="flex-1">
-                <Label className="font-medium">{s.label}</Label>
-                <p className="text-xs text-muted-foreground">{s.desc}</p>
+                <Label className="font-medium">{s.name}</Label>
+                <p className="text-xs text-muted-foreground">{s.description}</p>
             </div>
             <Button
                 variant="ghost"
@@ -137,12 +137,12 @@ const StrategyCard = memo(function StrategyCard({
 export default function StrategyTypeSelector({
     value,
     onChange,
-    strategies,
+    strategyTemplates,
     isEditMode = false,
 }: {
     value: string
     onChange: (v: string) => void
-    strategies: AlgorithmOption[]
+    strategyTemplates: StrategyTemplate[]
     isEditMode
 
 }) {
@@ -154,13 +154,13 @@ export default function StrategyTypeSelector({
     const [infoId, setInfoId] = useState<string | null>(null)
 
     useEffect(() => {
-        if (strategies.length > 0 && !infoId) {
-            setInfoId(strategies[0].value) // use the first strategy as default
+        if (strategyTemplates.length > 0 && !infoId) {
+            setInfoId(strategyTemplates[0].type) // use the first strategy as default
         }
-    }, [strategies, infoId])
+    }, [strategyTemplates, infoId])
 
 
-    const currentInfo = strategies.find((s) => s.value === infoId)!
+    const currentInfo = strategyTemplates.find((s) => s.type === infoId)!
 
 
     return (
@@ -171,97 +171,20 @@ export default function StrategyTypeSelector({
                 className="grid gap-3"
             >
                 {/* built‑in */}
-                {strategies.map((s) => (
+                {strategyTemplates.map((s) => (
                     <StrategyCard
-                        key={s.value}
+                        key={s.type}
                         s={s}
-                        selected={value === s.value}
+                        selected={value === s.type}
                         onSelect={onChange}
                         isEditMode={isEditMode}
                         onInfo={() => {
-                            setInfoId(s.value)
+                            setInfoId(s.type)
                             setInfoOpen(true)
                         }}
                     />
                 ))}
 
-                {/* custom */}
-                {/* <Dialog open={customOpen} onOpenChange={setCustomOpen}>
-                    <DialogTrigger asChild>
-                        <div
-                            className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition ${value === "custom"
-                                ? "border-primary bg-primary/5"
-                                : "border-dashed hover:border-primary"
-                                }`}
-                            onClick={() => onChange("custom")}
-                        >
-                            <Plus className="h-5 w-5 text-muted-foreground" />
-                            <div className="flex-1">
-                                <Label className="font-medium">Create Custom Strategy</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Combine indicators & conditions
-                                </p>
-                            </div>
-                        </div>
-                    </DialogTrigger> */}
-
-                {/* <DialogContent className="sm:max-w-[600px]">
-                        <DialogHeader>
-                            <DialogTitle>Create Custom Strategy</DialogTitle>
-                            <DialogDescription>
-                                Build a custom strategy by combining multiple indicators and
-                                conditions.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-4 py-2">
-                            <div className="space-y-1">
-                                <Label>Name</Label>
-                                <Input placeholder="My Custom Strategy" />
-                            </div>
-
-                            <Tabs defaultValue="indicators">
-                                <TabsList className="grid grid-cols-3 w-full">
-                                    <TabsTrigger value="indicators">Indicators</TabsTrigger>
-                                    <TabsTrigger value="conditions">Conditions</TabsTrigger>
-                                    <TabsTrigger value="filters">Filters</TabsTrigger>
-                                </TabsList>
-
-                                <TabsContent value="indicators" className="pt-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        (Indicator picker UI here)
-                                    </p>
-                                </TabsContent>
-
-                                <TabsContent value="conditions" className="pt-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        (Conditions builder UI here)
-                                    </p>
-                                </TabsContent>
-
-                                <TabsContent value="filters" className="pt-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        (Filters UI here)
-                                    </p>
-                                </TabsContent>
-                            </Tabs>
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setCustomOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    onChange("custom")
-                                    setCustomOpen(false)
-                                }}
-                            >
-                                Create Strategy
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent> */}
-                {/* </Dialog> */}
             </RadioGroup>
 
             {/* info dialog */}
@@ -270,8 +193,8 @@ export default function StrategyTypeSelector({
                 <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
-                            <DialogTitle>{currentInfo.label} Strategy</DialogTitle>
-                            <DialogDescription>{currentInfo.desc}</DialogDescription>
+                            <DialogTitle>{currentInfo.name} Strategy</DialogTitle>
+                            <DialogDescription>{currentInfo.description}</DialogDescription>
                         </DialogHeader>
                         <CardContent className="space-y-4">
                             <p>{currentInfo.info}</p>
@@ -282,7 +205,7 @@ export default function StrategyTypeSelector({
                             </Button>
                             <Button
                                 onClick={() => {
-                                    onChange(currentInfo.value)
+                                    onChange(currentInfo.type)
                                     setInfoOpen(false)
                                 }}
                             >

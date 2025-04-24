@@ -7,6 +7,46 @@ export interface AlgorithmOption {
     defaultParameters?: Record<string, any> // ← most JSON-friendly
     defaultRisk?: Record<string, any> // ← most JSON-friendly
     defaultExecution?: Record<string, any> // ← most JSON-friendly
+    latest_lab_backtest_version: number;
+}
+
+
+
+export interface StrategyTemplatesResponse {
+    items: StrategyTemplate[]
+    total: number
+    totalPages: number
+}
+
+export interface StrategyTemplate {
+    id: number;
+    name: string;
+    description: string;
+    info: string;
+    type: string;
+    updated: string;
+    performance?: Record<string, any>,
+    parameters?: StrategyParameterConfig,
+    risk?: Record<string, any>,
+    execution?: Record<string, any>,
+    likes: number;
+    usage: number;
+    author: string;
+    latest_lab_backtest_version: number;
+}
+
+
+export interface StrategyParameterConfig {
+    options?: Record<string, any>,
+    default?: Record<string, any>
+}
+
+export interface FetchStrategyTemplateParams {
+    page?: number
+    limit?: number
+    search?: string
+    status?: string
+    sort?: string
 }
 
 
@@ -129,42 +169,103 @@ export interface ParameterField {
     key: string
     name: string
     description: string
+    type: "number" | "select" | "radio"
+    default: any;
     min?: number
     max?: number
     step?: number
     unit?: string
     category?: string
+    options?: { label: string; value: string }[]
+    showIf?: { key: string; value: any }
+    group?: string
+    groupLabel?: string
+    order?: number
+    fullWidth?: boolean
 }
+
+
 
 
 export const parameterSchemas: Record<string, ParameterField[]> = {
     "ma-crossover": [
         {
+            key: "maType",
+            name: "Moving Average Type",
+            description: "Type of moving average used",
+            type: "select",
+            default: "sma",
+            options: [
+                { label: "Simple Moving Average", value: "sma" },
+                { label: "Exponential Moving Average", value: "ema" },
+                { label: "Weighted Moving Average", value: "wma" }
+            ],
+            category: "core",
+            order: 1
+        },
+        // {
+        //     key: "smoothingFactor",
+        //     name: "Smoothing Factor",
+        //     description: "Smoothing multiplier used in EMA",
+        //     type: "number",
+        //     default: 1,
+        //     min: 0,
+        //     max: 100,
+        //     step: 1,
+        //     category: "core",
+        //     showIf: { key: "maType", value: "ema" },
+        //     unit: "%",
+        //     order: 1
+        // },
+        {
+            key: "weightDecay",
+            name: "Weight Decay",
+            description: "Weight decay factor used in WMA",
+            type: "number",
+            default: 50,
+            min: 0,
+            max: 100,
+            step: 1,
+            category: "core",
+            showIf: { key: "maType", value: "wma" },
+            unit: "%",
+            order: 1
+        },
+        {
             key: "fastPeriod",
             name: "Fast Period",
             description: "Number of periods for the fast moving average",
-            min: 1,
-            max: 200,
+            type: "number",
+            default: 5,
+            min: 2,
+            max: 50,
             step: 1,
             unit: "bars",
-            category: "core"
+            category: "core",
+            order: 0
+
         },
         {
             key: "slowPeriod",
             name: "Slow Period",
             description: "Number of periods for the slow moving average",
-            min: 1,
-            max: 500,
+            type: "number",
+            default: 20,
+            min: 10,
+            max: 200,
             step: 1,
             unit: "bars",
-            category: "core"
+            category: "core",
+            order: 0
         },
         {
             key: "entryThreshold",
             name: "Entry Threshold",
             description: "Minimum MA difference to trigger entry",
-            min: 0,
-            max: 10,
+            type: "number",
+            default: 2,
+            min: 0.5,
+            max: 5.0,
             step: 0.1,
             unit: "σ",
             category: "advanced"
@@ -173,8 +274,10 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             key: "exitThreshold",
             name: "Exit Threshold",
             description: "Number of standard deviations for exit signal",
+            type: "number",
+            default: 0.5,
             min: 0.1,
-            max: 2,
+            max: 2.0,
             step: 0.1,
             unit: "σ",
             category: "advanced"
@@ -182,37 +285,234 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
     ],
     "mean-reversion": [
         {
-            key: "lookback_period",
-            name: "Lookback Period",
-            description: "Number of periods to calculate mean and std deviation",
-            min: 1,
-            max: 100,
-            step: 1,
-            unit: "bars",
-            category: "core"
+            key: "reversionStyle",
+            name: "Reversion Style",
+            description: "Type of mean reversion strategy logic",
+            type: "select",
+            default: "z-score",
+            options: [
+                { label: "Z-Score", value: "z-score" },
+                { label: "Bollinger Bands", value: "bollinger" }
+            ],
+            category: "core",
+            order: 0
         },
         {
-            key: "entry_threshold",
-            name: "Entry Threshold (Z-score)",
-            description: "Z-score above/below which to enter",
+            key: "entryZScore",
+            name: "Entry Z-Score",
+            description: "Z-score above/below which to enter a trade",
+            type: "number",
+            default: 2,
             min: 0.5,
             max: 5,
             step: 0.1,
             unit: "",
-            category: "core"
+            showIf: { key: "reversionStyle", value: "z-score" },
+            group: "zscore",
+            groupLabel: "Z-Score Config",
+            category: "core",
+            order: 1
         },
         {
-            key: "exit_threshold",
-            name: "Exit Threshold (Z-score)",
-            description: "Z-score range to trigger exit",
+            key: "exitZScore",
+            name: "Exit Z-Score",
+            description: "Z-score range to exit the trade",
+            type: "number",
+            default: 0.5,
             min: 0,
             max: 2,
             step: 0.1,
             unit: "",
-            category: "core"
+            showIf: { key: "reversionStyle", value: "z-score" },
+            group: "zscore",
+            groupLabel: "Z-Score Config",
+            category: "core",
+            order: 1
+        },
+        {
+            key: "exitThreshold",
+            name: "Exit Threshold",
+            description: "Number of standard deviations for exit signal",
+            type: "number",
+            default: 0.5,
+            min: 0.1,
+            max: 2.0,
+            step: 0.1,
+            unit: "σ",
+            category: "core",
+            showIf: { key: "reversionStyle", value: "bollinger" },
+            order: 3
+
+        },
+        {
+            key: "bandMultiplier",
+            name: "Bollinger Band Multiplier",
+            description: "Width of the Bollinger Bands (in standard deviations)",
+            type: "number",
+            default: 2,
+            min: 0.5,
+            max: 4,
+            step: 0.1,
+            unit: "σ",
+            showIf: { key: "reversionStyle", value: "bollinger" },
+            category: "core",
+            order: 1,
+            fullWidth: true
+        },
+        {
+            key: "lookbackPeriod",
+            name: "Lookback Period",
+            description: "Number of periods to calculate mean and std deviation",
+            type: "number",
+            default: 20,
+            min: 1,
+            max: 100,
+            step: 1,
+            unit: "bars",
+            category: "core",
+            order: 0
+        },
+        {
+            key: "meanType",
+            name: "Moving Average Type",
+            description: "Type of moving average used for mean calculation",
+            type: "select",
+            default: "sma",
+            options: [
+                { label: "Simple Moving Average", value: "sma" },
+                { label: "Exponential Moving Average", value: "ema" },
+                { label: "Weighted Moving Average", value: "wma" }
+            ],
+            category: "core",
+            order: 1
+        },
+        // {
+        //     key: "smoothingFactor",
+        //     name: "Smoothing Factor",
+        //     description: "Only for EMA",
+        //     type: "number",
+        //     default: 0.1,
+        //     min: 0.01,
+        //     max: 1.0,
+        //     step: 0.01,
+        //     unit: "%",
+        //     showIf: { key: "meanType", value: "ema" },
+        //     category: "core",
+        //     order: 1
+        // },
+        {
+            key: "weightDecay",
+            name: "Weight Decay",
+            description: "Weight decay factor used in WMA",
+            type: "number",
+            default: 50,
+            min: 0,
+            max: 100,
+            step: 1,
+            category: "core",
+            showIf: { key: "maType", value: "wma" },
+            unit: "%",
+            order: 1
+        },
+        {
+            key: "cooldownPeriod",
+            name: "Cooldown Period",
+            description: "Wait N bars before re-entering a new trade",
+            type: "number",
+            default: 5,
+            min: 0,
+            max: 20,
+            step: 1,
+            unit: "bars",
+            category: "advanced",
+            order: 7
+        },
+        {
+            key: "rebalanceInterval",
+            name: "Rebalance Interval",
+            description: "How often to rebalance the portfolio",
+            type: "select",
+            default: "daily",
+            options: [
+                { label: "Daily", value: "daily" },
+                { label: "4H", value: "4h" },
+                { label: "1H", value: "1h" }
+            ],
+            category: "advanced",
+            order: 9
         }
     ]
 }
+
+
+
+export function normalizeParams(
+    rawParams: Record<string, any>,
+    schema: ParameterField[]
+): Record<string, any> {
+    const out: Record<string, any> = {}
+
+    for (const field of schema) {
+        const { key, showIf } = field
+        const val = rawParams[key]
+
+        if (val == null) continue
+
+        if (showIf) {
+            const actual = rawParams[showIf.key]
+            if (actual !== showIf.value) {
+                continue
+            }
+        }
+
+        out[key] = val
+    }
+
+    return out
+}
+
+
+export function filterParamsByStyle(raw: any): any {
+    const out: any = { ...raw };
+
+    if (raw.reversionStyle === "bollinger") {
+        delete out.entryZScore;
+        delete out.exitZScore;
+    } else if (raw.reversionStyle === "z-score") {
+        delete out.bandMultiplier;
+        delete out.exitThreshold;
+    }
+
+    return out;
+}
+
+
+export const defaultParams2 = {
+    fastPeriod: 10,
+    slowPeriod: 30,
+    maType: "sma",
+    meanType: "sma",
+    entryThreshold: 1.0,
+    exitThreshold: 0.5,
+    stopLoss: 5.0,      // ← 百分比显示：5%
+    takeProfit: 10.0,   // ← 百分比显示：10%
+    riskPerTrade: 2.0,  // ← 百分比显示：2%
+    positionSize: 30.0, // ← 百分比显示：30%
+    slippage: 0.1,      // ← 百分比显示：0.1%
+    commission: 0.05,   // ← 百分比显示：0.05%
+    entryDelay: 1,
+    minHoldingPeriod: 3,
+    maxHoldingPeriod: 10,
+    reversionStyle: "z-score",
+    cooldownPeriod: 5,
+    lookbackPeriod: 20,
+    rebalanceInterval: "daily",
+    exitZScore: 0.5,
+    entryZScore: 2,
+    bandMultiplier: 2,
+
+
+};
 
 export const riskSchemas: Record<string, ParameterField[]> = {
     "risk": [
@@ -220,7 +520,9 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             name: "Stop Loss",
             key: "stopLoss",
             description: "Maximum loss per trade",
-            min: 0.5,
+            type: "number",
+            default: 5,
+            min: 1,
             max: 10,
             step: 0.1,
             unit: "%",
@@ -230,7 +532,9 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             name: "Take Profit",
             key: "takeProfit",
             description: "Profit target per trade",
-            min: 1,
+            type: "number",
+            default: 10,
+            min: 5,
             max: 20,
             step: 0.1,
             unit: "%",
@@ -240,7 +544,9 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             name: "Risk Per Trade",
             key: "riskPerTrade",
             description: "Maximum risk per trade as percentage of portfolio",
-            min: 0.1,
+            type: "number",
+            default: 2,
+            min: 0.5,
             max: 5,
             step: 0.1,
             unit: "%",
@@ -250,6 +556,8 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             name: "Max Positions",
             key: "maxConcurrentPositions",
             description: "Maximum number of concurrent positions",
+            type: "number",
+            default: 1,
             min: 1,
             max: 10,
             step: 1,
@@ -259,8 +567,10 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             name: "Position Size",
             key: "positionSize",
             description: "Size of each position as percentage of portfolio",
-            min: 1,
-            max: 100,
+            type: "number",
+            default: 10,
+            min: 5,
+            max: 50,
             step: 1,
             unit: "%",
             category: "position"
@@ -269,23 +579,7 @@ export const riskSchemas: Record<string, ParameterField[]> = {
 }
 
 
-export const defaultParams2 = {
-    fastPeriod: 10,
-    slowPeriod: 30,
-    subType: "sma",
-    entryThreshold: 1,
-    exitThreshold: 0.5,
-    stopLoss: 0.05,
-    takeProfit: 0.1,
-    riskPerTrade: 0.02,
-    positionSize: 0.3,
-    maxConcurrentPositions: 1,
-    slippage: 0.001,
-    commission: 0.0005,
-    entryDelay: 1,
-    minHoldingPeriod: 3,
-    maxHoldingPeriod: 10
-};
+
 
 export interface StrategyDefaultParams {
     fastPeriod: number;

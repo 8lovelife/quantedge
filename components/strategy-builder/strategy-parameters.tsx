@@ -12,7 +12,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card"
 import { Parameter, ParameterField, parameters, parameterSchemas } from "@/lib/api/algorithms"
 import { toast } from "sonner"
-import DynamicStrategyParameters from "./strategy-dynamic-parameters"
+import DynamicStrategyParameters from "../parameters-configuration"
+// import DynamicStrategyParameters from "./strategy-dynamic-parameters"
 
 interface StrategyParametersProps {
     strategyType: string
@@ -48,21 +49,6 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
         onChange({ ...data, [key]: value })
     }
 
-
-    // const [params, setParams] = useState(data)
-
-    // const handleParamChange = (param: Parameter, value: string) => {
-    //     const numValue = parseFloat(value)
-    //     if (validateParam(param, numValue)) {
-    //         setParams(prev => ({
-    //             ...prev,
-    //             [param.key]: numValue
-    //         }))
-    //     }
-    // }
-
-
-
     return (
         <div className="space-y-6">
             {/* <Separator /> */}
@@ -73,7 +59,13 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
 
             {strategyType === "mean-reversion" && (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <DynamicStrategyParameters
+                        strategyType={strategyType}
+                        params={data}
+                        schemas={parameterSchemas[strategyType]}
+                        onChange={onChange} />
+                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <div className="flex items-center">
                                 <Label htmlFor="slow-period">Slow Period</Label>
@@ -120,9 +112,9 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                                 onChange={(e) => handleChange("fastPeriod", Number(e.target.value))}
                             />
                         </div>
-                    </div>
+                    </div> */}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="mean-type">Mean Type</Label>
                             <Select value={data.meanType} onValueChange={(v) => handleChange("meanType", v)}>
@@ -152,13 +144,19 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                                 </SelectContent>
                             </Select>
                         </div>
-                    </div>
+                    </div> */}
 
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="advanced">
                             <AccordionTrigger>Advanced Parameters</AccordionTrigger>
                             <AccordionContent>
-                                <div className="space-y-4 pt-2">
+                                <DynamicStrategyParameters
+                                    strategyType={strategyType}
+                                    params={data}
+                                    category="advanced"
+                                    schemas={parameterSchemas[strategyType]}
+                                    onChange={onChange} />
+                                {/* <div className="space-y-4 pt-2">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="entry-threshold">Entry Threshold (%)</Label>
@@ -193,7 +191,7 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                                             />
                                         </div>
                                     </div>
-                                </div>
+                                </div> */}
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
@@ -393,84 +391,6 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
 
             {strategyType === "ma-crossover" && (
                 <div className="space-y-4">
-                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="fast-period">Fast Period</Label>
-                            <Input
-                                id="fast-period"
-                                type="number"
-                                value={data.fastPeriod ?? ""}
-                                placeholder="10"
-                                onChange={(e) => handleChange("fast_period", Number(e.target.value))}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="slow-period">Slow Period</Label>
-                            <Input
-                                id="slow-period"
-                                type="number"
-                                value={data.slowPeriod ?? ""}
-                                placeholder="30"
-                                onChange={(e) => handleChange("slow_period", Number(e.target.value))}
-                            />
-                        </div>
-                    </div> */}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="ma-type">MA Type</Label>
-                            <Select
-                                value={data.maType}
-                                onValueChange={(v) => handleChange("maType", v)}
-                            >
-                                <SelectTrigger id="ma-type">
-                                    <SelectValue placeholder="Select MA Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="sma">Simple Moving Average</SelectItem>
-                                    <SelectItem value="ema">Exponential Moving Average</SelectItem>
-                                    <SelectItem value="wma">Weighted Moving Average</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="position-type">Position Type</Label>
-                            <Select
-                                value={data.positionType}
-                                onValueChange={(v) => handleChange("position_type", v)}
-                            >
-                                <SelectTrigger id="position-type">
-                                    <SelectValue placeholder="Select position type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="long">Long Only</SelectItem>
-                                    <SelectItem value="short">Short Only</SelectItem>
-                                    <SelectItem value="both">Long & Short</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="rebalance-interval">Rebalance Interval</Label>
-                        <Select
-                            value={data.rebalanceInterval}
-                            onValueChange={(v) => handleChange("rebalance_interval", v)}
-                        >
-                            <SelectTrigger id="rebalance-interval">
-                                <SelectValue placeholder="Select interval" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="1h">1 Hour</SelectItem>
-                                <SelectItem value="4h">4 Hours</SelectItem>
-                                <SelectItem value="daily">Daily</SelectItem>
-                                <SelectItem value="weekly">Weekly</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
                     <DynamicStrategyParameters
                         strategyType={strategyType}
                         params={data}

@@ -128,25 +128,25 @@ export default function StrategyTempleteObserveResultsPanel({ data, isLoading, t
                     <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-xs text-muted-foreground">Strategy Return</div>
                         <div className="text-lg font-bold text-green-500">
-                            {Number(data.metrics?.strategyReturn).toFixed(2)}
+                            {Number(data.metrics?.strategyReturn * 100).toFixed(2)}%
                         </div>
                     </div>
                     <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-xs text-muted-foreground">Win Rate</div>
                         <div className="text-lg font-bold">
-                            {Number(data.metrics?.winRate).toFixed(2)}
+                            {Number(data.metrics?.winRate * 100).toFixed(2)}%
                         </div>
                     </div>
                     <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-xs text-muted-foreground">Sharpe</div>
                         <div className="text-lg font-bold">
-                            {Number(data.metrics?.sharpeRatio).toFixed(2)}
+                            {Number(data.metrics?.sharpeRatio).toFixed(2)}%
                         </div>
                     </div>
                     <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-xs text-muted-foreground">Max Drawdown</div>
                         <div className="text-lg font-bold text-red-500">
-                            {Number(data.metrics?.maxDrawdown).toFixed(2)}
+                            {Number(data.metrics?.maxDrawdown * 100).toFixed(2)}%
                         </div>
                     </div>
                 </div>
@@ -438,11 +438,11 @@ export default function StrategyTempleteObserveResultsPanel({ data, isLoading, t
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Win Rate</span>
-                                        <span>{Number(data.metrics?.winRate).toFixed(2)}</span>
+                                        <span>{Number(data.metrics?.winRate * 100).toFixed(2)} %</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Profit Factor</span>
-                                        <span>2.45</span>
+                                        <span>{Number(data.metrics?.profitFactor).toFixed(2)}</span>
                                     </div>
                                 </div>
                             </CardContent>
@@ -456,11 +456,11 @@ export default function StrategyTempleteObserveResultsPanel({ data, isLoading, t
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Max Drawdown</span>
-                                        <span>{Number(data.metrics?.maxDrawdown).toFixed(2)}</span>
+                                        <span>{Number(data.metrics?.maxDrawdown * 100).toFixed(2)} %</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Sharpe Ratio</span>
-                                        <span>{Number(data.metrics?.sharpeRatio).toFixed(2)}</span>
+                                        <span>{Number(data.metrics?.sharpeRatio).toFixed(2)} %</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Alpha</span>

@@ -38,6 +38,7 @@ export interface BacktestMetrics {
     winRate: number
     sharpeRatio: number
     totalTrades: number
+    profitFactor: number
 }
 
 // Monthly return data
@@ -67,11 +68,11 @@ export interface BacktestData {
 // API response structure
 export interface BacktestResponse {
     success: boolean
-    version: number
-    date: string
-    strategyId: string
-    timeframe: string
-    data: BacktestData
+    version?: number
+    date?: string
+    strategyId?: string
+    timeframe?: string
+    data?: BacktestData
     error?: string
 }
 
@@ -113,7 +114,7 @@ export interface BacktestRunHistoryResponse {
 export interface LabRunBacktestRequest {
     templateId: number
     type: string
-    subType: string
+    subType?: string
     params: Record<string, any>,
     pairs: string
     timeframe: string

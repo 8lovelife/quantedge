@@ -128,10 +128,10 @@ const AdvancedTabContent = ({ selected, runs, drawdownData, radarData, winLossDa
                     <ResponsiveContainer width="100%" height={300}>
                         <ScatterChart>
                             <CartesianGrid />
-                            <XAxis type="number" dataKey="dd" name="Max DD" unit="%" />
+                            <XAxis type="number" dataKey="dd" name="Max Drawdown" unit="%" />
                             <YAxis type="number" dataKey="ret" name="Return" unit="%" />
                             <ZAxis range={[50, 150]} />
-                            <Tooltip formatter={(v) => v + "%"} />
+                            <Tooltip formatter={(v) => v + ""} />
                             <Scatter
                                 data={scatter}
                                 shape={({ cx, cy, payload }) => (

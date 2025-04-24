@@ -60,14 +60,14 @@ const RunSelectionCard = ({ runHistorys, selected, toggle }: Props) => {
                             <div className="grid grid-cols-5 gap-4">
                                 <Metric
                                     label="Return"
-                                    value={run.performance.strategyReturn}
+                                    value={run.performance.strategyReturn * 100}
                                     positive
                                 />
-                                <Metric label="Win Rate" value={run.performance.winRate} />
+                                <Metric label="Win Rate" value={run.performance.winRate * 100} />
                                 <Metric label="Sharpe" value={run.performance.sharpeRatio} />
                                 <Metric
                                     label="Drawdown"
-                                    value={run.performance.maxDrawdown}
+                                    value={run.performance.maxDrawdown * 100}
                                     negative
                                 />
                                 <div>
@@ -79,7 +79,7 @@ const RunSelectionCard = ({ runHistorys, selected, toggle }: Props) => {
                             </div>
 
                             <div className="grid grid-cols-5 gap-4">
-                                <Meta label="Mean Type" value={run.marketDetails.subType} />
+                                <Meta label="Mean Type" value={run.marketDetails.subType || run.marketDetails.meanType} />
                                 <Meta label="Trading Pair" value={run.marketDetails.pairs} />
                                 <Meta label="Timeframe" value={run.marketDetails.timeframe} />
                                 <Meta
@@ -89,7 +89,7 @@ const RunSelectionCard = ({ runHistorys, selected, toggle }: Props) => {
                                 <Meta label="Direction" value={run.marketDetails.positionType} />
                             </div>
 
-                            <div className="flex gap-2 flex-wrap">
+                            {/* <div className="flex gap-2 flex-wrap">
                                 {Object.entries(run.parameters)
                                     .filter(
                                         ([key, value]) =>
@@ -100,7 +100,7 @@ const RunSelectionCard = ({ runHistorys, selected, toggle }: Props) => {
                                             {key}: {value}
                                         </Badge>
                                     ))}
-                            </div>
+                            </div> */}
                         </div>
                     ))}
                 </div>

@@ -1,4 +1,4 @@
-import type { BacktestParameters, BacktestResponse, BacktestRunHistoryItem, BacktestRunHistoryResponse, LabRunBacktestRequest } from "./types"
+import type { BacktestParameters, BacktestResponse, BacktestRunHistoryItem, BacktestRunHistoryResponse, LabRunBacktestRequest, StrategyRunBacktestRequest, StrategyRunComparison, StrategyRunHistoryResponse } from "./types"
 
 /**
  * Run a backtest with the provided parameters
@@ -158,16 +158,77 @@ export async function addRunToHistory(
 
 
 
-export async function runLabBacktest(
-    labRun: LabRunBacktestRequest
+
+export async function strategyRunHistoryBacktest(
+    strategyId: number, version: number
 ): Promise<BacktestResponse> {
     try {
-        const response = await fetch("/api/lab/run", {
+        const response = await fetch(`/api/strategies/run/backtest?strategyId=${strategyId}&version=${version}`);
+        console.log("response status " + response.status)
+
+        if (response.status === 404) {
+            return {
+                success: false,
+                data: null,
+                error: "Backtest not found",
+            };
+        }
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`)
+        }
+
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to get history strategy backtest:", error)
+        throw error
+    }
+}
+
+export async function strategyRunHistory(
+    strategyId: number
+): Promise<StrategyRunHistoryResponse> {
+    try {
+        const response = await fetch(`/api/strategies/run/history?strategyId=${strategyId}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to lab run history:", error)
+        throw error
+    }
+}
+
+export async function strategyRunHistoryComparison(
+    strategyId: number
+): Promise<StrategyRunComparison[]> {
+    try {
+        const response = await fetch(`/api/strategies/run/comparison?strategyId=${strategyId}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to lab run history:", error)
+        throw error
+    }
+}
+
+
+export async function strategyBacktest(
+    startegyRun: StrategyRunBacktestRequest
+): Promise<BacktestResponse> {
+    try {
+        const response = await fetch("/api/strategies/run", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(labRun),
+            body: JSON.stringify(startegyRun),
         })
 
         if (!response.ok) {

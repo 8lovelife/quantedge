@@ -1,17 +1,17 @@
-import { AppSidebar } from "@/components/layout/app-sidebar";
-import { SiteHeader } from "@/components/layout/site-header";
-import BacktestComparison from "@/components/backtest/strategy-backtest-comparison";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import LabStrategyComparison from "@/components/strategy-template/observe-results-comparison";
+// import { AppSidebar } from "@/components/layout/app-sidebar";
+// import { SiteHeader } from "@/components/layout/site-header";
+// import BacktestComparison from "@/components/backtest/strategy-backtest-comparison";
+// import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+// import LabStrategyComparison from "@/components/strategy-template/observe-results-comparison";
 
-export default function StrategiesBacktestComparisonPage() {
-    return (
-        <SidebarProvider>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <LabStrategyComparison />
-            </SidebarInset>
-        </SidebarProvider>
-    )
-}
+// export default function StrategiesBacktestComparisonPage() {
+//     return (
+//         <SidebarProvider>
+//             <AppSidebar variant="inset" />
+//             <SidebarInset>
+//                 <SiteHeader />
+//                 <LabStrategyComparison />
+//             </SidebarInset>
+//         </SidebarProvider>
+//     )
+// }

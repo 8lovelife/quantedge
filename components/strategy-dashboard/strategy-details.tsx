@@ -47,7 +47,7 @@ function formatValue(key: string, value: unknown): string {
 
     if (typeof value === "number") {
         // Heuristic: Add % if key contains common sizing or threshold terms
-        const percentKeywords = ["size", "percent", "ratio", "threshold"]
+        const percentKeywords = ["size", "percent", "ratio", "loss", "take", "riskpertrade"]
         if (percentKeywords.some((k) => key.toLowerCase().includes(k))) {
             return `${value}%`
         }
@@ -105,7 +105,9 @@ export default function StrategyDetails({ id }: { id: number }) {
         //     router.push(`/backtest/${id}`)
         // }, 1000)
 
-        router.push(`/backtest/${id}`)
+        // router.push(`/backtest/${id}`)
+        router.push(`/strategies/${id}/observe`)
+
         setIsLoading(false)
 
 
@@ -117,7 +119,9 @@ export default function StrategyDetails({ id }: { id: number }) {
         // If latestVersion is undefined, don't include it in the URL
         // This will show the empty state in the backtest page
         const versionParam = latestVersion ? `&version=${latestVersion}` : ""
-        router.push(`/backtest/${strategyId}?mode=historical${versionParam}`)
+        // router.push(`/backtest/${strategyId}?mode=historical${versionParam}`)
+        router.push(`/strategies/${strategyId}/observe/backtest?strategy=${strategy.name}&mode=historical${versionParam}`)
+
     }
 
     const handleStartPaperTrading = () => {
@@ -365,7 +369,7 @@ export default function StrategyDetails({ id }: { id: number }) {
                                 Updated: {new Date(strategy.updated).toLocaleDateString()}
                             </Badge>
                         </h1>
-                        <p className="text-muted-foreground">Historical performance analysis and trade statistics</p>
+                        <p className="text-muted-foreground">Comprehensive backtesting results and paper trading performance metrics</p>
                     </div>
 
 
@@ -523,25 +527,31 @@ export default function StrategyDetails({ id }: { id: number }) {
                                         Strategy Parameters
                                     </h3>
                                     <div className="grid grid-cols-2 gap-3">
-                                        {Object.entries(strategy.configuration.parameters ?? {}).map(([key, value]) => (
-                                            <div key={key} className="bg-muted/40 p-3 rounded-md">
-                                                <div className="text-xs text-muted-foreground capitalize">
-                                                    {formatLabel(key)}
+                                        {Object.entries(strategy.configuration.parameters ?? {})
+                                            .filter(([_, v]) =>
+                                                v != null &&
+                                                !(typeof v === 'string' && v.trim() === '') &&
+                                                !(Array.isArray(v) && v.length === 0) &&
+                                                !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+                                            )
+                                            .map(([key, value]) => (
+                                                <div key={key} className="bg-muted/40 p-3 rounded-md">
+                                                    <div className="text-xs text-muted-foreground capitalize">
+                                                        {formatLabel(key)}
+                                                    </div>
+                                                    <div className="font-medium">
+                                                        {formatValue(key, value)}
+                                                    </div>
                                                 </div>
-                                                <div className="font-medium">
-                                                    {formatValue(key, value)}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            ))}
 
-                                        {/* If timeframe is not in parameters, show it separately */}
-                                        {/* {!("timeframe" in (strategy.configuration.parameters ?? {})) &&
-                                            strategy.configuration.timeframe && (
+                                        {!("timeframe" in (strategy.configuration.parameters ?? {})) &&
+                                            strategy.marketDetails?.timeframe && (
                                                 <div className="bg-muted/40 p-3 rounded-md">
                                                     <div className="text-xs text-muted-foreground">Timeframe</div>
-                                                    <div className="font-medium">{strategy.configuration.timeframe}</div>
+                                                    <div className="font-medium">{strategy.marketDetails.timeframe}</div>
                                                 </div>
-                                            )} */}
+                                            )}
                                     </div>
                                 </div>
                             </div>
@@ -567,7 +577,7 @@ export default function StrategyDetails({ id }: { id: number }) {
                                             <Button variant="outline" size="sm" onClick={() =>
                                                 viewBacktestResults(
                                                     strategy?.id,
-                                                    strategy?.latestBacktestVersion,
+                                                    strategy?.applyBacktestVersion,
                                                 )
                                             }>
                                                 <BarChart3 className="mr-2 h-4 w-4" />
@@ -593,25 +603,37 @@ export default function StrategyDetails({ id }: { id: number }) {
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Total Return</div>
                                             <div className="font-medium text-green-500">
-                                                {Number(strategy.backtestPerformance.strategyReturn).toFixed(2)}%
+                                                {Number(strategy.backtestPerformance.strategyReturn * 100).toFixed(2)}%
                                             </div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Sharpe Ratio</div>
                                             <div className="font-medium">
-                                                {Number(strategy.backtestPerformance.sharpeRatio).toFixed(2)}
+                                                {Number(strategy.backtestPerformance.sharpeRatio * 100).toFixed(2)}
                                             </div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Max Drawdown</div>
                                             <div className="font-medium text-red-500">
-                                                -{Number(strategy.backtestPerformance.maxDrawdown).toFixed(2)}%
+                                                {Number(strategy.backtestPerformance.maxDrawdown * 100).toFixed(2)}%
                                             </div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Win Rate</div>
                                             <div className="font-medium">
-                                                {Number(strategy.backtestPerformance.winRate).toFixed(2)}%
+                                                {Number(strategy.backtestPerformance.winRate * 100).toFixed(2)}%
+                                            </div>
+                                        </div>
+                                        <div className="bg-muted/40 p-3 rounded-md">
+                                            <div className="text-xs text-muted-foreground">Profit Factor</div>
+                                            <div className="font-medium text-red-500">
+                                                {Number(strategy.backtestPerformance.profitFactor).toFixed(2)}
+                                            </div>
+                                        </div>
+                                        <div className="bg-muted/40 p-3 rounded-md">
+                                            <div className="text-xs text-muted-foreground">Total Trades</div>
+                                            <div className="font-medium">
+                                                {strategy.backtestPerformance.totalTrades}
                                             </div>
                                         </div>
                                     </div>
@@ -627,24 +649,28 @@ export default function StrategyDetails({ id }: { id: number }) {
                     {/* Live Performance */}
                     <Card>
                         <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center gap-2">
-                                <LineChart className="h-5 w-5" />
-                                {strategy.status === "live"
-                                    ? "Live Performance"
-                                    : strategy.status === "paper"
-                                        ? "Paper Trading Performance"
-                                        : "Performance"}
-                            </CardTitle>
-                            {(strategy.status === "live" || strategy.status === "paper") && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => router.push(`/${strategy.status === "live" ? "live-trading" : "paper-trading"}/${id}`)}
-                                >
-                                    <LineChart className="mr-2 h-4 w-4" />
-                                    View Details
-                                </Button>
-                            )}
+                            <div className="flex justify-between items-center w-full">
+                                <CardTitle className="flex items-center gap-2">
+                                    <LineChart className="h-5 w-5" />
+                                    {strategy.status === "live"
+                                        ? "Live Performance"
+                                        : strategy.status === "paper"
+                                            ? "Paper Trading Performance"
+                                            : "Performance"}
+                                </CardTitle>
+                                {(strategy.status === "live" || strategy.status === "paper") && (
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => router.push(`/${strategy.status === "live" ? "live-trading" : "paper-trading"}/${id}`)}
+                                        >
+                                            <LineChart className="mr-2 h-4 w-4" />
+                                            View Details
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </CardHeader>
                         <CardContent>
                             {strategy.status === "live" || strategy.status === "paper" ? (
@@ -661,6 +687,14 @@ export default function StrategyDetails({ id }: { id: number }) {
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Last Trade</div>
                                             <div className="font-medium">2 hours ago</div>
+                                        </div>
+                                        <div className="bg-muted/40 p-3 rounded-md">
+                                            <div className="text-xs text-muted-foreground">Avg Slippage</div>
+                                            <div className="font-medium">−0.02%</div>
+                                        </div>
+                                        <div className="bg-muted/40 p-3 rounded-md">
+                                            <div className="text-xs text-muted-foreground">Fill Rate</div>
+                                            <div className="font-medium">98.5%</div>
                                         </div>
                                         <div className="bg-muted/40 p-3 rounded-md">
                                             <div className="text-xs text-muted-foreground">Status</div>
@@ -705,19 +739,26 @@ export default function StrategyDetails({ id }: { id: number }) {
                                     </h3>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {Object.entries(strategy.configuration.riskManagement).map(([key, value]) => (
-                                            <div
-                                                key={key}
-                                                className={`bg-muted/40 p-3 rounded-md ${typeof value === "boolean" ? "md:col-span-2" : ""}`}
-                                            >
-                                                <div className="text-xs text-muted-foreground">
-                                                    {formatLabel(key)}
+                                        {Object.entries(strategy.configuration.riskManagement)
+                                            .filter(([_, v]) =>
+                                                v != null &&
+                                                !(typeof v === 'string' && v.trim() === '') &&
+                                                !(Array.isArray(v) && v.length === 0) &&
+                                                !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+                                            )
+                                            .map(([key, value]) => (
+                                                <div
+                                                    key={key}
+                                                    className={`bg-muted/40 p-3 rounded-md ${typeof value === "boolean" ? "md:col-span-2" : ""}`}
+                                                >
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {formatLabel(key)}
+                                                    </div>
+                                                    <div className="font-medium">
+                                                        {formatValue(key, value)}
+                                                    </div>
                                                 </div>
-                                                <div className="font-medium">
-                                                    {formatValue(key, value)}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            ))}
                                     </div>
                                 </div>
                             </div>

@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname
 
     // Define public paths that don't require authentication
-    const isPublicPath = path === "/login" || path === "/register" || path === "/forgot-password"
+    const isPublicPath = path === "/login" || path === "/register" || path === "/forgot-password" || path === "/"
 
     // Skip middleware for API routes
     if (path.startsWith("/api/")) {
@@ -13,8 +13,7 @@ export function middleware(request: NextRequest) {
     }
 
     // Get the token from the cookies
-    const token = request.cookies.get("session")?.value || ""
-
+    const token = request.cookies.get("session_id")?.value || ""
     // Redirect logic
     if (!isPublicPath && !token) {
         // Redirect to login if trying to access a protected route without a token
@@ -23,7 +22,7 @@ export function middleware(request: NextRequest) {
 
     if (isPublicPath && token) {
         // Redirect to dashboard if trying to access login/register with a valid token
-        return NextResponse.redirect(new URL("/", request.url))
+        return NextResponse.redirect(new URL("/dashboard", request.url))
     }
 
     return NextResponse.next()

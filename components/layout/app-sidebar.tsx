@@ -31,6 +31,10 @@ import { NavMain } from "./nav-main"
 import { NavDocuments } from "./nav-documents"
 import { NavSecondary } from "./nav-secondary"
 import { NavUser } from "./nav-user"
+import { useEffect } from "react"
+import { useUser } from "@/app/context/user-context"
+import router from "next/router"
+import { Skeleton } from "../ui/skeleton"
 
 const data = {
     user: {
@@ -49,20 +53,25 @@ const data = {
             url: "/strategies",
             icon: ListIcon,
         },
-        {
-            title: "Backtesting",
-            url: "/backtest",
-            icon: BarChartIcon,
-        },
+        // {
+        //     title: "Backtesting",
+        //     url: "/backtest",
+        //     icon: BarChartIcon,
+        // },
         {
             title: "Lab",
             url: "/lab",
             icon: FolderIcon
         },
+        // {
+        //     title: "Market Overview",
+        //     url: "/dashboard",
+        //     icon: FolderIcon,
+        // },
         {
-            title: "Market Overview",
-            url: "/dashboard",
-            icon: FolderIcon,
+            title: "Exchange",
+            url: "/exchanges",
+            icon: DatabaseIcon,
         },
     ],
     navClouds: [
@@ -114,42 +123,60 @@ const data = {
         },
     ],
     navSecondary: [
-        {
-            title: "Settings",
-            url: "#",
-            icon: SettingsIcon,
-        },
-        {
-            title: "Get Help",
-            url: "#",
-            icon: HelpCircleIcon,
-        },
-        {
-            title: "Search",
-            url: "#",
-            icon: SearchIcon,
-        },
+        // {
+        //     title: "Settings",
+        //     url: "#",
+        //     icon: SettingsIcon,
+        // },
+        // {
+        //     title: "Get Help",
+        //     url: "#",
+        //     icon: HelpCircleIcon,
+        // },
+        // {
+        //     title: "Search",
+        //     url: "#",
+        //     icon: SearchIcon,
+        // },
     ],
     documents: [
-        {
-            name: "Data Library",
-            url: "#",
-            icon: DatabaseIcon,
-        },
-        {
-            name: "Reports",
-            url: "#",
-            icon: ClipboardListIcon,
-        },
-        {
-            name: "Word Assistant",
-            url: "#",
-            icon: FileIcon,
-        },
+        // {
+        //     name: "Data Library",
+        //     url: "#",
+        //     icon: DatabaseIcon,
+        // },
+        // {
+        //     name: "Reports",
+        //     url: "#",
+        //     icon: ClipboardListIcon,
+        // },
+        // {
+        //     name: "Word Assistant",
+        //     url: "#",
+        //     icon: FileIcon,
+        // },
     ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+
+    // const { user, isLoadingUser } = useUser();
+
+    // if (isLoadingUser) {
+    //     return (
+    //         <div className="p-4 space-y-4">
+    //             <Skeleton className="h-6 w-2/3" />
+    //             <Skeleton className="h-4 w-1/2" />
+    //             <Skeleton className="h-8 w-full" />
+    //         </div>
+    //     );
+    // }
+
+    // if (!user) {
+    //     router.push("/login");
+    //     return null;
+    // }
+
     return (
         <Sidebar collapsible="offcanvas" {...props}>
             <SidebarHeader>
@@ -170,10 +197,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarHeader>
             <SidebarContent>
                 <NavMain items={data.navMain} />
-                <NavDocuments items={data.documents} />
+                {/* <NavDocuments items={data.documents} /> */}
                 <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>
             <SidebarFooter>
+                {/* <NavUser user={{
+                    name: user.name,
+                    email: user.email,
+                    avatar: user.avatar_url,
+                }} /> */}
                 <NavUser user={data.user} />
             </SidebarFooter>
         </Sidebar>

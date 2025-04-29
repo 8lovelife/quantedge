@@ -124,22 +124,68 @@ const AdvancedTabContent = ({ selected, runs, drawdownData, radarData, winLossDa
                     </div>
                 }
             >
-                <div className="w-full max-w-full overflow-hidden">
-                    <ResponsiveContainer width="100%" height={300}>
-                        <ScatterChart>
-                            <CartesianGrid />
-                            <XAxis type="number" dataKey="dd" name="Max Drawdown" unit="%" />
-                            <YAxis type="number" dataKey="ret" name="Return" unit="%" />
-                            <ZAxis range={[50, 150]} />
-                            <Tooltip formatter={(v) => v + ""} />
-                            <Scatter
-                                data={scatter}
-                                shape={({ cx, cy, payload }) => (
-                                    <circle cx={cx} cy={cy} r={10} fill={payload.color} />
-                                )}
-                            />
-                        </ScatterChart>
-                    </ResponsiveContainer>
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Left: Scatter chart */}
+                    <div className="flex-1 min-w-0">
+                        <div className="w-full h-80 overflow-hidden">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ScatterChart>
+                                    <CartesianGrid />
+                                    <XAxis type="number" dataKey="dd" name="Max Drawdown" unit="%" />
+                                    <YAxis type="number" dataKey="ret" name="Return" unit="%" />
+                                    <ZAxis range={[50, 150]} />
+                                    <Tooltip formatter={(v) => v + ""} />
+                                    <Scatter
+                                        data={scatter}
+                                        shape={({ cx, cy, payload }) => (
+                                            <circle cx={cx} cy={cy} r={8} fill={payload.color} />
+                                        )}
+                                    />
+                                </ScatterChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Right: Pareto‐table */}
+                    <div className="w-full lg:w-1/3 overflow-auto">
+                        {pareto.length > 0 && (
+                            <>
+                                <h3 className="text-lg font-medium mb-4">Pareto Optimal Sets</h3>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Run ID</TableHead>
+                                            <TableHead>Return (%)</TableHead>
+                                            <TableHead>Drawdown (%)</TableHead>
+                                            <TableHead>Sharpe</TableHead>
+
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {scatter
+                                            .filter(point => pareto.includes(point.id))
+                                            .map(point => (
+                                                <TableRow key={point.id}>
+                                                    <TableCell className="font-medium">
+                                                        {point.id}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {Number(point.ret * 100).toFixed(2)}%
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {Number(point.dd * 100).toFixed(2)}%
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {Number(point.sharpe * 100).toFixed(2)}%
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        }
+                                    </TableBody>
+                                </Table>
+                            </>
+                        )}
+                    </div>
                 </div>
             </ChartCard>
 

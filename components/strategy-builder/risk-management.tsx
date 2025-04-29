@@ -46,7 +46,7 @@ export default function RiskManagement({ strategyType, data, onChange }: Strateg
                             <AccordionContent>
                                 <DynamicStrategyParameters
                                     strategyType="risk"
-                                    category="position"
+                                    category="advanced"
                                     params={data}
                                     schemas={riskSchemas["risk"]}
                                     onChange={onChange} />

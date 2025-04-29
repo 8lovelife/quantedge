@@ -242,7 +242,7 @@ export default function StrategiesPage() {
         switch (strategy.status) {
             case "draft":
                 if (!strategy.isIncomplete) {
-                    router.push(`/strategies/backtest/${strategy.id}`)
+                    router.push(`/strategies/${strategy.id}/observe`)
                 }
                 break
             case "backtest":
@@ -483,37 +483,41 @@ export default function StrategiesPage() {
                                                     <div className="bg-muted/30 p-2 rounded-md h-[72px] flex flex-col justify-center">
                                                         <div className="text-xs text-muted-foreground">Return</div>
                                                         <div className="text-sm font-bold text-green-500">
-                                                            {Number(strategy.backtestPerformance?.strategyReturn || 0).toFixed(2)}%
+                                                            {Number(strategy.backtestPerformance?.strategyReturn * 100 || 0).toFixed(2)}%
                                                         </div>
                                                     </div>
                                                     <div className="bg-muted/30 p-2 rounded-md h-[72px] flex flex-col justify-center">
                                                         <div className="text-xs text-muted-foreground">Win Rate</div>
                                                         <div className="text-sm font-bold">
-                                                            {Number(strategy.backtestPerformance?.winRate || 0).toFixed(2)}%
+                                                            {Number(strategy.backtestPerformance?.winRate * 100 || 0).toFixed(2)}%
                                                         </div>
                                                     </div>
                                                     <div className="bg-muted/30 p-2 rounded-md h-[72px] flex flex-col justify-center">
                                                         <div className="text-xs text-muted-foreground">Drawdown</div>
                                                         <div className="text-sm font-bold text-red-500">
-                                                            {Number(strategy.backtestPerformance?.maxDrawdown || 0).toFixed(2)}%
+                                                            {Number(strategy.backtestPerformance?.maxDrawdown * 100 || 0).toFixed(2)}%
                                                         </div>
                                                     </div>
                                                 </div>
                                             )}
 
                                             <div className="flex gap-2 mt-auto">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1 h-9"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(`/strategies/${strategy.id}`);
-                                                    }}
-                                                >
-                                                    <Eye className="mr-2 h-3 w-3" />
-                                                    Details
-                                                </Button>
+                                                {!!!strategy.isIncomplete && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1 h-9"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(`/strategies/${strategy.id}`);
+                                                        }}
+                                                    >
+                                                        <Eye className="mr-2 h-3 w-3" />
+                                                        Details
+                                                    </Button>
+                                                )}
+
+
                                                 <div className="flex-1">
                                                     <Button
                                                         size="sm"

@@ -171,7 +171,7 @@ export function BacktestHeader({
                                         </div>
                                         <div className="text-xs text-muted-foreground mt-1">{formatDate(run.date)}</div>
                                     </div>
-                                    <div
+                                    {/* <div
                                         className={`ml-2 w-6 h-6 rounded-md border flex items-center justify-center cursor-pointer flex-shrink-0 ${selectedRunsForComparison.includes(run.version) ? "bg-primary border-primary" : "border-input"
                                             }`}
                                         onClick={() => toggleRunSelection(run.version)}
@@ -179,7 +179,7 @@ export function BacktestHeader({
                                         {selectedRunsForComparison.includes(run.version) && (
                                             <CheckIcon className="h-4 w-4 text-primary-foreground" />
                                         )}
-                                    </div>
+                                    </div> */}
                                 </div>
                             ))
                         )}
@@ -187,16 +187,16 @@ export function BacktestHeader({
                 </DropdownMenu>
 
                 {/* Configure & Run Button */}
-                <Button onClick={openParamsDialog} disabled={isCalculating}>
+                {/* <Button onClick={openParamsDialog} disabled={isCalculating}>
                     <Settings2Icon className="mr-2 h-4 w-4" />
                     Configure & Run
                 </Button>
                 <Button variant="outline" size="icon">
                     <FilterIcon className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon">
+                </Button> */}
+                {/* <Button variant="outline" size="icon">
                     <DownloadIcon className="h-4 w-4" />
-                </Button>
+                </Button> */}
             </div>
         </div>
     )

@@ -202,7 +202,7 @@ export default function StrategyLabPage() {
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4">
+                            {/* <div className="flex items-center gap-4">
                                 <div className="flex -space-x-2">
                                     <Avatar className="border-2 border-background">
                                         <AvatarFallback>TM</AvatarFallback>
@@ -226,7 +226,7 @@ export default function StrategyLabPage() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
 
                         <Tabs defaultValue="lab" value={activeTab} onValueChange={setActiveTab}>
@@ -348,10 +348,10 @@ export default function StrategyLabPage() {
                                                             variant="ghost"
                                                             size="sm"
                                                             className="h-8 w-8 p-0"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                router.push(`/strategy-detail/${template.id}`)
-                                                            }}
+                                                        // onClick={(e) => {
+                                                        //     e.stopPropagation();
+                                                        //     router.push(`/strategy-detail/${template.id}`)
+                                                        // }}
                                                         >
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>

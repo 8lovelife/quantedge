@@ -100,7 +100,15 @@ export interface BacktestRunHistoryItem {
     date: string
     version: number
     result: string
-    //    parameters: BacktestParameters
+    marketDetails?: MarketDetails
+}
+
+export interface MarketDetails {
+    initialCapital: number,
+    pairs: string,
+    positionType: string,
+    subType: string,
+    timeframe: string,
 }
 
 // Run history response
@@ -111,13 +119,32 @@ export interface BacktestRunHistoryResponse {
 }
 
 
-export interface LabRunBacktestRequest {
-    templateId: number
+
+export interface StrategyRunBacktestRequest {
+    strategyId: number
     type: string
     subType?: string
     params: Record<string, any>,
-    pairs: string
     timeframe: string
-    initialCapital: number
-    positionType: string
+}
+
+export interface StrategyRunHistory {
+    id: string
+    startTime: Date,
+    endTime: Date,
+    parameters: Record<string, any>,
+    performance: BacktestMetrics,
+    marketDetails: Record<string, any>,
+    duration: string
+    status: string
+}
+
+export interface StrategyRunHistoryResponse {
+    historys: StrategyRunHistory[]
+}
+
+export interface StrategyRunComparison {
+    runId: number,
+    labRunHistory: StrategyRunHistory,
+    backtestData: BacktestData,
 }

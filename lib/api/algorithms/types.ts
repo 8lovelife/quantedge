@@ -190,7 +190,7 @@ export interface ParameterField {
 export const parameterSchemas: Record<string, ParameterField[]> = {
     "ma-crossover": [
         {
-            key: "maType",
+            key: "meanType",
             name: "Moving Average Type",
             description: "Type of moving average used",
             type: "select",
@@ -227,7 +227,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 100,
             step: 1,
             category: "core",
-            showIf: { key: "maType", value: "wma" },
+            showIf: { key: "meanType", value: "wma" },
             unit: "%",
             order: 1
         },
@@ -268,7 +268,7 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 5.0,
             step: 0.1,
             unit: "σ",
-            category: "advanced"
+            category: "core"
         },
         {
             key: "exitThreshold",
@@ -280,7 +280,34 @@ export const parameterSchemas: Record<string, ParameterField[]> = {
             max: 2.0,
             step: 0.1,
             unit: "σ",
-            category: "advanced"
+            category: "core"
+        },
+        {
+            key: "cooldownPeriod",
+            name: "Cooldown Period",
+            description: "Wait N bars before re-entering a new trade",
+            type: "number",
+            default: 5,
+            min: 0,
+            max: 20,
+            step: 1,
+            unit: "bars",
+            category: "advanced",
+            order: 7
+        },
+        {
+            key: "rebalanceInterval",
+            name: "Rebalance Interval",
+            description: "How often to rebalance the portfolio",
+            type: "select",
+            default: "daily",
+            options: [
+                { label: "Daily", value: "daily" },
+                { label: "4H", value: "4h" },
+                { label: "1H", value: "1h" }
+            ],
+            category: "advanced",
+            order: 9
         }
     ],
     "mean-reversion": [
@@ -510,9 +537,9 @@ export const defaultParams2 = {
     exitZScore: 0.5,
     entryZScore: 2,
     bandMultiplier: 2,
-
-
+    maxConcurrentPositions: 1,
 };
+
 
 export const riskSchemas: Record<string, ParameterField[]> = {
     "risk": [
@@ -561,7 +588,7 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             min: 1,
             max: 10,
             step: 1,
-            category: "position"
+            category: "advanced"
         },
         {
             name: "Position Size",
@@ -573,10 +600,73 @@ export const riskSchemas: Record<string, ParameterField[]> = {
             max: 50,
             step: 1,
             unit: "%",
-            category: "position"
+            category: "advanced"
         }
     ]
 }
+
+export const executionParameterSchemas: ParameterField[] = [
+    {
+        name: "Slippage",
+        key: "slippage",
+        description: "Simulated slippage as percentage of order price",
+        type: "number",
+        default: 0.1,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: "%",
+        category: "core"
+    },
+    {
+        name: "Commission",
+        key: "commission",
+        description: "Simulated commission as percentage of trade value",
+        type: "number",
+        default: 0.05,
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        unit: "%",
+        category: "core"
+    },
+    {
+        name: "Entry Delay",
+        key: "entryDelay",
+        description: "Number of bars (or ticks) to wait after signal before entry",
+        type: "number",
+        default: 1,
+        min: 0,
+        max: 10,
+        step: 1,
+        unit: "bars",
+        category: "advanced"
+    },
+    {
+        name: "Min Holding Period",
+        key: "minHoldingPeriod",
+        description: "Minimum number of bars to hold a position before exit allowed",
+        type: "number",
+        default: 3,
+        min: 0,
+        max: 50,
+        step: 1,
+        unit: "bars",
+        category: "advanced"
+    },
+    {
+        name: "Max Holding Period",
+        key: "maxHoldingPeriod",
+        description: "Maximum number of bars to hold a position before forced exit",
+        type: "number",
+        default: 10,
+        min: 1,
+        max: 500,
+        step: 1,
+        unit: "bars",
+        category: "advanced"
+    }
+];
 
 
 
@@ -622,6 +712,17 @@ export interface LabRunComparison {
     backtestData: BacktestData,
 }
 
+
+export interface LabRunBacktestRequest {
+    templateId: number
+    type: string
+    subType?: string
+    params: Record<string, any>,
+    pairs: string
+    timeframe: string
+    initialCapital: number
+    positionType: string
+}
 
 
 

@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card"
-import { Parameter, ParameterField, parameters, parameterSchemas } from "@/lib/api/algorithms"
+import { Parameter, ParameterField, parameters, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
 import { toast } from "sonner"
 import DynamicStrategyParameters from "../parameters-configuration"
 // import DynamicStrategyParameters from "./strategy-dynamic-parameters"
@@ -156,42 +156,6 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                                     category="advanced"
                                     schemas={parameterSchemas[strategyType]}
                                     onChange={onChange} />
-                                {/* <div className="space-y-4 pt-2">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="entry-threshold">Entry Threshold (%)</Label>
-                                            <Input
-                                                id="entry-threshold"
-                                                type="number"
-                                                value={data.entry_threshold ?? ""}
-                                                step="0.1"
-                                                onChange={(e) => handleChange("entry_threshold", Number(e.target.value))}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exit-threshold">Exit Threshold (%)</Label>
-                                            <Input
-                                                id="exit-threshold"
-                                                type="number"
-                                                value={data.exit_threshold ?? ""}
-                                                step="0.1"
-                                                onChange={(e) => handleChange("exit_threshold", Number(e.target.value))}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="use-volume-filter">Use Volume Filter</Label>
-                                            <Switch
-                                                id="use-volume-filter"
-                                                checked={!!data.use_volume_filter}
-                                                onCheckedChange={(v) => handleChange("use_volume_filter", v)}
-                                            />
-                                        </div>
-                                    </div>
-                                </div> */}
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
@@ -407,6 +371,13 @@ export default function StrategyParameters({ strategyType, data, onChange }: Str
                                     category="advanced"
                                     schemas={parameterSchemas[strategyType]}
                                     onChange={onChange} />
+
+                                {/* <DynamicStrategyParameters
+                                    strategyType={strategyType}
+                                    params={data}
+                                    category="advanced"
+                                    schemas={riskSchemas["risk"]}
+                                    onChange={onChange} /> */}
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>

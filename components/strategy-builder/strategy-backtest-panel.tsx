@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -31,22 +31,24 @@ import {
 import { toast } from "sonner"
 import { cn, formatDuration } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "../ui/avatar"
-import { BacktestData, BacktestMetrics, BacktestParameters } from "@/lib/api/backtest/types"
-import { mockRunBacktest } from "@/lib/api/backtest/mock"
-import { AlgorithmOption, algorithmOption, defaultParams2, executionParameterSchemas, fetchStrategyTemplateById, LabRunBacktestRequest, LabRunComparison, labRunHistory, LabRunHistory, labRunHistoryBacktest, labRunHistoryComparison, LabRunHistoryResponse, normalizeParams, parameterSchemas, riskSchemas, runLabBacktest, StrategyTemplate } from "@/lib/api/algorithms"
-import StrategyTempleteObserveResultsLoadingSkeleton from "./observe-results-panel-skeleton"
-import StrategyTempleteObserveResultsPanel from "./observe-results-panel"
+import { BacktestData, BacktestMetrics, BacktestParameters, StrategyRunBacktestRequest, StrategyRunComparison, StrategyRunHistoryResponse } from "@/lib/api/backtest/types"
+import { executionParameterSchemas, normalizeParams, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
 import { useParams, useRouter } from "next/navigation"
-import ConfigurationPanelSkeleton from "./observe-config-skeleton"
 import { sub } from "date-fns"
+import { runLabBacktest, strategyBacktest, strategyRunHistory, strategyRunHistoryBacktest, strategyRunHistoryComparison } from "@/lib/api/backtest/client"
 import { MultiSelect } from "../ui/multi-select"
 import router from "next/router"
-import RunSelectionCard from "./comparison/run-selection-card"
-import BasicTabContent from "./comparison/basic-tab-content"
-import AdvancedTabContent from "./comparison/advanced-tab-content"
-import { calculateExtendedMetrics, getBestMetricValues, mergeDrawdowns, mergeLines, prepareRadarData, prepareWinLossData } from "./comparison/chart-utils"
-import StrategyObserveComparisonPanel from "./observe-comparison"
+
 import DynamicStrategyParameters from "../parameters-configuration"
+import StrategyTempleteObserveResultsPanel from "../strategy-template/observe-results-panel"
+import StrategyTempleteObserveResultsLoadingSkeleton from "../strategy-template/observe-results-panel-skeleton"
+import { calculateExtendedMetrics, getBestMetricValues, mergeDrawdowns, mergeLines, prepareRadarData, prepareWinLossData } from "../strategy-template/comparison/chart-utils"
+import ConfigurationPanelSkeleton from "../strategy-template/observe-config-skeleton"
+import StrategyObserveComparisonPanel from "../strategy-template/observe-comparison"
+import RunSelectionCard from "../strategy-template/comparison/run-selection-card"
+import { applyStrategyRun, fetchStrategyDetails } from "@/lib/api/strategies/client"
+import { StrategyAssetsCard } from "../strategy-dashboard/strategy-assets"
+import StrategyObserveResultsPanel from "./strategy-backtest-result"
 
 // ... keep your existing chart imports ...
 
@@ -183,44 +185,6 @@ const optimizationResult: OptimizationResult = {
 }
 
 
-
-const recentRuns: BacktestRun[] = [
-    {
-        id: "BT-001",
-        date: "2025-04-15 19:50:22",
-        params: {
-            ...algorithmOption.defaultParameters,
-            lookbackPeriod: 25,
-            entryThreshold: 2.5
-        },
-        performance: {
-            returnRate: 32.5,
-            winRate: 75,
-            sharpeRatio: 2.6,
-            maxDrawdown: -10.2,
-            totalTrades: 145
-        },
-        duration: "2m 15s",
-        status: "completed"
-    },
-    {
-        id: "BT-002",
-        date: "2025-04-15 19:45:10",
-        params: algorithmOption.defaultParameters
-        ,
-        performance: {
-            returnRate: 28.5,
-            winRate: 72,
-            sharpeRatio: 2.4,
-            maxDrawdown: -12.5,
-            totalTrades: 156
-        },
-        duration: "2m 05s",
-        status: "completed"
-    },
-    // Add more runs...
-]
-
 export interface Parameter {
     name: string
     key: keyof typeof defaultParams
@@ -231,97 +195,6 @@ export interface Parameter {
     unit?: string
     category: "core" | "risk" | "position"
 }
-
-const parameters: Parameter[] = [
-    {
-        name: "Lookback Period",
-        key: "lookbackPeriod",
-        description: "Number of periods to calculate mean and standard deviation",
-        min: 5,
-        max: 100,
-        step: 1,
-        category: "core"
-    },
-    {
-        name: "Entry Threshold",
-        key: "entryThreshold",
-        description: "Number of standard deviations for entry signal",
-        min: 0.5,
-        max: 5,
-        step: 0.1,
-        unit: "σ",
-        category: "core"
-    },
-    {
-        name: "Exit Threshold",
-        key: "exitThreshold",
-        description: "Number of standard deviations for exit signal",
-        min: 0.1,
-        max: 2,
-        step: 0.1,
-        unit: "σ",
-        category: "core"
-    },
-    {
-        name: "Stop Loss",
-        key: "stopLoss",
-        description: "Maximum loss per trade",
-        min: 0.5,
-        max: 10,
-        step: 0.1,
-        unit: "%",
-        category: "risk"
-    },
-    {
-        name: "Take Profit",
-        key: "takeProfit",
-        description: "Profit target per trade",
-        min: 1,
-        max: 20,
-        step: 0.1,
-        unit: "%",
-        category: "risk"
-    },
-    {
-        name: "Position Size",
-        key: "positionSize",
-        description: "Size of each position as percentage of portfolio",
-        min: 1,
-        max: 100,
-        step: 1,
-        unit: "%",
-        category: "position"
-    },
-    {
-        name: "Risk Per Trade",
-        key: "riskPerTrade",
-        description: "Maximum risk per trade as percentage of portfolio",
-        min: 0.1,
-        max: 5,
-        step: 0.1,
-        unit: "%",
-        category: "risk"
-    },
-    {
-        name: "Max Positions",
-        key: "maxPositions",
-        description: "Maximum number of concurrent positions",
-        min: 1,
-        max: 10,
-        step: 1,
-        category: "position"
-    },
-    {
-        name: "Min Volume",
-        key: "minVolume",
-        description: "Minimum 24h trading volume for asset selection",
-        min: 100000,
-        max: 10000000,
-        step: 100000,
-        unit: "USDT",
-        category: "position"
-    }
-]
 
 const GRID_PRESETS: Record<string, number[]> = {
     fastPeriod: [5, 10, 15],
@@ -345,32 +218,6 @@ const optimizedParams = {
     minVolume: 2000000
 }
 
-const mockFetchDefaultParams = async (templateId: string) => {
-    // Simulate an API call
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const defaultParams = {
-                fastPeriod: 10,
-                slowPeriod: 30,
-                maType: "sma",
-                entryThreshold: 1,
-                exitThreshold: 0.5,
-                stopLoss: 0.05,
-                takeProfit: 0.1,
-                riskPerTrade: 0.02,
-                positionSize: 0.3,
-                maxConcurrentPositions: 1,
-                slippage: 0.001,
-                commission: 0.0005,
-                entryDelay: 1,
-                minHoldingPeriod: 3,
-                maxHoldingPeriod: 10
-            };
-            resolve(defaultParams);
-        }, 500); // Simulate a 500ms API call
-    });
-};
-
 const optimizeParams = [
     { name: "Fast Period", key: "fastPeriod" },
     { name: "Slow Period", key: "slowPeriod" },
@@ -380,7 +227,7 @@ const optimizeParams = [
     // { name: "Stop Loss", key: "stopLoss" }
 ]
 
-export default function StrategyTempleteObservePage() {
+export default function StrategyBacktestObservePage() {
 
     const pathParams = useParams()
     const router = useRouter();
@@ -388,7 +235,7 @@ export default function StrategyTempleteObservePage() {
 
     const [isRunning, setIsRunning] = useState(false)
     const [params, setParams] = useState<Record<string, any>>()
-    const [algorithmOption, setAlgorithmOption] = useState<StrategyTemplate>()
+    const [algorithmOption, setAlgorithmOption] = useState<Record<string, any>>()
     const [selectedAssets, setSelectedAssets] = useState<string[]>(["BTC/USDT"])
     const [activeTab, setActiveTab] = useState("parameters")
     const [backtestData, setBacktestData] = useState<BacktestData | null>(null)
@@ -396,6 +243,8 @@ export default function StrategyTempleteObservePage() {
     const [isInitialLoad, setIsInitialLoad] = useState(true)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [configPanelExpanded, setConfigPanelExpanded] = useState(false);
+    const initParametersRef = useRef<Record<string, any> | null>(null);
+
 
 
 
@@ -419,30 +268,13 @@ export default function StrategyTempleteObservePage() {
     const [gridResults, setGridResults] = useState<any[]>([])
     const [bestParams, setBestParams] = useState<Record<string, any> | null>(null)
 
-    const [runHistory, setRunHistory] = useState<LabRunHistoryResponse>()
+    const [runHistory, setRunHistory] = useState<StrategyRunHistoryResponse>()
     const [selectedRun, setSelectedRun] = useState(() => runHistory?.historys?.[0] || null);
-    const [runsToBacktest, setRunsToBacktest] = useState<Record<number, LabRunComparison>>({});
+    const [runsToBacktest, setRunsToBacktest] = useState<Record<number, StrategyRunComparison>>({});
     const [pareto, setPareto] = useState<number[]>([]);
     const [isComparisonLoading, setIsComparisonLoading] = useState(false)
 
-    const templateId = typeof pathParams.id === "string" ? pathParams.id : "1"
-
-
-    // const handleRangeInputChange = (key: string, value: string) => {
-    //     setRangeInputs((prev) => ({ ...prev, [key]: value }))
-    // }
-
-
-    // Update the viewComparisonResults function
-    const viewComparisonResults = (templateId: string) => {
-
-        console.log("templateId", templateId)
-
-        // If latestVersion is undefined, don't include it in the URL
-        // This will show the empty state in the backtest page
-        router.push(`/lab/${templateId}/observe/comparison`)
-    }
-
+    const strategyId = typeof pathParams.id === "string" ? pathParams.id : "1"
 
     function generateCombinations(grid: Record<string, number[]>): Record<string, any>[] {
         const keys = Object.keys(grid)
@@ -463,7 +295,7 @@ export default function StrategyTempleteObservePage() {
 
         const allCombos = generateCombinations(parsedGrid)
         const backtestRequest = {
-            templateId: parseInt(templateId),
+            templateId: parseInt(strategyId),
             type: selectedStrategy,
             gridParams: parsedGrid,
             pairs: selectedPairs,
@@ -485,21 +317,23 @@ export default function StrategyTempleteObservePage() {
         // setBestParams(sorted[0]?.params)
     }
 
-    const loadTemplateParameters = async () => {
+
+    const loadStrategyParameters = async () => {
         try {
             setIsLoading(true)
-            if (templateId) {
-                const fetchedParams = await fetchStrategyTemplateById(templateId);
+            if (strategyId) {
+                const fetchedParams = await fetchStrategyDetails(parseInt(strategyId));
                 const combinedDefaults: Record<string, any> = {
-                    ...fetchedParams.parameters.default,
-                    ...fetchedParams.risk,
-                    ...fetchedParams.execution
+                    ...fetchedParams.configuration.parameters,
+                    ...fetchedParams.configuration.riskManagement,
+                    // ...fetchedParams.configuration.execution
                 }
+                initParametersRef.current = combinedDefaults;
                 setParams(combinedDefaults);
                 setAlgorithmOption(fetchedParams);
                 setSelectedStrategy(fetchedParams.type)
-                loadRunHistoryData(parseInt(templateId))
-                return fetchedParams.latest_lab_backtest_version;
+                loadRunHistoryData(parseInt(strategyId))
+                return fetchedParams.latestBacktestVersion;
             }
 
         } catch (error) {
@@ -511,12 +345,12 @@ export default function StrategyTempleteObservePage() {
     }
     useEffect(() => {
         (async () => {
-            const latestVersion = await loadTemplateParameters();
+            const latestVersion = await loadStrategyParameters();
             if (latestVersion !== undefined) {
                 await loadLatestBacktest(latestVersion);
             }
         })();
-    }, [templateId]);
+    }, [strategyId]);
 
     // useEffect(() => {
     //     loadLatestBacktest()
@@ -574,13 +408,13 @@ export default function StrategyTempleteObservePage() {
             )
         }
 
-        return <StrategyTempleteObserveResultsPanel data={backtestData} isLoading={isLoading} templateId={templateId} version={selectedRun.id} strategy={selectedStrategy} />
+        return <StrategyObserveResultsPanel data={backtestData} isLoading={isLoading} strategyId={strategyId} version={selectedRun.id} strategy={selectedStrategy} />
     }
 
     const loadLatestBacktest = async (version) => {
         try {
             setIsLoading(true)
-            const response = await labRunHistoryBacktest(parseInt(templateId), version);
+            const response = await strategyRunHistoryBacktest(parseInt(strategyId), version);
             if (response.success) {
                 setBacktestData(response.data)
             }
@@ -600,7 +434,7 @@ export default function StrategyTempleteObservePage() {
             setIsInitialLoad(true);
             let version = latestRun.id;
             setSelectedRun(latestRun)
-            const response = await labRunHistoryBacktest(parseInt(templateId), version)
+            const response = await strategyRunHistoryBacktest(parseInt(strategyId), version)
             if (response.success) {
                 setBacktestData(response.data)
             }
@@ -614,7 +448,7 @@ export default function StrategyTempleteObservePage() {
     const fetchComparisonData = async () => {
         try {
             setIsComparisonLoading(true);
-            const comparisonData = await labRunHistoryComparison(parseInt(templateId));
+            const comparisonData = await strategyRunHistoryComparison(parseInt(strategyId));
             if (comparisonData?.length) {
                 setSelected([comparisonData[0].runId]);
                 setRunsToBacktest(Object.fromEntries(comparisonData.map(item => [item.runId, item])));
@@ -628,21 +462,17 @@ export default function StrategyTempleteObservePage() {
 
 
 
-    const runBacktestData = async (customParams: LabRunBacktestRequest) => {
+    const runBacktestData = async (customParams: StrategyRunBacktestRequest) => {
         try {
             setIsInitialLoad(true)
-
-
-            const response = await runLabBacktest(customParams);
+            const response = await strategyBacktest(customParams);
             if (response.success) {
                 setBacktestData(response.data)
             } else {
                 throw new Error(response.error || "Failed to run backtest")
             }
-
-
             // Fetch the latest run history after running the backtest
-            const data = await labRunHistory(customParams.templateId);
+            const data = await strategyRunHistory(customParams.strategyId);
             setSelectedRun(data.historys?.[0] || null)
             setRunHistory(data)
 
@@ -655,14 +485,20 @@ export default function StrategyTempleteObservePage() {
         }
     }
 
-    const loadRunHistoryData = async (templateId: number) => {
+    const loadRunHistoryData = async (strategyId: number) => {
         try {
-            const data = await labRunHistory(templateId);
+            const data = await strategyRunHistory(strategyId);
             setSelectedRun(data.historys?.[0] || null)
             setRunHistory(data)
         } catch (err) {
             console.error("Failed to fetch backtest data:", err)
         }
+    }
+
+    const apply = async (runId: number) => {
+        const data = await applyStrategyRun(strategyId, runId);
+        router.push(`/strategies/${strategyId}`);
+
     }
 
 
@@ -690,8 +526,8 @@ export default function StrategyTempleteObservePage() {
     }
 
     const resetToDefault = () => {
-        setParams(defaultParams2)
-        toast.success("Reset to default parameters")
+        setParams(initParametersRef.current)
+        toast.success("Reset to init parameters")
     }
 
     const resetAdvancedToNull = () => {
@@ -721,7 +557,6 @@ export default function StrategyTempleteObservePage() {
 
         setIsRunning(true)
 
-
         const paramsSchema = parameterSchemas[selectedStrategy] || [];
         const riskSchema = riskSchemas["risk"] || [];
         const executionSchema = executionParameterSchemas || [];
@@ -733,13 +568,11 @@ export default function StrategyTempleteObservePage() {
         const normalized = normalizeParams(params, combinedSchema)
 
         const backtestRequest = {
-            templateId: parseInt(templateId),
+            strategyId: parseInt(strategyId),
             type: selectedStrategy,
             params: normalized,
-            pairs: selectedPairs,
             timeframe: selectedTimeframe,
             initialCapital: initialCapital,
-            positionType: direction
         }
 
         runBacktestData(backtestRequest)
@@ -751,7 +584,7 @@ export default function StrategyTempleteObservePage() {
         if (activeTab !== "comparison") return
         if (isComparisonLoading) return
         fetchComparisonData()
-    }, [activeTab, templateId])
+    }, [activeTab, strategyId])
 
 
     const toggle = (id: number) => {
@@ -842,6 +675,38 @@ export default function StrategyTempleteObservePage() {
 
     const bestValues = getBestMetricValues(metricsTableData);
 
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case "draft":
+                return (
+                    <Badge variant="outline" className="ml-2">
+                        Draft
+                    </Badge>
+                )
+            case "backtest":
+                return (
+                    <Badge variant="outline" className="ml-2">
+                        Backtested
+                    </Badge>
+                )
+            case "paper":
+                return (
+                    <Badge variant="outline" className="ml-2">
+                        Paper Trading
+                    </Badge>
+                )
+            case "live":
+                return <Badge className="bg-green-500 ml-2">Live</Badge>
+            default:
+                return (
+                    <Badge variant="outline" className="ml-2">
+                        Unknown
+                    </Badge>
+                )
+        }
+    }
+
     const gridColsClass = sidebarCollapsed ? "grid-cols-1" : "md:grid-cols-3"
 
     return (
@@ -860,13 +725,20 @@ export default function StrategyTempleteObservePage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center gap-2">
-                                        <h1 className="text-2xl font-bold">{algorithmOption.name}</h1>
-                                        <Badge variant="secondary">v1.0.0</Badge>
+                                    <div>
+                                        <h1 className="text-2xl font-bold flex items-center">
+                                            <span>{algorithmOption.name}</span>
+                                            <Badge className="ml-3">{algorithmOption.type}</Badge>
+
+                                            {getStatusBadge(algorithmOption.status)}
+
+                                            <Badge variant="secondary" className="ml-2">
+                                                Updated: {new Date(algorithmOption.updated).toLocaleDateString()}
+                                            </Badge>
+                                        </h1>
+                                        <p className="text-muted-foreground">{algorithmOption.description}</p>
                                     </div>
-                                    <p className="text-muted-foreground">
-                                        {algorithmOption.description}
-                                    </p>
+
                                 </>
                             )}
                         </div>
@@ -935,24 +807,47 @@ export default function StrategyTempleteObservePage() {
                                             <Card>
                                                 <CardHeader>
                                                     <CardTitle>Backtest Configuration</CardTitle>
-                                                    <CardDescription>Configure strategy and market parameters for backtesting</CardDescription>
+                                                    <CardDescription className="flex flex-col text-sm text-muted-foreground space-y-2">
+
+                                                        <span>Configure strategy parameters for backtesting</span>
+
+                                                        {/* Second line (assets) */}
+                                                        {algorithmOption?.configuration?.assets?.length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {algorithmOption.configuration.assets.map((asset, i) => (
+                                                                    <Badge
+                                                                        key={i}
+                                                                        variant="secondary"
+                                                                        className="px-2 py-0.5 text-xs capitalize"
+                                                                    >
+                                                                        {asset.symbol} {asset.weight}% {asset.direction}
+                                                                    </Badge>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </CardDescription>
+
+
                                                 </CardHeader>
                                                 <CardContent className="space-y-6">
                                                     <div className="grid grid-cols-2 gap-4">
-                                                        {/* Trading Pairs */}
+
+                                                        {/* 
                                                         <div className="space-y-2">
-                                                            <Label>Trading Pairs</Label>
-                                                            <Select value={selectedPairs} onValueChange={setSelectedPairs}>
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select trading pairs" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
-                                                                    <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
-                                                                    <SelectItem value="BNB/USDT">SOL/USDT</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
+                                                            {algorithmOption.configuration.assets.map((asset: any, index: number) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className="bg-muted/40 p-3 rounded-md"
+                                                                >
+                                                                    <div className="font-medium text-center mb-1">{asset.symbol}</div>
+                                                                    <div className="flex justify-between text-xs text-muted-foreground">
+                                                                        <div className="px-2">{asset.direction}</div>
+                                                                        <div className="px-2">{asset.weight}%</div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div> */}
+
 
                                                         {/* Timeframe */}
                                                         <div className="space-y-2">
@@ -986,20 +881,6 @@ export default function StrategyTempleteObservePage() {
 
                                                             </div>
                                                         </div>
-
-
-                                                        <div className="space-y-2">
-                                                            <Label>Direction</Label>
-                                                            <Select value={direction} onValueChange={(v) => setDirection(v as any)}>
-                                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="long">Long Only</SelectItem>
-                                                                    <SelectItem value="short">Short Only</SelectItem>
-                                                                    <SelectItem value="both">Long & Short</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-
 
                                                     </div>
                                                     <Separator />
@@ -1343,8 +1224,24 @@ export default function StrategyTempleteObservePage() {
                                             <Card>
                                                 <CardHeader>
                                                     <CardTitle>Backtest History</CardTitle>
-                                                    <CardDescription>
-                                                        Your recent 10 backtest runs and their results
+                                                    <CardDescription className="flex flex-col text-sm text-muted-foreground space-y-2">
+                                                        {/* First line (summary) */}
+                                                        <span>Your recent 10 backtest runs and their results</span>
+
+                                                        {/* Second line (assets) */}
+                                                        {algorithmOption?.configuration?.assets?.length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {algorithmOption.configuration.assets.map((asset, i) => (
+                                                                    <Badge
+                                                                        key={i}
+                                                                        variant="secondary"
+                                                                        className="px-2 py-0.5 text-xs capitalize"
+                                                                    >
+                                                                        {asset.symbol} {asset.weight}% {asset.direction}
+                                                                    </Badge>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </CardDescription>
                                                 </CardHeader>
                                                 <CardContent>
@@ -1407,7 +1304,7 @@ export default function StrategyTempleteObservePage() {
                                                                     <div>
                                                                         <div className="text-xs text-muted-foreground">Mean Type</div>
                                                                         <div className="text-sm font-medium">
-                                                                            {run.marketDetails.subType || "-"}
+                                                                            {run.parameters.meanType || "-"}
                                                                         </div>
                                                                     </div>
                                                                     <div>
@@ -1467,6 +1364,7 @@ export default function StrategyTempleteObservePage() {
                                                 runHistorys={runHistory?.historys}
                                                 selected={selected}
                                                 toggle={toggle}
+                                                onApply={apply}
                                             />
                                         </TabsContent>
                                     </Tabs>)}

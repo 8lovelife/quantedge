@@ -1,4 +1,7 @@
+import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
+
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 export type User = {
     id: string
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Set the cookie on the response
-        response.cookies.set("session", token, cookieOptions)
+        response.cookies.set("session_id", token, cookieOptions)
 
         return response
     } catch (error) {
@@ -58,26 +61,35 @@ export async function POST(request: NextRequest) {
 
 // GET handler to check if user is authenticated
 export async function GET(request: NextRequest) {
-    const token = request.cookies.get("session")?.value
 
-    if (!token) {
-        return NextResponse.json({ authenticated: false }, { status: 401 })
+    try {
+
+        const cookieStore = cookies();
+        const session_id = (await cookieStore).get("session_id")?.value;
+
+        const token = request.cookies.get("session_id")?.value
+        if (!token) {
+            return NextResponse.json({ authenticated: false }, { status: 401 })
+        }
+        const response = await fetch(`${BACKENT_SERVER_API}/api/login`, {
+            method: "GET",
+
+            headers: {
+                "Content-Type": "application/json",
+                ...(session_id ? { Cookie: `session_id=${session_id}` } : {}),
+            },
+
+        })
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        const data = await response.json();
+        return NextResponse.json({
+            authenticated: true,
+            user: data
+        })
+    } catch (error) {
+        console.error("Error get current user:", error)
+        return NextResponse.json({ success: false, error: " get current user" }, { status: 500 })
     }
 
-    // In a real app, you would verify the token and fetch user data
-    return NextResponse.json({
-        authenticated: true,
-        user: {
-            id: "user-1",
-            email: "trader@example.com",
-            name: "Crypto Trader",
-        },
-    })
-}
 
-// DELETE handler for logout
-export async function DELETE(request: NextRequest) {
-    const response = NextResponse.json({ success: true })
-    response.cookies.delete("session")
-    return response
 }

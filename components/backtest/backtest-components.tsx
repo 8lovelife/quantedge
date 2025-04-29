@@ -144,13 +144,37 @@ export function BacktestRunDetails({
                     )}
 
                     <div className="flex flex-col">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
+                            {Object.entries(selectedRun.marketDetails)
+                                .filter(([_, v]) =>
+                                    v != null &&
+                                    !(typeof v === 'string' && v.trim() === '') &&
+                                    !(Array.isArray(v) && v.length === 0) &&
+                                    !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+                                )
+                                .map(([key, value]) => (
+                                    <Badge key={key} variant="outline" className="text-xs">
+                                        {key}: {value}
+                                    </Badge>
+                                ))}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col">
                         <span className="text-sm font-medium">Parameters</span>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
-                            {Object.entries(params).map(([key, value]) => (
-                                <Badge key={key} variant="outline" className="text-xs">
-                                    {key}: {value}
-                                </Badge>
-                            ))}
+                            {Object.entries(params)
+                                .filter(([_, v]) =>
+                                    v != null &&
+                                    !(typeof v === 'string' && v.trim() === '') &&
+                                    !(Array.isArray(v) && v.length === 0) &&
+                                    !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+                                )
+                                .map(([key, value]) => (
+                                    <Badge key={key} variant="outline" className="text-xs">
+                                        {key}: {value}
+                                    </Badge>
+                                ))}
                         </div>
                     </div>
                 </div>

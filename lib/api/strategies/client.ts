@@ -30,9 +30,6 @@ export async function fetchStrategies(params?: FetchStrategySummaryParams): Prom
             total: result.total,
             totalPages: Math.ceil((result.total || result.data.length) / (params?.limit || 8))
         }
-
-        console.log("Fetched strategies:", strategiesResponse)
-
         return strategiesResponse
     } catch (error) {
         console.error('Error fetching strategies:', error)
@@ -210,11 +207,33 @@ export async function fetchStrategyDetails(id: number): Promise<any> {
             throw new Error(`API error: ${response.status}`)
         }
         const data = await response.json()
-        console.log("data " + JSON.stringify(data))
 
         return data
     } catch (error) {
         console.error("Failed to fetch strategy detail:", error)
+        throw error
+    }
+}
+
+
+export async function applyStrategyRun(id: string, version: number): Promise<any> {
+    try {
+        const response = await fetch(`/api/strategies/run/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ version: version }),
+        })
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+
+        const result = await response.json()
+        return result.strategy
+    } catch (error) {
+        console.error("Failed to update strategy:", error)
         throw error
     }
 }

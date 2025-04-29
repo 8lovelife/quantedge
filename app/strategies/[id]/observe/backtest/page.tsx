@@ -19,7 +19,7 @@ import { PerformanceTab, TradesTab, StatisticsTab } from "@/components/backtest/
 
 // import { runBacktest, getHistoricalBacktest } from "@/lib/api/backtest"
 import { BacktestData, BacktestParameters, BacktestRunHistoryItem } from "@/lib/api/backtest/types"
-import { getBacktestRunHistory, getHistoricalBacktest, runBacktest } from "@/lib/api/backtest/client"
+import { getBacktestRunHistory, getHistoricalBacktest, runBacktest, strategyRunHistory, strategyRunHistoryBacktest } from "@/lib/api/backtest/client"
 import { DashboardLayout } from "@/components/layout/layout"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
@@ -74,7 +74,7 @@ export default function BacktestPage() {
     const isHistorical = searchParams.get("mode") === "historical"
 
     // Get strategy ID from URL params
-    const templateId = typeof params.id === "string" ? params.id : "1"
+    const strategyId = typeof params.id === "string" ? params.id : "1"
 
     const strategy = searchParams.get("strategy")
 
@@ -82,7 +82,7 @@ export default function BacktestPage() {
     const loadRunHistory = async () => {
         try {
             setIsLoadingHistory(true)
-            const data = await labRunHistory(parseInt(templateId));
+            const data = await strategyRunHistory(parseInt(strategyId));
             const history = convertLabRunHistoryToBacktestHistory(data.historys);
             setRunHistory(history)
         } catch (err) {
@@ -97,7 +97,7 @@ export default function BacktestPage() {
         try {
             setIsLoading(true)
             // Call the API to get historical backtest data
-            const response = await labRunHistoryBacktest(parseInt(templateId), version)
+            const response = await strategyRunHistoryBacktest(parseInt(strategyId), version)
             if (response.success) {
                 setBacktestData(response.data)
                 setSelectedRunVersion(version)
@@ -142,7 +142,7 @@ export default function BacktestPage() {
         }
 
         router.push(
-            `/backtest/${templateId}/compare?versions=${selectedRunsForComparison.join(",")}&timeframe=${timeframe}`,
+            `/backtest/${strategyId}/compare?versions=${selectedRunsForComparison.join(",")}&timeframe=${timeframe}`,
         )
     }
 
@@ -183,7 +183,7 @@ export default function BacktestPage() {
             // Don't auto-load backtest data, wait for user to configure parameters
             setIsLoading(false)
         }
-    }, [templateId, isHistorical, searchParams])
+    }, [strategyId, isHistorical, searchParams])
 
     return (
         <SidebarProvider>

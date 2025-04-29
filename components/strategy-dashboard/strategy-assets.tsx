@@ -11,6 +11,8 @@ import {
 } from "recharts"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Meta } from "../meta"
+import { Select } from "../ui/select"
 
 const COLORS = [
     "#8884d8",

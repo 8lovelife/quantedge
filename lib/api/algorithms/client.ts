@@ -1,7 +1,7 @@
 import { BacktestResponse } from "../backtest/types"
 import { FetchStrategySummaryParams } from "../strategies"
 import { algorithmOptions } from "./mock"
-import { AlgorithmOption, FetchStrategyTemplateParams, LabRunComparison, LabRunHistoryResponse, StrategyTemplate, StrategyTemplatesResponse } from "./types"
+import { AlgorithmOption, FetchStrategyTemplateParams, LabRunBacktestRequest, LabRunComparison, LabRunHistoryResponse, StrategyTemplate, StrategyTemplatesResponse } from "./types"
 
 export async function fetchAlgorithms(): Promise<AlgorithmOption[]> {
     try {
@@ -35,9 +35,6 @@ export async function fetchStrategyTemplate(params?: FetchStrategyTemplateParams
         const response = await fetch(`/api/lab?${queryParams.toString()}`)
         if (!response.ok) throw new Error('Failed to fetch strategy template')
         const result = await response.json()
-
-        console.log("fetchStrategyTemplate result " + JSON.stringify(result));
-
         const strategyTemplatesResponse = {
             items: result.data,
             total: result.total,
@@ -59,32 +56,12 @@ export async function fetchStrategyTemplateById(templateId: string): Promise<Str
         const response = await fetch(`/api/lab/${templateId}`)
         if (!response.ok) throw new Error('Failed to fetch strategy template')
         const result = await response.json()
-
-        console.log("fetchStrategyTemplate result " + JSON.stringify(result));
         return result
     } catch (error) {
         console.error('Error fetching strategies:', error)
         throw error
     }
 }
-
-export async function fetchAlgorithm(templateId: string): Promise<AlgorithmOption> {
-    try {
-        // Replace this with your actual API call
-        // const response = await fetch(`/api/algorithms/${templateId}`);
-        // if (!response.ok) {
-        //     throw new Error(`Failed to fetch algorithm with templateId: ${templateId}`);
-        // }
-        // const data = await response.json();
-        // return data;
-
-        return algorithmOption;
-    } catch (error) {
-        console.error("Failed to fetch default parameters:", error);
-        // Return an empty object or some default values in case of an error
-        return algorithmOption;
-    }
-};
 
 // const combinedDefaults: Record<string, any> = {
 //     ...data.defaultParameters,
@@ -119,6 +96,31 @@ export const algorithmOption = {
         entryDelay: 1,
         minHoldingPeriod: 3,
         maxHoldingPeriod: 10
+    }
+}
+
+
+export async function runLabBacktest(
+    labRun: LabRunBacktestRequest
+): Promise<BacktestResponse> {
+    try {
+        const response = await fetch("/api/lab/run", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(labRun),
+        })
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+        }
+
+        const result = await response.json()
+        return result
+    } catch (error) {
+        console.error("Failed to run backtest:", error)
+        throw error
     }
 }
 

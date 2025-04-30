@@ -1,22 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 // PUT handler for updating a strategy
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     try {
         const id = Number.parseInt((await params).id)
         const req: Number = await request.json()
 
         // const response = await mockUpdateStrategy(id, data)
-
+        const token = request.cookies.get("session_id")?.value
         const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/run/${id}`, {
             method: "PUT",
             headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json", Cookie: `session_id=${token}`
             },
             body: JSON.stringify(req),
         })
+
+        if (response.status === 401) {
+            return new Response("Unauthorized", { status: 401 })
+        }
 
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
 

@@ -1467,6 +1467,7 @@ export default function StrategyTempleteObservePage() {
                                                 runHistorys={runHistory?.historys}
                                                 selected={selected}
                                                 toggle={toggle}
+                                                onApply={() => { }}
                                             />
                                         </TabsContent>
                                     </Tabs>)}

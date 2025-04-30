@@ -33,7 +33,7 @@ import { NavSecondary } from "./nav-secondary"
 import { NavUser } from "./nav-user"
 import { useEffect } from "react"
 import { useUser } from "@/app/context/user-context"
-import router from "next/router"
+import { useRouter } from "next/navigation"
 import { Skeleton } from "../ui/skeleton"
 
 const data = {
@@ -159,23 +159,14 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const { user, isLoadingUser } = useUser();
+    const router = useRouter();
 
-    // const { user, isLoadingUser } = useUser();
-
-    // if (isLoadingUser) {
-    //     return (
-    //         <div className="p-4 space-y-4">
-    //             <Skeleton className="h-6 w-2/3" />
-    //             <Skeleton className="h-4 w-1/2" />
-    //             <Skeleton className="h-8 w-full" />
-    //         </div>
-    //     );
-    // }
-
-    // if (!user) {
-    //     router.push("/login");
-    //     return null;
-    // }
+    useEffect(() => {
+        if (!isLoadingUser && !user) {
+            router.push("/login");
+        }
+    }, [isLoadingUser, user, router]);
 
     return (
         <Sidebar collapsible="offcanvas" {...props}>
@@ -195,19 +186,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
+
             <SidebarContent>
-                <NavMain items={data.navMain} />
-                {/* <NavDocuments items={data.documents} /> */}
+                {isLoadingUser ? (
+                    <div className="p-4 space-y-4">
+                        <Skeleton className="h-6 w-2/3" />
+                        <Skeleton className="h-6 w-2/3" />
+                        <Skeleton className="h-8 w-full" />
+                    </div>
+                ) : (
+                    <NavMain items={data.navMain} />
+                )}
                 <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>
+
             <SidebarFooter>
-                {/* <NavUser user={{
-                    name: user.name,
-                    email: user.email,
-                    avatar: user.avatar_url,
-                }} /> */}
-                <NavUser user={data.user} />
+                {user ? (
+                    <NavUser user={{
+                        name: user.name,
+                        email: user.email,
+                        avatar: user.avatarUrl,
+                    }} />
+                ) : (
+                    <div className="p-4 space-y-2">
+                        <Skeleton className="h-4 w-1/2" />
+                        <Skeleton className="h-4 w-1/3" />
+                    </div>
+                )}
             </SidebarFooter>
         </Sidebar>
-    )
+    );
 }

@@ -683,12 +683,19 @@ export function StatisticsTab({
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-2">
                                 {backtestData.params &&
-                                    Object.entries(backtestData.params).map(([key, value]) => (
-                                        <div key={key} className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
-                                            <div className="text-sm font-medium">{key}</div>
-                                            <div className="text-sm">{value}</div>
-                                        </div>
-                                    ))}
+                                    Object.entries(backtestData.params)
+                                        .filter(([_, v]) =>
+                                            v != null &&
+                                            !(typeof v === 'string' && v.trim() === '') &&
+                                            !(Array.isArray(v) && v.length === 0) &&
+                                            !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+                                        )
+                                        .map(([key, value]) => (
+                                            <div key={key} className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
+                                                <div className="text-sm font-medium">{key}</div>
+                                                <div className="text-sm">{value}</div>
+                                            </div>
+                                        ))}
                             </div>
                         </div>
                     </CardContent>

@@ -1,10 +1,20 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
+        const token = request.cookies.get("session_id")?.value
         const { searchParams } = new URL(request.url)
         const apiUrl = `http://127.0.0.1:3001/api/strategies/run/comparison?${searchParams.toString()}`
-        const response = await fetch(apiUrl)
+        const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+                Cookie: `session_id=${token}`
+            },
+        })
+
+        if (response.status === 401) {
+            return new Response("Unauthorized", { status: 401 })
+        }
         if (!response.ok) {
             throw new Error(`API Error: ${response.status}`)
         }

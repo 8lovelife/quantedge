@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
 
         const cookieStore = cookies();
         const session_id = (await cookieStore).get("session_id")?.value;
-
         const token = request.cookies.get("session_id")?.value
         if (!token) {
             return NextResponse.json({ authenticated: false }, { status: 401 })

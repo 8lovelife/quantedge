@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { mockUpdateStrategyStatus } from "@/lib/api/strategies/mock"
 
 
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 // PATCH handler for updating a strategy's status
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
 
     const id = Number.parseInt((await params).id)
@@ -17,14 +17,19 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         { status: 400 },
       )
     }
+    const token = request.cookies.get("session_id")?.value
 
     const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/${id}/status`, {
       method: "PATCH",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json", Cookie: `session_id=${token}`
       },
       body: JSON.stringify({ status }),
     })
+
+    if (response.status === 401) {
+      return new Response("Unauthorized", { status: 401 })
+    }
     return NextResponse.json(response)
   } catch (error) {
     console.error("Error updating strategy status:", error)

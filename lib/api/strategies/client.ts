@@ -7,6 +7,7 @@ import {
     mockUpdateStrategyStatus,
     mockDeleteStrategy,
 } from "./mock"
+import router from "next/router"
 
 // Flag to toggle between mock and real API
 const USE_MOCK_API = true
@@ -22,6 +23,11 @@ export async function fetchStrategies(params?: FetchStrategySummaryParams): Prom
         if (params?.sort) queryParams.set('sort', params.sort)
 
         const response = await fetch(`/api/strategies?${queryParams.toString()}`)
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
+
         if (!response.ok) throw new Error('Failed to fetch strategies')
         const result = await response.json()
 
@@ -48,6 +54,10 @@ export async function fetchTradingStrategies(page = 1, itemsPerPage = 6): Promis
     // Real API implementation
     try {
         const response = await fetch(`/api/strategies?page=${page}&limit=${itemsPerPage}`)
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
         }
@@ -71,11 +81,16 @@ export async function createStrategy(data: StrategyFormValues): Promise<Strategy
     try {
         const response = await fetch("/api/strategies", {
             method: "POST",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(data),
         })
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
@@ -102,11 +117,16 @@ export async function updateStrategy(id: number, data: StrategyFormValues): Prom
     try {
         const response = await fetch(`/api/strategies/${id}`, {
             method: "PUT",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(data),
         })
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
@@ -133,11 +153,16 @@ export async function updateStrategyStatus(id: number, status: "active" | "pause
     try {
         const response = await fetch(`/api/strategies/${id}/status`, {
             method: "PATCH",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({ status }),
         })
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
@@ -164,7 +189,12 @@ export async function deleteStrategy(id: number): Promise<boolean> {
     try {
         const response = await fetch(`/api/strategies/${id}`, {
             method: "DELETE",
+            credentials: "include",
         })
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
@@ -185,9 +215,14 @@ export async function saveStep(id: number | null, step: string, data: any): Prom
     try {
         const res = await fetch(url, {
             method: "POST",
+            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id, data }),
         })
+
+        if (res.status === 401) {
+            router.push("/login")
+        }
         if (!res.ok) throw new Error()
         const resData = await res.json()
         return resData
@@ -202,7 +237,13 @@ export async function fetchStrategyDetails(id: number): Promise<any> {
     try {
         // const response = getMockStrategyById(id)
 
-        const response = await fetch(`/api/strategies/${id}`)
+        const response = await fetch(`/api/strategies/${id}`, {
+            credentials: "include",
+        })
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)
         }
@@ -220,11 +261,17 @@ export async function applyStrategyRun(id: string, version: number): Promise<any
     try {
         const response = await fetch(`/api/strategies/run/${id}`, {
             method: "PUT",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({ version: version }),
         })
+
+
+        if (response.status === 401) {
+            router.push("/login")
+        }
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`)

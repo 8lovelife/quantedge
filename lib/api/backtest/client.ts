@@ -1,4 +1,4 @@
-import type { BacktestParameters, BacktestResponse, BacktestRunHistoryItem, BacktestRunHistoryResponse, LabRunBacktestRequest, StrategyRunBacktestRequest, StrategyRunComparison, StrategyRunHistoryResponse } from "./types"
+import type { BacktestParameters, BacktestResponse, BacktestRunHistoryItem, BacktestRunHistoryResponse, StrategyRunBacktestRequest, StrategyRunComparison, StrategyRunHistoryResponse } from "./types"
 
 /**
  * Run a backtest with the provided parameters

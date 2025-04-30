@@ -4,6 +4,7 @@ import BacktestComparison from "@/components/backtest/strategy-backtest-comparis
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import LabStrategyComparison from "@/components/strategy-template/observe-results-comparison";
 import ExchangeConnections from "@/components/exchanges/exchange-connections";
+import DashboardPanel from "@/components/dashboard/dashboard-panel";
 
 export default function ExchangeSettingPage() {
     return (
@@ -11,7 +12,7 @@ export default function ExchangeSettingPage() {
             <AppSidebar variant="inset" />
             <SidebarInset>
                 <SiteHeader />
-                <ExchangeConnections />
+                <DashboardPanel />
             </SidebarInset>
         </SidebarProvider>
     )

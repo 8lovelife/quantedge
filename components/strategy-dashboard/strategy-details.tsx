@@ -93,7 +93,7 @@ export default function StrategyDetails({ id }: { id: number }) {
     }, [id])
 
     const handleEditStrategy = () => {
-        router.push(`/strategy-builder/${id}`)
+        // router.push(`/strategy-builder/${id}`)
     }
 
     const handleRunBacktest = () => {
@@ -125,22 +125,24 @@ export default function StrategyDetails({ id }: { id: number }) {
     }
 
     const handleStartPaperTrading = () => {
-        setIsLoading(true)
 
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false)
-            toast({
-                title: "Paper trading started",
-                description: "The strategy is now running in paper trading mode",
-            })
+        // alert("???")
+        // setIsLoading(true)
 
-            // Update strategy status
-            setStrategy({
-                ...strategy,
-                status: "paper",
-            })
-        }, 1500)
+        // // Simulate API call
+        // setTimeout(() => {
+        //     setIsLoading(false)
+        //     toast({
+        //         title: "Paper trading started",
+        //         description: "The strategy is now running in paper trading mode",
+        //     })
+
+        //     // Update strategy status
+        //     setStrategy({
+        //         ...strategy,
+        //         status: "paper",
+        //     })
+        // }, 1500)
     }
 
     const handleGoLive = () => {

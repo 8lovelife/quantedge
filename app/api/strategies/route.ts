@@ -1,14 +1,25 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { mockFetchTradingStrategies, mockCreateStrategy } from "@/lib/api/strategies/mock"
 import type { StrategyFormValues } from "@/lib/api/strategies/types"
 
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Get URL parameters
+
+    const token = request.cookies.get("session_id")?.value
     const { searchParams } = new URL(request.url)
     const apiUrl = `http://127.0.0.1:3001/api/strategies?${searchParams.toString()}`
-    const response = await fetch(apiUrl)
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        Cookie: `session_id=${token}`
+      },
+    })
+
+    if (response.status === 401) {
+      return new Response("Unauthorized", { status: 401 })
+    }
 
     if (!response.ok) {
       throw new Error(`API Error: ${response.status}`)
@@ -64,16 +75,19 @@ export async function GET(request: Request) {
 // }
 
 // POST handler for creating a new strategy
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const token = request.cookies.get("session_id")?.value
     const req: StrategyFormValues = await request.json()
     console.log("req -> " + JSON.stringify(req))
     const response = await fetch("http://localhost:3001/api/strategies", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Cookie: `session_id=${token}` },
       body: JSON.stringify(req),
     });
-    console.log(response)
+    if (response.status === 401) {
+      return new Response("Unauthorized", { status: 401 })
+    }
     if (!response.ok) throw new Error(`API Error: ${response.status}`);
     const data = await response.json();
     data.parameters = JSON.parse(data.parameters) // Convert JSON string to object

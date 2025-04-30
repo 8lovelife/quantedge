@@ -24,7 +24,7 @@ export interface UserInfo {
     id: number;
     name: string;
     email: string;
-    avatar_url?: string;
+    avatarUrl?: string;
     token?: string;
     menus: MenuItem[];
 }
@@ -33,6 +33,7 @@ export interface MenuItem {
     title: string;
     url: string;
     icon?: string;
+    children?: MenuItem[];
 }
 
 export async function getCurrentUserInfo(): Promise<UserInfo | null> {

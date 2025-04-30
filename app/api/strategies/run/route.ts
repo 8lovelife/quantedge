@@ -1,8 +1,8 @@
 import { BacktestResponse } from "@/lib/api/backtest/types";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // API route handler for POST requests (run new backtest)
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
         // Parse request body
         const body = await request.json()
@@ -16,12 +16,15 @@ export async function POST(request: Request) {
             timeframe: body.timeframe,
         }
 
-        console.log("Engine payload:", JSON.stringify(enginePayload))
+        const token = request.cookies.get("session_id")?.value
         const response = await fetch("http://localhost:3001/api/strategies/run", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", Cookie: `session_id=${token}` },
             body: JSON.stringify(enginePayload),
         });
+        if (response.status === 401) {
+            return new Response("Unauthorized", { status: 401 })
+        }
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
         const data = await response.json();
 

@@ -246,7 +246,7 @@ export default function StrategiesPage() {
                 }
                 break
             case "backtest":
-                router.push(`/strategies/${strategy.id}/paper-trade`)
+                router.push(`/strategies/${strategy.id}`)
                 break
             case "paper":
                 router.push(`/strategies/${strategy.id}/go-live`)

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { mockUpdateStrategy, mockDeleteStrategy } from "@/lib/api/strategies/mock"
 import type { StrategyFormValues } from "@/lib/api/strategies/types"
 
 
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 // PUT handler for updating a strategy
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const id = Number.parseInt((await params).id)
     const req: StrategyFormValues = await request.json()
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE handler for deleting a strategy
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const id = Number.parseInt((await params).id)
     const token = request.cookies.get("session_id")?.value
@@ -62,7 +62,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 }
 
 
-export async function GET(request: NextRequest, { params }: { params: { id: number } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
   try {
 
     const token = request.cookies.get("session_id")?.value

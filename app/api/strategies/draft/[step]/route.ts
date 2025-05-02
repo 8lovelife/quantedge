@@ -4,7 +4,7 @@ const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { step: string } }
+    { params }: { params: Promise<{ step: string }> }
 ) {
     try {
 

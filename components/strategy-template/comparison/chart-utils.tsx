@@ -66,7 +66,7 @@ export function prepareWinLossData(
         const result: Record<string, any> = { month };
 
         idsToUse.forEach(id => {
-            const monthly = map[id]?.backtestData?.data?.monthlyReturns?.find(m => m.month === month);
+            const monthly = map[id]?.backtestData?.monthlyReturns?.find(m => m.month === month);
             if (monthly) {
                 const returnValue = +monthly.strategyReturn;
                 result[`win${id}`] = returnValue > 0 ? +(returnValue * 100).toFixed(2) : 0;

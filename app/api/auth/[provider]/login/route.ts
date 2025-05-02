@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 
-export async function GET(req: NextRequest, { params }: { params: { provider: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ provider: string }> }
+) {
     const { provider } = await params;
 
     if (provider === "google") {

@@ -4,5 +4,5 @@ import GridResultPage from "@/components/strategy-template/optimize-result";
 import { mockGridResult } from "@/lib/api/algorithms";
 
 export default function Page() {
-    return <GridResultPage data={mockGridResult} />
+    // return <GridResultPage data={mockGridResult} />
 }

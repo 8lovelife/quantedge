@@ -42,7 +42,7 @@ import {
     deleteStrategy,
     fetchStrategyDetails,
 } from "@/lib/api/strategies"
-import { AlgorithmOption, fetchAlgorithms, fetchStrategyTemplate, fetchStrategyTemplateById, filterParamsByStyle, normalizeParams, normalizeParams2, parameterSchemas, StrategyTemplate } from "@/lib/api/algorithms"
+import { AlgorithmOption, fetchAlgorithms, fetchStrategyTemplate, fetchStrategyTemplateById, filterParamsByStyle, StrategyTemplate } from "@/lib/api/algorithms"
 import { cn } from "@/lib/utils"
 
 const steps = ["type", "parameters", "assets", "risk", "completed"] as const;

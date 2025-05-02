@@ -1,5 +1,5 @@
+import { BacktestData, BacktestParameters } from "@/lib/api/backtest/types"
 import { NextResponse } from "next/server"
-import type { BacktestData, BacktestParameters } from "@/lib/api/backtest"
 
 // Simulate a delay for API response
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -137,7 +137,6 @@ function generateHistoricalBacktestData(days = 180, version = 1, params: Backtes
         balances,
         trades,
         params,
-        metrics,
     }
 }
 

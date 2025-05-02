@@ -52,7 +52,7 @@ export default function BasicTabContent({ selected, runs, lineData, monthlyData,
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ChartCard title="Equity Curve">
+                <ChartCard title="Equity Curve" footer={null}>
                     <LineChart data={lineData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" tick={true} tickFormatter={(str) => format(new Date(str), "MM/dd")}
@@ -119,7 +119,7 @@ export default function BasicTabContent({ selected, runs, lineData, monthlyData,
                 </ChartContainer> */}
 
 
-                <ChartCard title="Monthly Return (%)">
+                <ChartCard title="Monthly Return (%)" footer={null}>
                     <BarChart data={monthlyData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" tickFormatter={(str) => format(new Date(str), "MM/dd/yyyy")}

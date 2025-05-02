@@ -151,10 +151,11 @@ export default function StrategyDetails({ id }: { id: number }) {
         // Simulate API call
         setTimeout(() => {
             setIsLoading(false)
-            toast({
-                title: "Live trading started",
+            toast(
+                "Live trading started", {
                 description: "The strategy is now running in live trading mode",
-            })
+            }
+            )
 
             // Update strategy status
             setStrategy({
@@ -170,10 +171,7 @@ export default function StrategyDetails({ id }: { id: number }) {
         // Simulate API call
         setTimeout(() => {
             setIsLoading(false)
-            toast({
-                title: "Strategy restarted",
-                description: "The strategy has been restarted successfully",
-            })
+            toast("The strategy has been restarted successfully")
         }, 1500)
     }
 
@@ -183,10 +181,9 @@ export default function StrategyDetails({ id }: { id: number }) {
         // Simulate API call
         setTimeout(() => {
             setIsLoading(false)
-            toast({
-                title: "Strategy stopped",
-                description: "The strategy has been stopped successfully",
-            })
+            toast(
+                "The strategy has been stopped successfully",
+            )
 
             // Update strategy status
             setStrategy({

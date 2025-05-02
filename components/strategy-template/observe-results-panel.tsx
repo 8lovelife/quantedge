@@ -78,11 +78,9 @@ const prepareTradeData = (trades: BacktestTrade[]) => {
 }
 
 export default function StrategyTempleteObserveResultsPanel({ data, isLoading, templateId, version, strategy }: ResultsPanelProps) {
-    if (!data) return null
-
-
     const router = useRouter();
 
+    if (!data) return null
 
     const tradeData = prepareTradeData(data.trades)
 

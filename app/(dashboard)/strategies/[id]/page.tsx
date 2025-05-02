@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation"
+"use client"
+import { notFound, useParams } from "next/navigation"
 import StrategyDetails from "@/components/strategy-dashboard/strategy-details"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
@@ -18,8 +19,8 @@ function getStrategyById(id: number) {
     }
 }
 
-export default function StrategyDetailsPage({ params }: { params: { id: string } }) {
-    const strategyId = Number.parseInt(params.id)
+export default function StrategyDetailsPage() {
+    // const strategyId = Number.parseInt(params.id)
     // Check if strategy exists
     // const strategy = getStrategyById(strategyId)
 
@@ -27,9 +28,12 @@ export default function StrategyDetailsPage({ params }: { params: { id: string }
     //     notFound()
     // }
 
+    const pathParams = useParams()
+    const strategyId = typeof pathParams.id === "string" ? pathParams.id : "1"
+
     return (
 
-        <StrategyDetails id={strategyId} />
+        <StrategyDetails id={parseInt(strategyId)} />
 
     )
 }

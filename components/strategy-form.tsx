@@ -23,7 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AssetWithAllocation, StrategyFormValues } from "@/lib/api/strategies"
+import { AssetWithAllocation } from "@/lib/api/strategies"
 
 
 // Form schema for strategy validation
@@ -44,6 +44,7 @@ const strategyFormSchema = z.object({
     parameters: z.record(z.string(), z.any()).optional(), // Changed to accept object
 })
 
+export type StrategyFormValues = z.infer<typeof strategyFormSchema>
 
 interface StrategyFormProps {
     strategy?: Strategy
@@ -78,7 +79,8 @@ function parseAssetsString(assetsString: string): AssetWithAllocation[] {
         // Fallback for old format (comma-separated symbols)
         return assetsString.split(",").map((symbol) => ({
             symbol: symbol.trim(),
-            allocation: 0,
+            direction: "long",
+            weight: 0,
         }))
     }
 }
@@ -129,7 +131,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
     )
 
     // Calculate total asset allocation
-    const totalAssetAllocation = selectedAssets.reduce((sum, asset) => sum + asset.allocation, 0)
+    const totalAssetAllocation = selectedAssets.reduce((sum, asset) => sum + asset.weight, 0)
     // Round to 2 decimal places for display and comparison
     const roundedTotalAllocation = roundToTwoDecimals(totalAssetAllocation)
 
@@ -243,10 +245,10 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
                 return
             }
 
-            const newAssets = [...selectedAssets, { symbol: assetInput, allocation: assetAllocation }]
+            // const newAssets = [...selectedAssets, { symbol: assetInput, weight: assetAllocation }]
 
-            setSelectedAssets(newAssets)
-            form.setValue("assets", newAssets)
+            // setSelectedAssets(newAssets)
+            // form.setValue("assets", newAssets)
             setAssetInput("")
             setAssetAllocation(Math.min(10, roundToTwoDecimals(100 - newTotalAllocation))) // Default to 10% or remaining allocation
         }
@@ -263,7 +265,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         const currentAsset = selectedAssets.find((a) => a.symbol === assetSymbol)
         if (!currentAsset) return
 
-        const otherAssetsTotal = totalAssetAllocation - currentAsset.allocation
+        const otherAssetsTotal = totalAssetAllocation - currentAsset.weight
         const newTotal = roundToTwoDecimals(otherAssetsTotal + newAllocation)
 
         if (newTotal > 100) {
@@ -303,22 +305,22 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         for (let i = 0; i < newAssets.length - 1; i++) {
             newAssets[i] = {
                 ...newAssets[i],
-                allocation: roundToTwoDecimals(newAssets[i].allocation + addPerAsset),
+                weight: roundToTwoDecimals(newAssets[i].weight + addPerAsset),
             }
         }
 
         // Calculate the current total after updating all but the last asset
-        const currentTotal = newAssets.slice(0, newAssets.length - 1).reduce((sum, asset) => sum + asset.allocation, 0)
+        const currentTotal = newAssets.slice(0, newAssets.length - 1).reduce((sum, asset) => sum + asset.weight, 0)
 
         // Set the last asset's allocation to make the total exactly 100%
         const lastAssetAllocation = roundToTwoDecimals(100 - currentTotal)
-        newAssets[newAssets.length - 1] = {
-            ...newAssets[newAssets.length - 1],
-            allocation: lastAssetAllocation,
-        }
+        // newAssets[newAssets.length - 1] = {
+        //     ...newAssets[newAssets.length - 1],
+        //     allocation: lastAssetAllocation,
+        // }
 
-        setSelectedAssets(newAssets)
-        form.setValue("assets", newAssets)
+        // setSelectedAssets(newAssets)
+        // form.setValue("assets", newAssets)
     }
 
     // Improved Balance Equally function
@@ -335,18 +337,18 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
         for (let i = 0; i < newAssets.length - 1; i++) {
             newAssets[i] = {
                 ...newAssets[i],
-                allocation: equalAllocation,
+                weight: equalAllocation,
             }
         }
 
         // Calculate the current total after updating all but the last asset
-        const currentTotal = newAssets.slice(0, newAssets.length - 1).reduce((sum, asset) => sum + asset.allocation, 0)
+        const currentTotal = newAssets.slice(0, newAssets.length - 1).reduce((sum, asset) => sum + asset.weight, 0)
 
         // Set the last asset's allocation to make the total exactly 100%
         const lastAssetAllocation = roundToTwoDecimals(100 - currentTotal)
         newAssets[newAssets.length - 1] = {
             ...newAssets[newAssets.length - 1],
-            allocation: lastAssetAllocation,
+            weight: lastAssetAllocation,
         }
 
         setSelectedAssets(newAssets)
@@ -496,7 +498,7 @@ export function StrategyForm({ strategy, onSubmit }: StrategyFormProps) {
                                         type="number"
                                         min="1"
                                         max="100"
-                                        value={asset.allocation}
+                                        value={asset.weight}
                                         onChange={(e) => handleUpdateAssetAllocation(asset.symbol, Number(e.target.value))}
                                         className="w-20"
                                     />

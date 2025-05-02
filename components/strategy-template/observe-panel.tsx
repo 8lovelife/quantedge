@@ -184,144 +184,144 @@ const optimizationResult: OptimizationResult = {
 
 
 
-const recentRuns: BacktestRun[] = [
-    {
-        id: "BT-001",
-        date: "2025-04-15 19:50:22",
-        params: {
-            ...algorithmOption.defaultParameters,
-            lookbackPeriod: 25,
-            entryThreshold: 2.5
-        },
-        performance: {
-            returnRate: 32.5,
-            winRate: 75,
-            sharpeRatio: 2.6,
-            maxDrawdown: -10.2,
-            totalTrades: 145
-        },
-        duration: "2m 15s",
-        status: "completed"
-    },
-    {
-        id: "BT-002",
-        date: "2025-04-15 19:45:10",
-        params: algorithmOption.defaultParameters
-        ,
-        performance: {
-            returnRate: 28.5,
-            winRate: 72,
-            sharpeRatio: 2.4,
-            maxDrawdown: -12.5,
-            totalTrades: 156
-        },
-        duration: "2m 05s",
-        status: "completed"
-    },
-    // Add more runs...
-]
+// const recentRuns: BacktestRun[] = [
+//     {
+//         id: "BT-001",
+//         date: "2025-04-15 19:50:22",
+//         params: {
+//             ...algorithmOption.defaultParameters,
+//             lookbackPeriod: 25,
+//             entryThreshold: 2.5
+//         },
+//         performance: {
+//             returnRate: 32.5,
+//             winRate: 75,
+//             sharpeRatio: 2.6,
+//             maxDrawdown: -10.2,
+//             totalTrades: 145
+//         },
+//         duration: "2m 15s",
+//         status: "completed"
+//     },
+//     {
+//         id: "BT-002",
+//         date: "2025-04-15 19:45:10",
+//         params: algorithmOption.defaultParameters
+//         ,
+//         performance: {
+//             returnRate: 28.5,
+//             winRate: 72,
+//             sharpeRatio: 2.4,
+//             maxDrawdown: -12.5,
+//             totalTrades: 156
+//         },
+//         duration: "2m 05s",
+//         status: "completed"
+//     },
+//     // Add more runs...
+// ]
 
-export interface Parameter {
-    name: string
-    key: keyof typeof defaultParams
-    description: string
-    min: number
-    max: number
-    step: number
-    unit?: string
-    category: "core" | "risk" | "position"
-}
+// export interface Parameter {
+//     name: string
+//     key: keyof typeof defaultParams
+//     description: string
+//     min: number
+//     max: number
+//     step: number
+//     unit?: string
+//     category: "core" | "risk" | "position"
+// }
 
-const parameters: Parameter[] = [
-    {
-        name: "Lookback Period",
-        key: "lookbackPeriod",
-        description: "Number of periods to calculate mean and standard deviation",
-        min: 5,
-        max: 100,
-        step: 1,
-        category: "core"
-    },
-    {
-        name: "Entry Threshold",
-        key: "entryThreshold",
-        description: "Number of standard deviations for entry signal",
-        min: 0.5,
-        max: 5,
-        step: 0.1,
-        unit: "σ",
-        category: "core"
-    },
-    {
-        name: "Exit Threshold",
-        key: "exitThreshold",
-        description: "Number of standard deviations for exit signal",
-        min: 0.1,
-        max: 2,
-        step: 0.1,
-        unit: "σ",
-        category: "core"
-    },
-    {
-        name: "Stop Loss",
-        key: "stopLoss",
-        description: "Maximum loss per trade",
-        min: 0.5,
-        max: 10,
-        step: 0.1,
-        unit: "%",
-        category: "risk"
-    },
-    {
-        name: "Take Profit",
-        key: "takeProfit",
-        description: "Profit target per trade",
-        min: 1,
-        max: 20,
-        step: 0.1,
-        unit: "%",
-        category: "risk"
-    },
-    {
-        name: "Position Size",
-        key: "positionSize",
-        description: "Size of each position as percentage of portfolio",
-        min: 1,
-        max: 100,
-        step: 1,
-        unit: "%",
-        category: "position"
-    },
-    {
-        name: "Risk Per Trade",
-        key: "riskPerTrade",
-        description: "Maximum risk per trade as percentage of portfolio",
-        min: 0.1,
-        max: 5,
-        step: 0.1,
-        unit: "%",
-        category: "risk"
-    },
-    {
-        name: "Max Positions",
-        key: "maxPositions",
-        description: "Maximum number of concurrent positions",
-        min: 1,
-        max: 10,
-        step: 1,
-        category: "position"
-    },
-    {
-        name: "Min Volume",
-        key: "minVolume",
-        description: "Minimum 24h trading volume for asset selection",
-        min: 100000,
-        max: 10000000,
-        step: 100000,
-        unit: "USDT",
-        category: "position"
-    }
-]
+// const parameters: Parameter[] = [
+//     {
+//         name: "Lookback Period",
+//         key: "lookbackPeriod",
+//         description: "Number of periods to calculate mean and standard deviation",
+//         min: 5,
+//         max: 100,
+//         step: 1,
+//         category: "core"
+//     },
+//     {
+//         name: "Entry Threshold",
+//         key: "entryThreshold",
+//         description: "Number of standard deviations for entry signal",
+//         min: 0.5,
+//         max: 5,
+//         step: 0.1,
+//         unit: "σ",
+//         category: "core"
+//     },
+//     {
+//         name: "Exit Threshold",
+//         key: "exitThreshold",
+//         description: "Number of standard deviations for exit signal",
+//         min: 0.1,
+//         max: 2,
+//         step: 0.1,
+//         unit: "σ",
+//         category: "core"
+//     },
+//     {
+//         name: "Stop Loss",
+//         key: "stopLoss",
+//         description: "Maximum loss per trade",
+//         min: 0.5,
+//         max: 10,
+//         step: 0.1,
+//         unit: "%",
+//         category: "risk"
+//     },
+//     {
+//         name: "Take Profit",
+//         key: "takeProfit",
+//         description: "Profit target per trade",
+//         min: 1,
+//         max: 20,
+//         step: 0.1,
+//         unit: "%",
+//         category: "risk"
+//     },
+//     {
+//         name: "Position Size",
+//         key: "positionSize",
+//         description: "Size of each position as percentage of portfolio",
+//         min: 1,
+//         max: 100,
+//         step: 1,
+//         unit: "%",
+//         category: "position"
+//     },
+//     {
+//         name: "Risk Per Trade",
+//         key: "riskPerTrade",
+//         description: "Maximum risk per trade as percentage of portfolio",
+//         min: 0.1,
+//         max: 5,
+//         step: 0.1,
+//         unit: "%",
+//         category: "risk"
+//     },
+//     {
+//         name: "Max Positions",
+//         key: "maxPositions",
+//         description: "Maximum number of concurrent positions",
+//         min: 1,
+//         max: 10,
+//         step: 1,
+//         category: "position"
+//     },
+//     {
+//         name: "Min Volume",
+//         key: "minVolume",
+//         description: "Minimum 24h trading volume for asset selection",
+//         min: 100000,
+//         max: 10000000,
+//         step: 100000,
+//         unit: "USDT",
+//         category: "position"
+//     }
+// ]
 
 const GRID_PRESETS: Record<string, number[]> = {
     fastPeriod: [5, 10, 15],
@@ -666,23 +666,23 @@ export default function StrategyTempleteObservePage() {
     }
 
 
-    const validateParam = (param: Parameter, value: number) => {
-        if (value < param.min || value > param.max) {
-            toast.error(`${param.name} must be between ${param.min} and ${param.max}`)
-            return false
-        }
-        return true
-    }
+    // const validateParam = (param: Parameter, value: number) => {
+    //     if (value < param.min || value > param.max) {
+    //         toast.error(`${param.name} must be between ${param.min} and ${param.max}`)
+    //         return false
+    //     }
+    //     return true
+    // }
 
-    const handleParamChange = (param: Parameter, value: string) => {
-        const numValue = parseFloat(value)
-        if (validateParam(param, numValue)) {
-            setParams(prev => ({
-                ...prev,
-                [param.key]: numValue
-            }))
-        }
-    }
+    // const handleParamChange = (param: Parameter, value: string) => {
+    //     const numValue = parseFloat(value)
+    //     if (validateParam(param, numValue)) {
+    //         setParams(prev => ({
+    //             ...prev,
+    //             [param.key]: numValue
+    //         }))
+    //     }
+    // }
 
     const applyOptimizedParams = () => {
         setParams(optimizedParams)

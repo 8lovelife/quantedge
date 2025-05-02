@@ -50,7 +50,7 @@ export interface AssetWithAllocation {
     symbol: string
     weight: number
     direction: string
-    exchange: string
+    exchange?: string
 }
 
 export interface AssetAllocationData {

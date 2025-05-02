@@ -8,7 +8,10 @@ const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 
-export async function GET(req: NextRequest, { params }: { params: { provider: string } }) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ provider: string }> }
+) {
     try {
         const { searchParams } = new URL(req.url);
         const code = searchParams.get("code");

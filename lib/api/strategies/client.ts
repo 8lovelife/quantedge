@@ -1,12 +1,5 @@
 // API client functions for strategies
 import type { Strategy, StrategiesResponse, StrategyFormValues, FetchStrategySummaryParams, StrategiySummarysResponse } from "./types"
-import {
-    mockFetchTradingStrategies,
-    mockCreateStrategy,
-    mockUpdateStrategy,
-    mockUpdateStrategyStatus,
-    mockDeleteStrategy,
-} from "./mock"
 import router from "next/router"
 
 // Flag to toggle between mock and real API

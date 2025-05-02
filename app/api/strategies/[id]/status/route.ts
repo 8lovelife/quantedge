@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { mockUpdateStrategyStatus } from "@/lib/api/strategies/mock"
 
 
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 // PATCH handler for updating a strategy's status
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
 
     const id = Number.parseInt((await params).id)

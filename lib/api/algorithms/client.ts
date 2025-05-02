@@ -17,7 +17,7 @@ export async function fetchAlgorithms(): Promise<AlgorithmOption[]> {
     } catch (error) {
         console.error("Error fetching algorithms:", error)
         // Return default algorithms as fallback
-        return algorithmOptions
+        // return algorithmOptions
     }
 }
 

@@ -25,18 +25,27 @@ import { cn } from "@/lib/utils";
 import { LineChart as LineChartIcon, Zap } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+type ParetoTooltipProps = {
+    active?: boolean;
+    payload?: any[];
+    formatter?: (value: number, key: string) => [string, string];
+};
 
-const ParetoTooltip = ({ active, payload }) => {
+const ParetoTooltip = ({ active, payload, formatter }: ParetoTooltipProps) => {
     if (!active || !payload?.length) return null;
 
-    const p = payload[0].payload;      // 整个点的数据
+    const p = payload[0].payload;
+
+    const [cagrValue, cagrLabel] = formatter ? formatter(p.cagr, "cagr") : [`${p.cagr}%`, "Return"];
+    const [ddValue, ddLabel] = formatter ? formatter(p.dd, "dd") : [`${p.dd}%`, "Max DD"];
+
     return (
         <div className="rounded-md border bg-background p-3 text-xs space-y-1">
-            <div><strong>Return:</strong> {p.cagr}%</div>
-            <div><strong>Max DD:</strong> {p.dd}%</div>
+            <div><strong>{cagrLabel}:</strong> {cagrValue}</div>
+            <div><strong>{ddLabel}:</strong> {ddValue}</div>
             <Separator />
             {Object.entries(p.params).map(([k, v]) => (
-                <div key={k}>{k}: {v}</div>
+                <div key={k}>{k}: {String(v)}</div>
             ))}
         </div>
     );

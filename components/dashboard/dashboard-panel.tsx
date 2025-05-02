@@ -18,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MarketOverview } from "@/components/market-overview"
 import { PortfolioPerformance } from "@/components/portfolio-performance"
-import { TradingStrategies } from "@/components/trading-strategies"
 import { RecentTrades } from "@/components/recent-trades"
 import { fetchDashboardData } from "@/lib/api/dashboard"
 import type { DashboardData } from "@/lib/types"
@@ -214,7 +213,7 @@ export default function DashboardPanel() {
                     <TabsList>
                         <TabsTrigger value="overview">Market Overview</TabsTrigger>
                         <TabsTrigger value="performance">Portfolio Performance</TabsTrigger>
-                        <TabsTrigger value="strategies">Trading Strategies</TabsTrigger>
+                        {/* <TabsTrigger value="strategies">Trading Strategies</TabsTrigger> */}
                         <TabsTrigger value="trades">Recent Trades</TabsTrigger>
                     </TabsList>
                     <TabsContent value="overview" className="space-y-4">
@@ -223,9 +222,9 @@ export default function DashboardPanel() {
                     <TabsContent value="performance" className="space-y-4">
                         <PortfolioPerformance />
                     </TabsContent>
-                    <TabsContent value="strategies" className="space-y-4">
+                    {/* <TabsContent value="strategies" className="space-y-4">
                         <TradingStrategies />
-                    </TabsContent>
+                    </TabsContent> */}
                     <TabsContent value="trades" className="space-y-4">
                         <RecentTrades />
                     </TabsContent>

@@ -1,5 +1,5 @@
 // Mock data generation for backtest API
-import type { BacktestResponse, ComparisonResponse, BacktestData, BacktestParameters } from "./types"
+import type { BacktestResponse, ComparisonResponse, BacktestData, BacktestParameters, MonthlyReturnData, DistributionData } from "./types"
 
 // Add these helper functions after existing imports
 function generateMonthlyReturns(days: number): MonthlyReturnData[] {
@@ -231,7 +231,6 @@ export const generateHistoricalBacktestData = (
         balances,
         trades,
         params,
-        metrics,
         monthlyReturns: generateMonthlyReturns(days),
         returnDistribution: generateDistributionData(trades)
     }
@@ -324,7 +323,7 @@ export const mockGetHistoricalBacktest = async (
     const params = mockParams[version as keyof typeof mockParams] || mockParams[1]
 
     // Generate backtest data
-    const backtestData = generateHistoricalBacktestData(days, version, params)
+    // const backtestData = generateHistoricalBacktestData(days, version, params)
 
     // Create response
     return {
@@ -333,51 +332,50 @@ export const mockGetHistoricalBacktest = async (
         date: new Date().toISOString(),
         strategyId,
         timeframe,
-        data: backtestData,
     }
 }
 
 // Mock function to compare multiple backtest runs
-export const mockCompareBacktests = async (
-    versions: number[],
-    timeframe: string,
-    strategyId: string,
-): Promise<ComparisonResponse> => {
-    // Simulate API processing time
-    await delay(1500)
+// export const mockCompareBacktests = async (
+//     versions: number[],
+//     timeframe: string,
+//     strategyId: string,
+// ): Promise<ComparisonResponse> => {
+//     // Simulate API processing time
+//     await delay(1500)
 
-    // Ensure we have at least 2 versions to compare
-    if (!versions || versions.length < 2) {
-        versions = [1, 2] // Default to versions 1 and 2
-    }
+//     // Ensure we have at least 2 versions to compare
+//     if (!versions || versions.length < 2) {
+//         versions = [1, 2] // Default to versions 1 and 2
+//     }
 
-    // Generate comparison data for requested versions
-    const comparisonData = versions.map((version) => {
-        const days =
-            timeframe === "1m" ? 30 : timeframe === "3m" ? 90 : timeframe === "6m" ? 180 : timeframe === "1y" ? 365 : 730
+//     // Generate comparison data for requested versions
+//     const comparisonData = versions.map((version) => {
+//         const days =
+//             timeframe === "1m" ? 30 : timeframe === "3m" ? 90 : timeframe === "6m" ? 180 : timeframe === "1y" ? 365 : 730
 
-        const runData = generateHistoricalBacktestData(days, version)
-        const runInfo = backtestRunHistory.find((r) => r.version === version) || {
-            date: new Date().toISOString(),
-            version,
-        }
+//         const runData = generateHistoricalBacktestData(days, version)
+//         const runInfo = backtestRunHistory.find((r) => r.version === version) || {
+//             date: new Date().toISOString(),
+//             version,
+//         }
 
-        return {
-            version,
-            date: runInfo.date,
-            data: {
-                data: runData.balances,
-                trades: runData.trades,
-            },
-            metrics: runData.metrics!,
-            params: runData.params,
-        }
-    })
+//         return {
+//             version,
+//             date: runInfo.date,
+//             data: {
+//                 data: runData.balances,
+//                 trades: runData.trades,
+//             },
+//             metrics: runData.metrics!,
+//             params: runData.params,
+//         }
+//     })
 
-    // Create response
-    return {
-        success: true,
-        comparisonData,
-    }
-}
+//     // Create response
+//     return {
+//         success: true,
+//         comparisonData,
+//     }
+// }
 

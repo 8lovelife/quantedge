@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 // PUT handler for updating a strategy
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const id = Number.parseInt((await params).id)
         const req: Number = await request.json()

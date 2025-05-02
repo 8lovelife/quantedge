@@ -141,13 +141,15 @@ function calculateMetrics(balances: any[], trades: any[]): BacktestMetrics {
     const sharpeRatio = (avgReturn / (stdDev || 0.01)) * Math.sqrt(252) // Annualized
 
     return {
-        strategyReturn: strategyReturn.toFixed(2),
-        marketReturn: marketReturn.toFixed(2),
-        alpha: alpha.toFixed(2),
-        maxDrawdown: maxDrawdown.toFixed(2),
-        winRate: calculatedWinRate.toFixed(2),
-        sharpeRatio: sharpeRatio.toFixed(2),
+        strategyReturn: +strategyReturn.toFixed(2),
+        marketReturn: +marketReturn.toFixed(2),
+        alpha: +alpha.toFixed(2),
+        maxDrawdown: +maxDrawdown.toFixed(2),
+        winRate: +calculatedWinRate.toFixed(2),
+        sharpeRatio: +sharpeRatio.toFixed(2),
         totalTrades: trades.length,
+        profitFactor: 1
+
     }
 }
 

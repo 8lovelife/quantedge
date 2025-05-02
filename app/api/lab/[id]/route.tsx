@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
-export async function GET(request: Request, { params }: { params: { id: number } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }
+) {
     try {
         const id = (await params).id
         const response = await fetch(`${BACKENT_SERVER_API}/api/lab/${id}`)

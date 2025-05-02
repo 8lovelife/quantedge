@@ -35,7 +35,7 @@ import { BacktestData, BacktestMetrics, BacktestParameters, StrategyRunBacktestR
 import { executionParameterSchemas, normalizeParams, parameterSchemas, riskSchemas } from "@/lib/api/algorithms"
 import { useParams, useRouter } from "next/navigation"
 import { sub } from "date-fns"
-import { runLabBacktest, strategyBacktest, strategyRunHistory, strategyRunHistoryBacktest, strategyRunHistoryComparison } from "@/lib/api/backtest/client"
+import { strategyBacktest, strategyRunHistory, strategyRunHistoryBacktest, strategyRunHistoryComparison } from "@/lib/api/backtest/client"
 import { MultiSelect } from "../ui/multi-select"
 import router from "next/router"
 
@@ -185,16 +185,16 @@ const optimizationResult: OptimizationResult = {
 }
 
 
-export interface Parameter {
-    name: string
-    key: keyof typeof defaultParams
-    description: string
-    min: number
-    max: number
-    step: number
-    unit?: string
-    category: "core" | "risk" | "position"
-}
+// export interface Parameter {
+//     name: string
+//     key: keyof typeof defaultParams
+//     description: string
+//     min: number
+//     max: number
+//     step: number
+//     unit?: string
+//     category: "core" | "risk" | "position"
+// }
 
 const GRID_PRESETS: Record<string, number[]> = {
     fastPeriod: [5, 10, 15],
@@ -502,23 +502,23 @@ export default function StrategyBacktestObservePage() {
     }
 
 
-    const validateParam = (param: Parameter, value: number) => {
-        if (value < param.min || value > param.max) {
-            toast.error(`${param.name} must be between ${param.min} and ${param.max}`)
-            return false
-        }
-        return true
-    }
+    // const validateParam = (param: Parameter, value: number) => {
+    //     if (value < param.min || value > param.max) {
+    //         toast.error(`${param.name} must be between ${param.min} and ${param.max}`)
+    //         return false
+    //     }
+    //     return true
+    // }
 
-    const handleParamChange = (param: Parameter, value: string) => {
-        const numValue = parseFloat(value)
-        if (validateParam(param, numValue)) {
-            setParams(prev => ({
-                ...prev,
-                [param.key]: numValue
-            }))
-        }
-    }
+    // const handleParamChange = (param: Parameter, value: string) => {
+    //     const numValue = parseFloat(value)
+    //     if (validateParam(param, numValue)) {
+    //         setParams(prev => ({
+    //             ...prev,
+    //             [param.key]: numValue
+    //         }))
+    //     }
+    // }
 
     const applyOptimizedParams = () => {
         setParams(optimizedParams)

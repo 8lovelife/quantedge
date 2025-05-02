@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { mockFetchTradingStrategies, mockCreateStrategy } from "@/lib/api/strategies/mock"
 import type { StrategyFormValues } from "@/lib/api/strategies/types"
 const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 

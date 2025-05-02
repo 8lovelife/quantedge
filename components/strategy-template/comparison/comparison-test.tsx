@@ -65,7 +65,7 @@ export default function HistoryPage() {
 
     // const runHistorys: LabRunHistory[] = runComparisonData?.map(item => item.labRunHistory) ?? [];
     const runHistorys: LabRunHistory[] = runComparisonData?.flatMap(item => item.labRunHistory ?? []) ?? [];
-    const effectiveSelected = selected.length === 0 ? [runHistorys[0]?.id ?? 1] : selected;
+    const effectiveSelected = selected.length === 0 ? [runHistorys[0]?.id ?? 1] as number[] : selected;
 
     useEffect(() => {
         const ids: number[] = [];
@@ -148,7 +148,7 @@ export default function HistoryPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Configuration Panel */}
                             <div className="space-y-4">
-                                <RunSelectionCard runHistorys={runHistorys} selected={selected} toggle={toggle} />
+                                <RunSelectionCard runHistorys={runHistorys} selected={selected} toggle={toggle} onApply={() => { }} />
                             </div>
 
                             <div className="md:col-span-2">
@@ -167,8 +167,7 @@ export default function HistoryPage() {
                                             monthlyData={winLossData}
                                             scatter={scatter}
                                             pareto={pareto}
-                                            palette={palette}
-                                        />
+                                            palette={palette} metricsTableData={undefined} bestValues={undefined} runsToParameters={undefined} strategyKey={undefined} />
                                     </TabsContent>
 
                                     <TabsContent value="advanced">
@@ -181,8 +180,7 @@ export default function HistoryPage() {
                                             metricsTableData={metricsTableData}
                                             bestValues={bestValues}
                                             palette={palette}
-                                            formatMetric={m => m}
-                                        />
+                                            formatMetric={m => m} scatter={undefined} pareto={undefined} />
                                     </TabsContent>
                                 </Tabs>
                             </div>

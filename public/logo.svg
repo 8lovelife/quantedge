@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Bars: white fill with black stroke -->
+  <polygon points="50,150 40,150 40,90 50,90 60,110 60,150" fill="#FFF" stroke="#000" stroke-width="2"/>
+  <polygon points="80,150 70,150 70,70 80,70 90,100 90,150" fill="#FFF" stroke="#000" stroke-width="2"/>
+  <polygon points="110,150 100,150 100,90 110,90 120,130 120,150" fill="#FFF" stroke="#000" stroke-width="2"/>
+  <polygon points="140,150 130,150 130,50 140,50 150,120 150,150" fill="#FFF" stroke="#000" stroke-width="2"/>
+
+  <!-- Trend line and dot -->
+  <polyline points="50,110 80,70 110,90 140,50" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="140" cy="50" r="6" fill="#FFF" stroke="#000" stroke-width="2"/>
+
+  <!-- Text: outline only -->
+  <text x="100" y="185" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="24" font-weight="bold"
+        fill="none" stroke="#000" stroke-width="1">
+    QUANTEDGE
+  </text>
+</svg>

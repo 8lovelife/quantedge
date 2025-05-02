@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Graph/Chart Icon -->
+  <g stroke="#000" stroke-width="2" fill="none">
+    <!-- Main chart lines -->
+    <path d="M150,350 L250,250 L300,300 L350,200" stroke-linecap="round" />
+    <!-- Chart dot point -->
+    <circle cx="350" cy="200" r="10" />
+    <!-- Vertical bars -->
+    <path d="M200,350 L200,280" />
+    <path d="M250,350 L250,250" />
+    <path d="M300,350 L300,300" />
+    <path d="M350,350 L350,200" />
+    <!-- Chart frame -->
+    <path d="M150,350 L350,350" />
+    <path d="M150,200 L150,350" />
+    <path d="M350,200 L350,350" />
+  </g>
+  
+  <!-- QUANTEDGE Text -->
+  <g transform="translate(100, 400)">
+    <!-- Q -->
+    <path d="M15,0 Q0,0 0,15 L0,35 Q0,50 15,50 L35,50 Q50,50 50,35 L50,15 Q50,0 35,0 Z M15,10 L35,10 Q40,10 40,15 L40,35 Q40,40 35,40 L15,40 Q10,40 10,35 L10,15 Q10,10 15,10 Z M35,50 L45,60" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- U -->
+    <path d="M60,0 L60,35 Q60,50 75,50 L95,50 Q110,50 110,35 L110,0" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- A -->
+    <path d="M120,50 L135,0 L150,50 M125,35 L145,35" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- N -->
+    <path d="M160,50 L160,0 L190,50 L190,0" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- T -->
+    <path d="M200,0 L230,0 M215,0 L215,50" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- E -->
+    <path d="M240,0 L270,0 M240,25 L265,25 M240,50 L270,50 M240,0 L240,50" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- D -->
+    <path d="M280,0 L300,0 Q320,0 320,15 L320,35 Q320,50 300,50 L280,50 Z M290,10 L300,10 Q310,10 310,20 L310,30 Q310,40 300,40 L290,40 Z" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- G -->
+    <path d="M345,15 Q345,0 330,0 L330,0 Q315,0 315,15 L315,35 Q315,50 330,50 L345,50 Q360,50 360,35 L360,25 L340,25 M360,25 L340,25" fill="none" stroke="#000" stroke-width="2" />
+    
+    <!-- E -->
+    <path d="M370,0 L400,0 M370,25 L395,25 M370,50 L400,50 M370,0 L370,50" fill="none" stroke="#000" stroke-width="2" />
+  </g>
+</svg>

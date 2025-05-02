@@ -11,9 +11,15 @@ export default function LoginPage() {
             <div className="flex flex-col gap-4 p-6 md:p-10">
                 <div className="flex justify-center gap-2 md:justify-start">
                     <a href="#" className="flex items-center gap-2 font-medium">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                        {/* <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
                             <CandlestickChartIcon className="size-4" />
-                        </div>
+                        </div> */}
+
+                        <img
+                            src="/logo.svg"
+                            alt="QuantEdge Logo"
+                            className="w-8 h-8 filter brightness-200 contrast-150"
+                        />
                         QuantEdge Inc.
                     </a>
                 </div>

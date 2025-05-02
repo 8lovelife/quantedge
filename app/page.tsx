@@ -21,11 +21,7 @@ export default function Page() {
         <div className="container mx-auto max-w-7xl flex items-center justify-between py-4 px-6">
           <Link href="/" className="flex items-center space-x-2"       // ← flex + gap
           >
-            <img
-              src="/logo.svg"
-              alt="QuantEdge Logo"
-              className="w-8 h-8 filter brightness-200 contrast-150"
-            />
+            <img src="/logo.svg" alt="QuantEdge Logo" className="w-8 h-8" />
 
             <span className="text-2xl font-extrabold text-blue-600">
               QuantEdge

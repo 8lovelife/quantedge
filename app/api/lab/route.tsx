@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 export async function GET(request: Request) {
     try {
         // Get URL parameters
         const { searchParams } = new URL(request.url)
-        const apiUrl = `http://127.0.0.1:3001/api/lab?${searchParams.toString()}`
+        const apiUrl = `${BACKENT_SERVER_API}/api/lab?${searchParams.toString()}`
         const response = await fetch(apiUrl)
 
         if (!response.ok) {

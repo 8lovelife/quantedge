@@ -22,6 +22,7 @@ import {
 } from "recharts"
 import { BacktestTooltip, TradeTooltip } from "@/components/backtest/backtest-components"
 import type { BacktestData, BacktestTrade } from "@/lib/api/backtest/index"
+import TradeListCard from "./backtest-trade"
 
 // Replace the PerformanceTab component with an enhanced version that combines charts
 export function PerformanceTab({
@@ -41,8 +42,8 @@ export function PerformanceTab({
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle>Performance Comparison</CardTitle>
-                    <CardDescription>Strategy performance vs market benchmark</CardDescription>
+                    <CardTitle>Performance</CardTitle>
+                    <CardDescription>Strategy Equity Curve</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {/* {isCalculating && (
@@ -113,7 +114,7 @@ export function PerformanceTab({
                                         fill="#10b981"
                                         fillOpacity={0.3}
                                     />
-                                    <Area
+                                    {/* <Area
                                         yAxisId="left"
                                         type="monotone"
                                         dataKey="marketBalance"
@@ -121,7 +122,7 @@ export function PerformanceTab({
                                         stroke="#3b82f6"
                                         fill="#3b82f6"
                                         fillOpacity={0.3}
-                                    />
+                                    /> */}
                                     <Bar yAxisId="right" dataKey="trades" name="Trades" fill="#f97316" radius={[4, 4, 0, 0]} />
                                 </ComposedChart>
                             </ResponsiveContainer>
@@ -136,7 +137,7 @@ export function PerformanceTab({
                     <Card>
                         <CardHeader>
                             <CardTitle>Monthly Returns</CardTitle>
-                            <CardDescription>Strategy vs market monthly performance</CardDescription>
+                            <CardDescription>Strategy monthly performance</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="h-[300px]">
@@ -160,7 +161,7 @@ export function PerformanceTab({
                                             tickFormatter={(value) => `${value}%`}
                                         />
                                         <Tooltip
-                                            formatter={(value) => [`${value.toFixed(2)}%`, ""]}
+                                            formatter={(value) => [`${Number(value).toFixed(2)}%`, "Returns"]}
                                             labelFormatter={(label) => `Month: ${label}`}
                                         />
                                         <Legend />
@@ -169,11 +170,11 @@ export function PerformanceTab({
                                                 <Cell key={`cell-strategy-${index}`} fill={entry.strategyReturn >= 0 ? "#10b981" : "#ef4444"} />
                                             ))}
                                         </Bar>
-                                        <Bar dataKey="marketReturn" name="Market" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+                                        {/* <Bar dataKey="marketReturn" name="Market" fill="#3b82f6" radius={[4, 4, 0, 0]}>
                                             {backtestData.monthlyReturns.map((entry, index) => (
                                                 <Cell key={`cell-market-${index}`} fill={entry.marketReturn >= 0 ? "#3b82f6" : "#9f7aea"} />
                                             ))}
-                                        </Bar>
+                                        </Bar> */}
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -220,7 +221,7 @@ export function PerformanceTab({
                                             domain={[0, "dataMax"]}
                                         />
                                         <Tooltip
-                                            formatter={(value) => [`${value.toFixed(2)}%`, ""]}
+                                            formatter={(value) => [`${Number(value).toFixed(2)}%`, "Drawdown"]}
                                             labelFormatter={(label) => `Date: ${label}`}
                                         />
                                         <Legend />
@@ -232,14 +233,14 @@ export function PerformanceTab({
                                             fill="#ef4444"
                                             fillOpacity={0.3}
                                         />
-                                        <Area
+                                        {/* <Area
                                             type="monotone"
                                             dataKey="marketDrawdown"
                                             name="Market Drawdown"
                                             stroke="#9f7aea"
                                             fill="#9f7aea"
                                             fillOpacity={0.3}
-                                        />
+                                        /> */}
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
@@ -286,7 +287,7 @@ export function PerformanceTab({
                                         tickFormatter={(value) => `${value}%`}
                                     />
                                     <Tooltip
-                                        formatter={(value) => [`${value.toFixed(2)}%`, ""]}
+                                        formatter={(value) => [`${Number(value).toFixed(2)}%`, "Returns"]}
                                         labelFormatter={(label) => `Date: ${label}`}
                                     />
                                     <Legend />
@@ -298,14 +299,14 @@ export function PerformanceTab({
                                         fill="#10b981"
                                         fillOpacity={0.3}
                                     />
-                                    <Area
+                                    {/* <Area
                                         type="monotone"
                                         dataKey="marketCumulativeReturn"
                                         name="Market Return"
                                         stroke="#3b82f6"
                                         fill="#3b82f6"
                                         fillOpacity={0.3}
-                                    />
+                                    /> */}
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
@@ -525,49 +526,7 @@ export function TradesTab({
                 </Card>
             </div>
 
-            <Card className="mt-6">
-                <CardHeader>
-                    <CardTitle>Trade List</CardTitle>
-                    <CardDescription>Detailed record of all trades</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b bg-muted/50">
-                                    <th className="p-3 text-left text-sm font-medium">ID</th>
-                                    <th className="p-3 text-left text-sm font-medium">Type</th>
-                                    <th className="p-3 text-left text-sm font-medium">Result</th>
-                                    <th className="p-3 text-right text-sm font-medium">Profit/Loss</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {tradeData.map((trade) => (
-                                    <tr key={trade.id} className="border-b">
-                                        <td className="p-3 text-sm">{trade.id}</td>
-                                        <td className="p-3 text-sm">
-                                            <Badge variant={trade.type === "buy" ? "default" : "secondary"}>
-                                                {trade.type === "buy" ? "Buy" : "Sell"}
-                                            </Badge>
-                                        </td>
-                                        <td className="p-3 text-sm">
-                                            <Badge
-                                                variant={trade.result === "win" ? "outline" : "destructive"}
-                                                className={trade.result === "win" ? "text-green-500 border-green-200" : ""}
-                                            >
-                                                {trade.result === "win" ? "Win" : "Loss"}
-                                            </Badge>
-                                        </td>
-                                        <td className={`p-3 text-sm text-right ${trade.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
-                                            {trade.profit >= 0 ? "+" : ""}${trade.profit.toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
+            <TradeListCard tradeData={tradeData} />
         </>
     )
 }
@@ -786,7 +745,7 @@ export function StatisticsTab({
                                         tickFormatter={(value) => `${value}%`}
                                     />
                                     <Tooltip
-                                        formatter={(value) => [`${value.toFixed(2)}%`, ""]}
+                                        formatter={(value) => [`${Number(value).toFixed(2)}%`, "Returns"]}
                                         labelFormatter={(label) => `Date: ${label}`}
                                     />
                                     <Legend />
@@ -798,14 +757,14 @@ export function StatisticsTab({
                                         fill="#10b981"
                                         fillOpacity={0.3}
                                     />
-                                    <Area
+                                    {/* <Area
                                         type="monotone"
                                         dataKey="marketRollingReturn"
                                         name="Market"
                                         stroke="#3b82f6"
                                         fill="#3b82f6"
                                         fillOpacity={0.3}
-                                    />
+                                    /> */}
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>

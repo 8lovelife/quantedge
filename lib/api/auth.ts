@@ -27,12 +27,21 @@ export interface UserInfo {
     avatarUrl?: string;
     token?: string;
     menus: MenuItem[];
+    roles: Role[];
+}
+
+export interface Role {
+    id: number,
+    name: string,
+    displayName: string,
+    description: string,
 }
 
 export interface MenuItem {
     title: string;
     url: string;
     icon?: string;
+    order?: number;
     children?: MenuItem[];
 }
 

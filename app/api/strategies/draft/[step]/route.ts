@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 export async function POST(
     request: NextRequest,
     { params }: { params: { step: string } }
@@ -10,7 +12,7 @@ export async function POST(
         const step = (await params).step
         const req = await request.json()
         console.log("req ->", JSON.stringify(req))
-        const response = await fetch(`http://localhost:3001/api/strategies/draft/${step}`, {
+        const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/draft/${step}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Cookie: `session_id=${token}` },
             body: JSON.stringify(req),

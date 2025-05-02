@@ -11,8 +11,10 @@ import {
     FileIcon,
     FileTextIcon,
     FolderIcon,
+    Gauge,
     HelpCircleIcon,
     LayoutDashboardIcon,
+    Library,
     ListIcon,
     SearchIcon,
     SettingsIcon,
@@ -51,7 +53,7 @@ const data = {
         {
             title: "Strategy",
             url: "/strategies",
-            icon: ListIcon,
+            icon: Library,
         },
         // {
         //     title: "Backtesting",
@@ -61,7 +63,7 @@ const data = {
         {
             title: "Lab",
             url: "/lab",
-            icon: FolderIcon
+            icon: Gauge
         },
         // {
         //     title: "Market Overview",
@@ -176,7 +178,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuButton size="lg" asChild>
                             <a href="#">
                                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                                    <CandlestickChartIcon className="h-6 w-6 text-primary" />
+                                    <CandlestickChartIcon />
                                 </div>
                                 <div className="flex flex-col gap-0.5 leading-none">
                                     <span className="font-semibold">QuantEdge</span>
@@ -195,7 +197,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <Skeleton className="h-8 w-full" />
                     </div>
                 ) : (
-                    <NavMain items={data.navMain} />
+                    <NavMain items={user.menus} />
                 )}
                 <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>

@@ -15,6 +15,8 @@ import {
     ScatterChart,
     Scatter,
     ZAxis,
+    Area,
+    AreaChart
 } from "recharts";
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -25,6 +27,7 @@ import { cn } from "@/lib/utils";
 import ParametersTable from "@/components/strategy-builder/strategy-dynamic-parameters-table";
 import { useState } from "react";
 import { format } from "date-fns";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 
 const ChartCard = ({ title, height = 260, footer, children }) => (
     <Card className="h-full flex flex-col">
@@ -49,7 +52,7 @@ export default function BasicTabContent({ selected, runs, lineData, monthlyData,
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ChartCard title="Equity Curve (k USD)">
+                <ChartCard title="Equity Curve">
                     <LineChart data={lineData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" tick={true} tickFormatter={(str) => format(new Date(str), "MM/dd")}
@@ -64,11 +67,57 @@ export default function BasicTabContent({ selected, runs, lineData, monthlyData,
                                 dot={false}
                                 dataKey={`run${id}`}
                                 name={`Run ${id}`}
+                                connectNulls={true}
                                 stroke={palette[idx % palette.length]}
                             />
                         ))}
                     </LineChart>
                 </ChartCard>
+
+
+                {/* <ChartContainer
+                    config={Object.fromEntries(
+                        effectiveSelected.map((id, idx) => [
+                            `run${id}`,
+                            {
+                                label: `Run ${id}`,
+                                color: palette[idx % palette.length],
+                            },
+                        ])
+                    )}
+                    className="h-full"
+                >
+                    <ResponsiveContainer width="100%" height={400}>
+                        <AreaChart
+                            data={lineData}
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                                dataKey="date"
+                                tickFormatter={(str) => format(new Date(str), "MM/dd")}
+                            />
+                            <YAxis />
+                            <Tooltip content={<ChartTooltipContent />} />
+                            <Legend />
+
+                            {effectiveSelected.map((id, idx) => (
+                                <Area
+                                    key={id}
+                                    type="monotone"
+                                    dataKey={`run${id}`}
+                                    name={`Run ${id}`}
+                                    stroke={palette[idx % palette.length]}
+                                    fill={palette[idx % palette.length]}
+                                    fillOpacity={0.2}
+                                    strokeWidth={2}
+                                    dot={false}
+                                />
+                            ))}
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartContainer> */}
+
 
                 <ChartCard title="Monthly Return (%)">
                     <BarChart data={monthlyData}>

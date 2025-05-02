@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 export async function GET(request: Request) {
     try {
-        const urlS = `http://127.0.0.1:3001/api/algorithms`
+        const urlS = `${BACKENT_SERVER_API}/api/algorithms`
         const results = await fetch(urlS)
         const algorithmOptions = await results.json();
         console.log('algorithmOptions->' + JSON.stringify(algorithmOptions))

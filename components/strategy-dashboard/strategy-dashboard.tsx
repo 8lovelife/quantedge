@@ -326,7 +326,7 @@ export default function StrategiesPage() {
                         <div>
                             <h1 className="text-2xl font-bold">Strategy Management</h1>
                             <p className="text-muted-foreground">
-                                {totalItems} strategies • Last updated: {formatDate(new Date().toISOString())}
+                                {totalItems} strategies • Manage your algorithmic trading templates here
                             </p>
                         </div>
                     </div>
@@ -424,7 +424,14 @@ export default function StrategiesPage() {
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={(e) => {
                                                         e.stopPropagation();
+
+                                                        if (strategy.isIncomplete) {
+                                                            router.push(`/strategies/${strategy.id}/edit`)
+                                                            return
+                                                        }
+
                                                         router.push(`/strategies/${strategy.id}`);
+
                                                     }}>
                                                         <Eye className="mr-2 h-4 w-4" />
                                                         View Details

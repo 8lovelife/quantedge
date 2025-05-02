@@ -13,7 +13,7 @@ export const BacktestTooltip = ({ active, payload, label }: any) => {
             <div className="bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm border border-border">
                 <p className="font-medium mb-1">{`Date: ${label}`}</p>
                 <p className="text-green-500">{`Strategy: $${payload[0].value.toLocaleString()}`}</p>
-                <p className="text-blue-500">{`Market: $${payload[1].value.toLocaleString()}`}</p>
+                {/* <p className="text-blue-500">{`Market: $${payload[1].value.toLocaleString()}`}</p> */}
                 {payload[2]?.value > 0 && <p className="text-orange-500 mt-1">{`Trades: ${payload[2].value}`}</p>}
             </div>
         )
@@ -103,6 +103,9 @@ export function BacktestRunDetails({
     // Get the selected run from history
     const selectedRun = runHistory.find((r) => r.version === selectedRunVersion)
 
+
+    console.log("selectedRUn is " + JSON.stringify(selectedRun))
+
     if (!params) return null
 
     return (
@@ -143,22 +146,24 @@ export function BacktestRunDetails({
                         </div>
                     )}
 
-                    <div className="flex flex-col">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
-                            {Object.entries(selectedRun.marketDetails)
-                                .filter(([_, v]) =>
-                                    v != null &&
-                                    !(typeof v === 'string' && v.trim() === '') &&
-                                    !(Array.isArray(v) && v.length === 0) &&
-                                    !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
-                                )
-                                .map(([key, value]) => (
-                                    <Badge key={key} variant="outline" className="text-xs">
-                                        {key}: {value}
-                                    </Badge>
-                                ))}
+                    {selectedRun?.marketDetails && (
+                        <div className="flex flex-col">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
+                                {Object.entries(selectedRun.marketDetails)
+                                    .filter(([_, v]) =>
+                                        v != null &&
+                                        !(typeof v === 'string' && v.trim() === '') &&
+                                        !(Array.isArray(v) && v.length === 0) &&
+                                        !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+                                    )
+                                    .map(([key, value]) => (
+                                        <Badge key={key} variant="outline" className="text-xs">
+                                            {key}: {value}
+                                        </Badge>
+                                    ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="flex flex-col">
                         <span className="text-sm font-medium">Parameters</span>

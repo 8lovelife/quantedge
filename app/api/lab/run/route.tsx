@@ -1,6 +1,9 @@
 import { BacktestResponse } from "@/lib/api/backtest/types";
 import { NextResponse } from "next/server";
 
+
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 // API route handler for POST requests (run new backtest)
 export async function POST(request: Request) {
     try {
@@ -19,7 +22,7 @@ export async function POST(request: Request) {
         }
 
         console.log("Engine payload:", JSON.stringify(enginePayload))
-        const response = await fetch("http://localhost:3001/api/lab/run", {
+        const response = await fetch(`${BACKENT_SERVER_API}/api/lab/run`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(enginePayload),

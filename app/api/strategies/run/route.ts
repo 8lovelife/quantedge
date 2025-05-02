@@ -1,6 +1,8 @@
 import { BacktestResponse } from "@/lib/api/backtest/types";
 import { NextRequest, NextResponse } from "next/server";
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 // API route handler for POST requests (run new backtest)
 export async function POST(request: NextRequest) {
     try {
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
         }
 
         const token = request.cookies.get("session_id")?.value
-        const response = await fetch("http://localhost:3001/api/strategies/run", {
+        const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/run`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Cookie: `session_id=${token}` },
             body: JSON.stringify(enginePayload),

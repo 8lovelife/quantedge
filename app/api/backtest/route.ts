@@ -1,6 +1,9 @@
 import { BacktestData, BacktestMetrics, BacktestParameters, BacktestResponse, DistributionData, MonthlyReturnData } from "@/lib/api/backtest/types"
 import { NextResponse } from "next/server"
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
+
 // Simulate a delay for API response
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -267,7 +270,7 @@ export async function POST(request: Request) {
         const backtestData = generateHistoricalBacktestData(days, version, params)
 
 
-        const response = await fetch("http://localhost:3001/api/backtest/run", {
+        const response = await fetch(`${BACKENT_SERVER_API}/api/backtest/run`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ params, timeframe, strategyId: Number(strategyId) }),
@@ -336,7 +339,7 @@ export async function GET(request: Request) {
 
         // Generate backtest data
         const backtestData = generateHistoricalBacktestData(days, version, params)
-        const response = await fetch(`http://localhost:3001/api/backtest?version=${version}&strategyId=${strategyId}`);
+        const response = await fetch(`${BACKENT_SERVER_API}/api/backtest?version=${version}&strategyId=${strategyId}`);
 
         const backtestHistoryData = await response.json();
 

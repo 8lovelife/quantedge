@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { mockFetchTradingStrategies, mockCreateStrategy } from "@/lib/api/strategies/mock"
 import type { StrategyFormValues } from "@/lib/api/strategies/types"
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
 
 
 export async function GET(request: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     const token = request.cookies.get("session_id")?.value
     const { searchParams } = new URL(request.url)
-    const apiUrl = `http://127.0.0.1:3001/api/strategies?${searchParams.toString()}`
+    const apiUrl = `${BACKENT_SERVER_API}/api/strategies?${searchParams.toString()}`
     const response = await fetch(apiUrl, {
       method: "GET",
       headers: {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 //     const page = Number.parseInt(url.searchParams.get("page") || "1")
 //     const limit = Number.parseInt(url.searchParams.get("limit") || "6")
 
-//     const urlS = `http://127.0.0.1:3001/api/strategies?page=${page}&limit=${limit}`
+//     const urlS = `${BACKENT_SERVER_API}/api/strategies?page=${page}&limit=${limit}`
 //     const response = await fetch(urlS)
 
 //     // Fetch strategies
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
     const token = request.cookies.get("session_id")?.value
     const req: StrategyFormValues = await request.json()
     console.log("req -> " + JSON.stringify(req))
-    const response = await fetch("http://localhost:3001/api/strategies", {
+    const response = await fetch(`${BACKENT_SERVER_API}/api/strategies`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: `session_id=${token}` },
       body: JSON.stringify(req),

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 export async function GET(request: NextRequest) {
     try {
 
         const token = request.cookies.get("session_id")?.value
         const { searchParams } = new URL(request.url)
-        const apiUrl = `http://127.0.0.1:3001/api/strategies/run/history?${searchParams.toString()}`
+        const apiUrl = `${BACKENT_SERVER_API}/api/strategies/run/history?${searchParams.toString()}`
         const response = await fetch(apiUrl, {
             method: "GET",
             headers: {

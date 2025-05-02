@@ -16,6 +16,7 @@ import {
     ChevronRight,
     ChevronsRight,
     ChevronLeft,
+    Satellite,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -46,12 +47,16 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SiteHeader } from "@/components/layout/site-header"
 import { fetchAlgorithms, fetchStrategyTemplate, StrategyTemplate } from "@/lib/api/algorithms"
+import { useUser } from "@/app/context/user-context"
 
 const CURRENT_USER = "8lovelife"
 const CURRENT_DATE = "2025-04-16 18:30:32"
 
 
 export default function StrategyLabPage() {
+
+    const { user } = useUser();
+
     const router = useRouter()
     const [templates, setTemplates] = useState<StrategyTemplate[]>([])
     const [totalItems, setTotalItems] = useState(0)
@@ -194,7 +199,7 @@ export default function StrategyLabPage() {
                         <div>
                             <h1 className="text-2xl font-bold">Strategy Lab</h1>
                             <p className="text-muted-foreground">
-                                {totalItems} strategy templates • Last updated: {formatDate(new Date().toISOString())}
+                                {totalItems} strategy templates • Continuously evolving insights
                             </p>
                         </div>
                     </div>
@@ -329,17 +334,22 @@ export default function StrategyLabPage() {
                                             </div>
 
                                             <div className="flex gap-2 mt-auto justify-end">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(`/lab/${template.id}/observe`);
-                                                    }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
+                                                {user.roles?.some(role =>
+                                                    role.name === "admin" || role.name === "developer"
+                                                ) && (
+                                                        <Button
+                                                            disabled={false}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                router.push(`/lab/${template.id}/observe`);
+                                                            }}
+                                                        >
+                                                            <Satellite className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"

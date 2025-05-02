@@ -71,7 +71,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
     const [completedSteps, setCompletedSteps] = useState<any>({})
     const [headerFixed, setHeaderFixed] = useState(false)
     const [isLoading, setIsLoading] = useState(mode === 'edit')
-
+    const [strategy, setStrategy] = useState<any>({})
 
     // Form data
     const [name, setName] = useState("")
@@ -112,7 +112,7 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
                     setIsLoading(true)
                     // 获取策略详情
                     const strategy = await fetchStrategyDetails(strategyId)
-
+                    setStrategy(strategy);
                     // 基本信息总是设置
                     setName(strategy.name)
                     setType(strategy.type)
@@ -674,8 +674,9 @@ export default function StrategyBuilderWizard({ mode = 'create', strategyId }: S
                         )}
                     </h1>
                     <p className="text-muted-foreground">
+
                         {mode === 'edit'
-                            ? `Last updated: ${CURRENT_DATE} by ${CURRENT_USER}`
+                            ? `Last updated: ${strategy?.updated}`
                             : 'Create and configure your trading strategy'
                         }
                     </p>

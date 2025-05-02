@@ -165,8 +165,8 @@ export default function StrategyObserveResultsPanel({ data, isLoading, strategyI
                         <TabsContent value="equity" className="absolute inset-0 w-full">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Performance Comparison</CardTitle>
-                                    <CardDescription>Strategy performance vs market benchmark</CardDescription>
+                                    <CardTitle>Performance</CardTitle>
+                                    <CardDescription>Strategy performance</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="h-[400px]">
@@ -227,7 +227,7 @@ export default function StrategyObserveResultsPanel({ data, isLoading, strategyI
                                                         fillOpacity={0.3}
                                                         isAnimationActive={false}
                                                     />
-                                                    <Area
+                                                    {/* <Area
                                                         yAxisId="left"
                                                         type="monotone"
                                                         dataKey="marketBalance"
@@ -236,7 +236,7 @@ export default function StrategyObserveResultsPanel({ data, isLoading, strategyI
                                                         fill="#3b82f6"
                                                         fillOpacity={0.3}
                                                         isAnimationActive={false}
-                                                    />
+                                                    /> */}
                                                     <Bar
                                                         yAxisId="right"
                                                         dataKey="trades"
@@ -257,7 +257,7 @@ export default function StrategyObserveResultsPanel({ data, isLoading, strategyI
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Monthly Returns</CardTitle>
-                                    <CardDescription>Strategy vs market monthly performance</CardDescription>
+                                    <CardDescription>Strategy monthly performance</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="h-[400px]">
@@ -299,7 +299,7 @@ export default function StrategyObserveResultsPanel({ data, isLoading, strategyI
                                                         <Cell key={`cell-strategy-${index}`} fill={entry.strategyReturn >= 0 ? "#10b981" : "#ef4444"} />
                                                     ))}
                                                 </Bar>
-                                                <Bar
+                                                {/* <Bar
                                                     dataKey="marketReturn"
                                                     name="Market"
                                                     fill="#3b82f6"
@@ -309,7 +309,7 @@ export default function StrategyObserveResultsPanel({ data, isLoading, strategyI
                                                     {data.monthlyReturns.map((entry, index) => (
                                                         <Cell key={`cell-market-${index}`} fill={entry.marketReturn >= 0 ? "#3b82f6" : "#9f7aea"} />
                                                     ))}
-                                                </Bar>
+                                                </Bar> */}
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>

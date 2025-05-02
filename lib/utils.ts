@@ -25,3 +25,25 @@ export function formatDuration(startTime: Date | string, endTime: Date | string)
 
   return `${minutes}m ${seconds}s`;
 }
+
+
+import * as LucideIcons from "lucide-react"
+
+export function getIconComponent(name: string): React.ElementType | null {
+  const iconName = `${name.charAt(0).toUpperCase()}${name.slice(1)}Icon`
+  return (LucideIcons as any)[iconName] ?? null
+}
+
+export function formatDateTimeWithAmPm(date: Date) {
+  const [mdy, time] = date.toLocaleString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour12: true,
+  }).split(", ");
+  const [month, day, year] = mdy.split("/");
+  return `${year}-${month}-${day} ${time}`;
+}

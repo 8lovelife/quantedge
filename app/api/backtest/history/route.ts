@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { BacktestRunHistoryItem, BacktestRunHistoryResponse } from "@/lib/api/backtest/types"
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
 // Simulate a delay for API response
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
         // In a real implementation, you would query a database
         // const filteredHistory = backtestRunHistory
 
-        const urlS = `http://127.0.0.1:3001/api/backtest/history?strategyId=${strategyId}`
+        const urlS = `${BACKENT_SERVER_API}/api/backtest/history?strategyId=${strategyId}`
         const results = await fetch(urlS)
 
         // Fetch strategies

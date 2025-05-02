@@ -58,6 +58,15 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+
+        "glow": {
+          '0%, 100%': { opacity: '0.3', r: '2' },
+          '50%': { opacity: '1', r: '3.5' },
+        },
+        "glow2": {
+          '0%, 100%': { opacity: '0.4', r: '2.5' },
+          '50%': { opacity: '0.9', r: '4' },
+        },
         "accordion-down": {
           from: { height: 0 },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -114,7 +123,9 @@ module.exports = {
         "slide-in-center": "slide-in-center 0.8s ease-out",
         "scale-up": "scale-up 0.8s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
-        "move-to-center": "move-to-center 0.8s ease-in-out forwards"
+        "move-to-center": "move-to-center 0.8s ease-in-out forwards",
+        "glow": 'glow 2s ease-in-out infinite',
+        "glow2": 'glow2 3s ease-in-out infinite',
 
       },
     },

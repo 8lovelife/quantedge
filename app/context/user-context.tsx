@@ -22,6 +22,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             try {
                 const userInfo = await getCurrentUserInfo();
                 if (userInfo) {
+                    userInfo.menus.sort((a, b) => a.order - b.order)
                     setUser(userInfo);
                 }
             } catch (error) {

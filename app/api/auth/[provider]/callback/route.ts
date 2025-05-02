@@ -5,6 +5,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
+
 export async function GET(req: NextRequest, { params }: { params: { provider: string } }) {
     try {
         const { searchParams } = new URL(req.url);
@@ -58,7 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: { provider: st
             refreshToken: tokenData.refresh_token,
         };
 
-        const result = await fetch(`http://localhost:3001/api/user/auth`, {
+        const result = await fetch(`${BACKENT_SERVER_API}/api/user/auth`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(authUserInfo),

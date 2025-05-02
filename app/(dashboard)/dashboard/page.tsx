@@ -205,24 +205,25 @@ export default function DashboardPanel() {
                         </CardContent>
                     </Card>
                 </div>
-                <Tabs defaultValue="overview" className="space-y-4">
+                <Tabs defaultValue="trades" className="space-y-4">
                     <TabsList>
-                        <TabsTrigger value="overview">Market Overview</TabsTrigger>
-                        <TabsTrigger value="performance">Portfolio Performance</TabsTrigger>
-                        <TabsTrigger value="strategies">Trading Strategies</TabsTrigger>
+                        {/* <TabsTrigger value="overview">Market Overview</TabsTrigger> */}
+                        {/* <TabsTrigger value="strategies">Trading Strategies</TabsTrigger> */}
                         <TabsTrigger value="trades">Recent Trades</TabsTrigger>
+                        <TabsTrigger value="performance">Portfolio Performance</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="overview" className="space-y-4">
+                    {/* <TabsContent value="overview" className="space-y-4">
                         <MarketOverview />
+                    </TabsContent> */}
+
+                    {/* <TabsContent value="strategies" className="space-y-4">
+                        <TradingStrategies />
+                    </TabsContent> */}
+                    <TabsContent value="trades" className="space-y-4">
+                        <RecentTrades />
                     </TabsContent>
                     <TabsContent value="performance" className="space-y-4">
                         <PortfolioPerformance />
-                    </TabsContent>
-                    <TabsContent value="strategies" className="space-y-4">
-                        <TradingStrategies />
-                    </TabsContent>
-                    <TabsContent value="trades" className="space-y-4">
-                        <RecentTrades />
                     </TabsContent>
                 </Tabs>
             </main>

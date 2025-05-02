@@ -11,7 +11,7 @@ export function mergeLines(ids: number[], map: Record<number, LabRunComparison>)
         balances.forEach((p) => {
             const d = p.date;
             if (!byDate[d]) byDate[d] = { date: d };
-            byDate[d][`run${id}`] = +(p.balance / 1000).toFixed(0);
+            byDate[d][`run${id}`] = +(p.balance).toFixed(2);
         });
     });
 

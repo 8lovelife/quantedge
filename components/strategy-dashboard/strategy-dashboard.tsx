@@ -315,14 +315,6 @@ export default function StrategiesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center">
-                        {/* <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => router.push("/strategies")}
-                            className="mr-4"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button> */}
                         <div>
                             <h1 className="text-2xl font-bold">Strategy Management</h1>
                             <p className="text-muted-foreground">
@@ -370,7 +362,11 @@ export default function StrategiesPage() {
                     </div>
 
                     <TabsContent value={activeTab} className="mt-4" ref={contentRef}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div
+                            className="grid gap-4"
+                            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}
+                        >
+
                             {isLoading ? (
                                 [...Array(itemsPerPage)].map((_, i) => (
                                     <StrategySkeleton key={i} />

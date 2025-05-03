@@ -203,31 +203,6 @@ export default function StrategyLabPage() {
                             </p>
                         </div>
                     </div>
-                    {/* <div className="flex items-center gap-4">
-                                <div className="flex -space-x-2">
-                                    <Avatar className="border-2 border-background">
-                                        <AvatarFallback>TM</AvatarFallback>
-                                    </Avatar>
-                                    <div className="text-sm">
-                                        <div className="font-medium">tradingmaster</div>
-                                        <div className="text-xs text-muted-foreground">
-                                            Strategy Author
-                                        </div>
-                                    </div>
-                                </div>
-                                <Separator orientation="vertical" className="h-8" />
-                                <div className="flex items-center gap-2">
-                                    <Avatar>
-                                        <AvatarFallback>{CURRENT_USER[0].toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="text-sm">
-                                        <div className="font-medium">{CURRENT_USER}</div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {CURRENT_DATE} UTC
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> */}
                 </div>
 
                 <Tabs defaultValue="lab" value={activeTab} onValueChange={setActiveTab}>
@@ -265,7 +240,12 @@ export default function StrategyLabPage() {
                     </div>
 
                     <TabsContent value="lab" className="mt-2" ref={contentRef}> {/* Reduced margin-top */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div
+                            className="grid gap-4"
+                            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}
+                        >
+
+
                             {isLoading ? (
                                 [...Array(itemsPerPage)].map((_, i) => (
                                     <StrategySkeleton key={i} />
@@ -387,113 +367,115 @@ export default function StrategyLabPage() {
                         )}
                     </TabsContent>
                     <TabsContent value="community" className="mt-4" ref={contentRef}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {isLoading ? (
-                                [...Array(itemsPerPage)].map((_, i) => (
-                                    <StrategySkeleton key={i} />
-                                ))
-                            ) : error ? (
-                                <div className="col-span-full flex justify-center p-8">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <p className="text-sm text-destructive">{error}</p>
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => window.location.reload()}
-                                        >
-                                            Try Again
-                                        </Button>
-                                    </div>
-                                </div>
-                            ) : (
-                                templates.map((template) => (
-                                    <Card
-                                        key={template.id}
-                                        className="overflow-hidden border hover:border-primary/50 transition-colors cursor-pointer flex flex-col"
+                        <div
+                            className="grid gap-4"
+                            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}
+                        >                            {isLoading ? (
+                            [...Array(itemsPerPage)].map((_, i) => (
+                                <StrategySkeleton key={i} />
+                            ))
+                        ) : error ? (
+                            <div className="col-span-full flex justify-center p-8">
+                                <div className="flex flex-col items-center gap-4">
+                                    <p className="text-sm text-destructive">{error}</p>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => window.location.reload()}
                                     >
-                                        <CardHeader className="p-3 pb-2 flex flex-col items-start justify-between space-y-1">
-                                            <div className="flex items-start gap-2 w-full">
-                                                <CardTitle className="text-base font-semibold">
-                                                    {template.name}
-                                                </CardTitle>
-                                            </div>
-                                            <div className="flex items-center justify-between w-full">
-                                                <div className="flex items-center text-muted-foreground text-xs">
-                                                    <div className="flex items-center gap-1 mr-2">
-                                                        <Heart className="w-3 h-3" /> {template.likes}
-                                                        <Download className="w-3 h-3" /> {template.usage}
-                                                    </div>
+                                        Try Again
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            templates.map((template) => (
+                                <Card
+                                    key={template.id}
+                                    className="overflow-hidden border hover:border-primary/50 transition-colors cursor-pointer flex flex-col"
+                                >
+                                    <CardHeader className="p-3 pb-2 flex flex-col items-start justify-between space-y-1">
+                                        <div className="flex items-start gap-2 w-full">
+                                            <CardTitle className="text-base font-semibold">
+                                                {template.name}
+                                            </CardTitle>
+                                        </div>
+                                        <div className="flex items-center justify-between w-full">
+                                            <div className="flex items-center text-muted-foreground text-xs">
+                                                <div className="flex items-center gap-1 mr-2">
+                                                    <Heart className="w-3 h-3" /> {template.likes}
+                                                    <Download className="w-3 h-3" /> {template.usage}
                                                 </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    By {template.author}
-                                                </div>
                                             </div>
-                                        </CardHeader>
+                                            <div className="text-xs text-muted-foreground">
+                                                By {template.author}
+                                            </div>
+                                        </div>
+                                    </CardHeader>
 
-                                        <CardContent className="p-3 flex-1 flex flex-col">
-                                            <CardDescription className="text-sm text-muted-foreground mb-3">
-                                                {template.description}
-                                            </CardDescription>
+                                    <CardContent className="p-3 flex-1 flex flex-col">
+                                        <CardDescription className="text-sm text-muted-foreground mb-3">
+                                            {template.description}
+                                        </CardDescription>
 
-                                            <div className="grid grid-cols-3 gap-1 text-center mb-3">
-                                                <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
-                                                    <div className="text-xs text-muted-foreground">Return</div>
-                                                    <div className="text-sm font-bold text-green-500">
-                                                        {Number(template.performance?.strategyReturn || 0).toFixed(2)}%
-                                                    </div>
-                                                </div>
-                                                <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
-                                                    <div className="text-xs text-muted-foreground">Win Rate</div>
-                                                    <div className="text-sm font-bold">
-                                                        {Number(template.performance?.winRate || 0).toFixed(2)}%
-                                                    </div>
-                                                </div>
-                                                <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
-                                                    <div className="text-xs text-muted-foreground">Drawdown</div>
-                                                    <div className="text-sm font-bold text-red-500">
-                                                        {Number(template.performance?.maxDrawdown || 0).toFixed(2)}%
-                                                    </div>
+                                        <div className="grid grid-cols-3 gap-1 text-center mb-3">
+                                            <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
+                                                <div className="text-xs text-muted-foreground">Return</div>
+                                                <div className="text-sm font-bold text-green-500">
+                                                    {Number(template.performance?.strategyReturn || 0).toFixed(2)}%
                                                 </div>
                                             </div>
-
-                                            <div className="flex gap-2 mt-auto justify-end">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(`/lab/${template.id}/observe`);
-                                                    }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(`/strategy-detail/${template.id}`)
-                                                    }}
-                                                >
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8"
-                                                    variant="outline"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleCreateStrategy(template);
-                                                    }}
-                                                >
-                                                    Build My Strategy
-                                                </Button>
+                                            <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
+                                                <div className="text-xs text-muted-foreground">Win Rate</div>
+                                                <div className="text-sm font-bold">
+                                                    {Number(template.performance?.winRate || 0).toFixed(2)}%
+                                                </div>
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            )}
+                                            <div className="bg-muted/30 p-1 rounded-md h-[60px] flex flex-col justify-center">
+                                                <div className="text-xs text-muted-foreground">Drawdown</div>
+                                                <div className="text-sm font-bold text-red-500">
+                                                    {Number(template.performance?.maxDrawdown || 0).toFixed(2)}%
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 mt-auto justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/lab/${template.id}/observe`);
+                                                }}
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/strategy-detail/${template.id}`)
+                                                }}
+                                            >
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-8"
+                                                variant="outline"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCreateStrategy(template);
+                                                }}
+                                            >
+                                                Build My Strategy
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
                         </div>
 
                         {/* Static Pagination Controls */}

@@ -49,6 +49,12 @@ export async function getCurrentUserInfo(): Promise<UserInfo | null> {
 
     try {
         const res = await fetch("/api/login", { method: "GET", credentials: "include" });
+
+        if (res.status === 401) {
+            window.location.href = "/login"
+            return null;
+        }
+
         if (!res.ok) {
             return null;
         }
@@ -60,24 +66,56 @@ export async function getCurrentUserInfo(): Promise<UserInfo | null> {
     }
 }
 
-export async function login(email: string, password: string): Promise<User> {
-    // In a real app, you would verify credentials against your database
-    // and create a session token
+export async function login(email: string, password: string): Promise<UserInfo | null> {
+    try {
+        const response = await fetch("/api/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+            credentials: "include",
+        })
 
-    // This is just a placeholder implementation
-    if (email && password) {
-        // Set a cookie in a real implementation
-        // cookies().set("session", "token-value", { httpOnly: true, secure: true })
-
-        return {
-            id: "user-1",
-            email,
-            name: "Crypto Trader",
+        const data = await response.json()
+        if (!response.ok) {
+            throw new Error(data.error || "Login failed")
         }
+
+        return data.user;
+
+    } catch (error) {
+        console.error("Failed to fetch user info:", error);
+        throw error
     }
 
-    throw new Error("Invalid credentials")
 }
+
+
+export async function register(email: string, password: string): Promise<UserInfo | null> {
+    try {
+        const response = await fetch("/api/register", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+            throw new Error(data.error || "Registration failed")
+        }
+
+        return data.user;
+
+    } catch (error) {
+        console.error("Failed to fetch user info:", error);
+        throw error
+    }
+
+}
+
 
 export async function logout() {
     const res = await fetch("/api/logout", {

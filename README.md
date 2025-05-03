@@ -70,9 +70,9 @@ Then open your browser at [http://localhost:3000](http://localhost:3000)
 
 > Place the following screenshots in the `docs/` folder and GitHub will render them automatically.
 
-| Strategy Builder | Backtest Result | Strategy Comparison |
-|------------------|------------------|----------------------|
-| ![builder](docs/builder.png) | ![result](docs/result.png) | ![compare](docs/compare.png) |
+| Strategy Builder | Run Backtest |Backtest Result | Strategy Comparison |
+|------------------|------------------|------------------|----------------------|
+| ![builder](docs/builder.png) | ![backtest](docs/backtest.png) | ![result](docs/result.png) | ![compare](docs/compare.png) |
 
 ---
 
@@ -102,9 +102,10 @@ The frontend is designed to integrate with the [QuantEdge Engine](https://github
 | Strategy Builder Wizard            | ✅ Completed  |
 | Dynamic Schema-Based UI            | ✅ Completed  |
 | Strategy Comparison View           | ✅ Completed   |
-| Backend API Integration            | 🔄 In Progress |
-| Strategy Optimization Interface    | 🔜 Planned    |
-| Paper/Live Trading Status Monitor  | 🔜 Planned    |
+| Strategy Optimization Interface    | 🔄 In Progress  |
+| More Strategies Support            | 🔄 In Progress |
+| Paper/Live Trading Status Monitor  | 🔄 In Progress |
+|Multi-Exchange Integration          |🔜 Planned|
 
 ---
 

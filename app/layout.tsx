@@ -8,7 +8,10 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "CryptoQuant Trading Dashboard",
-  description: "A modern cryptocurrency trading dashboard with quantitative strategies",
+  description: "A modern cryptocurrency trading dashboard with quantitative strategies.",
+  icons: {
+    icon: 'favicon.ico'
+  }
 }
 
 export default function RootLayout({

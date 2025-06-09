@@ -68,8 +68,6 @@ Then open your browser at [http://localhost:3000](http://localhost:3000)
 
 ## 📸 Screenshots
 
-> Place the following screenshots in the `docs/` folder and GitHub will render them automatically.
-
 | Strategy Builder | Run Backtest |Backtest Result | Strategy Comparison |
 |------------------|------------------|------------------|----------------------|
 | ![builder](docs/builder.png) | ![backtest](docs/backtest.png) | ![result](docs/result.png) | ![compare](docs/compare.png) |

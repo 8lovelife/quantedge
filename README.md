@@ -1,5 +1,5 @@
 # QuantEdge UI ![WIP](https://img.shields.io/badge/status-WIP-yellow)
-> 🔗 **Live Demo**: [https://quantedge-ten.vercel.app](https://quantedge-ten.vercel.app)
+> 🔗 **Live Demo**: [https://quantedge-iota.vercel.app](https://quantedge-iota.vercel.app)
 
 🎛️ **QuantEdge UI** is a frontend dashboard for building, configuring, and analyzing quantitative cryptocurrency trading strategies.
 

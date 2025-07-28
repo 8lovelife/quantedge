@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Bot, Zap, Shield, BarChart2, RefreshCw, Smartphone, Star, GitPullRequest, BookOpen, LifeBuoy } from 'lucide-react';
+import { Bot, Zap, Shield, BarChart2, RefreshCw, Smartphone, Star, GitPullRequest, BookOpen, LifeBuoy, TrendingUp, DollarSign, Globe } from 'lucide-react';
 
 export default function Page() {
   // Using a 3-color palette: Primary (blue), Secondary (teal), Accent (gray)
@@ -28,7 +28,7 @@ export default function Page() {
             </span>
           </Link>
           <nav className="hidden md:flex space-x-8 text-gray-800">
-            {["Features", "How It Works", "Results", "Pricing"].map(
+            {["Market", "Features", "How It Works", "Results", "Pricing"].map(
               (item) => (
                 <Link
                   key={item}
@@ -83,6 +83,107 @@ export default function Page() {
             </div>
           </div>
         </section>
+
+        {/* Market */}
+        <section id="market" className="py-20 bg-blue-50">
+          <div className="container mx-auto max-w-6xl px-6">
+            <h2 className="text-3xl font-bold text-blue-700 text-center mb-12">
+              Live Market Data
+            </h2>
+
+            {/* Market Stats Bar */}
+            <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+              <div className="flex flex-wrap justify-around items-center gap-8">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
+                    <TrendingUp className="text-white" size={24} />
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm">Global Market Cap</p>
+                    <p className="text-2xl font-bold text-blue-700">$2.1T</p>
+                    <p className="text-green-600 text-sm font-medium">+5.2% (24h)</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <DollarSign className="text-white" size={24} />
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm">24h Trading Volume</p>
+                    <p className="text-2xl font-bold text-blue-700">$87.4B</p>
+                    <p className="text-green-600 text-sm font-medium">+12.3% (24h)</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
+                    <Globe className="text-white" size={24} />
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm">Active Markets</p>
+                    <p className="text-2xl font-bold text-blue-700">15,847</p>
+                    <p className="text-green-600 text-sm font-medium">+2.8% (24h)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Crypto Table */}
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-teal-500 px-6 py-4">
+                <h3 className="text-xl font-semibold text-white">Top Cryptocurrencies</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr className="text-gray-700 text-sm font-semibold">
+                      <th className="text-left py-4 px-6">Asset</th>
+                      <th className="text-right py-4 px-6">Price</th>
+                      <th className="text-right py-4 px-6">24h Change</th>
+                      <th className="text-right py-4 px-6">Market Cap</th>
+                      <th className="text-right py-4 px-6">Volume (24h)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { symbol: "BTC", name: "Bitcoin", price: "$67,420.52", change: "+3.45%", isPositive: true, cap: "$1.32T", volume: "$28.4B" },
+                      { symbol: "ETH", name: "Ethereum", price: "$3,842.18", change: "+5.21%", isPositive: true, cap: "$462.1B", volume: "$15.2B" },
+                      { symbol: "SOL", name: "Solana", price: "$187.34", change: "+8.92%", isPositive: true, cap: "$89.2B", volume: "$3.8B" },
+                      { symbol: "ADA", name: "Cardano", price: "$0.8734", change: "-2.15%", isPositive: false, cap: "$30.5B", volume: "$1.2B" },
+                      { symbol: "AVAX", name: "Avalanche", price: "$42.87", change: "+1.83%", isPositive: true, cap: "$17.8B", volume: "$892M" },
+                    ].map((asset, index) => (
+                      <tr key={asset.symbol} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
+                              {asset.symbol.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-blue-700">{asset.symbol}</div>
+                              <div className="text-gray-500 text-sm">{asset.name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 text-right font-mono text-gray-900 font-semibold">{asset.price}</td>
+                        <td className={`py-4 px-6 text-right font-semibold ${asset.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {asset.change}
+                        </td>
+                        <td className="py-4 px-6 text-right text-gray-700 font-mono">{asset.cap}</td>
+                        <td className="py-4 px-6 text-right text-gray-700 font-mono">{asset.volume}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="text-center mt-6">
+              <p className="text-gray-600 text-sm">
+                Live data updates every 30 seconds • Powered by QuantEdge multi-exchange aggregation
+              </p>
+            </div>
+          </div>
+        </section>
+
 
         {/* Features */}
         <section id="features" className="py-20 bg-white">

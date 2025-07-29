@@ -68,7 +68,7 @@ export default function Page() {
               QuantEdge delivers institutional‐grade algorithmic strategies to maximize your crypto returns while minimizing risk. No coding required.
             </p>
             <div className="flex justify-center gap-4">
-              <Link href="/login">
+              <Link href="/markets">
                 <Button size="lg" className="bg-teal-500 hover:bg-teal-600 text-white">
                   Start Trading
                 </Button>
@@ -129,18 +129,15 @@ export default function Page() {
 
             {/* Crypto Table */}
             <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-teal-500 px-6 py-4">
-                <h3 className="text-xl font-semibold text-white">Top Cryptocurrencies</h3>
-              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gradient-to-r from-blue-50 to-teal-50">
                     <tr className="text-gray-700 text-sm font-semibold">
-                      <th className="text-left py-4 px-6">Asset</th>
+                      <th className="text-left py-4 px-6 text-blue-700">Cryptocurrency</th>
                       <th className="text-right py-4 px-6">Price</th>
                       <th className="text-right py-4 px-6">24h Change</th>
                       <th className="text-right py-4 px-6">Market Cap</th>
-                      <th className="text-right py-4 px-6">Volume (24h)</th>
+                      <th className="text-right py-4 px-6">Volume</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -151,15 +148,15 @@ export default function Page() {
                       { symbol: "ADA", name: "Cardano", price: "$0.8734", change: "-2.15%", isPositive: false, cap: "$30.5B", volume: "$1.2B" },
                       { symbol: "AVAX", name: "Avalanche", price: "$42.87", change: "+1.83%", isPositive: true, cap: "$17.8B", volume: "$892M" },
                     ].map((asset, index) => (
-                      <tr key={asset.symbol} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
+                      <tr key={asset.symbol} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                         <td className="py-4 px-6">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                               {asset.symbol.charAt(0)}
                             </div>
                             <div>
-                              <div className="font-semibold text-blue-700">{asset.symbol}</div>
-                              <div className="text-gray-500 text-sm">{asset.name}</div>
+                              <div className="font-bold text-gray-900 text-sm">{asset.symbol}</div>
+                              <div className="text-gray-500 text-xs">{asset.name}</div>
                             </div>
                           </div>
                         </td>

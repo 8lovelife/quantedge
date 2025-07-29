@@ -5,7 +5,9 @@ export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname
 
     // Define public paths that don't require authentication
-    const isPublicPath = path === "/login" || path === "/register" || path === "/forgot-password" || path === "/"
+    const isPublicPath = path === "/login" || path === "/register"
+        || path === "/forgot-password" || path === "/"
+        || path === "/markets" || path.startsWith("/trade/")
 
     // Skip middleware for API routes
     if (path.startsWith("/api/")) {

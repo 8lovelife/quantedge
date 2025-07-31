@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CandlestickData, Time } from "lightweight-charts"
+// import type { CandlestickData } from 'lightweight-charts'
+
+// type CandleData = CandlestickData
+
+const MAX_RECONNECT_ATTEMPTS = 5
+let reconnectAttempts = 0
 
 interface TradingChartProps {
     pair: string
@@ -15,6 +22,16 @@ interface CandleData {
     high: number
     low: number
     close: number
+}
+
+function toCustomCandle(candle: CandlestickData): CandleData {
+    return {
+        time: typeof candle.time === 'number' ? candle.time : (candle.time as any).timestamp,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+    }
 }
 
 const basePrice = 118_378
@@ -163,8 +180,8 @@ function getTimeScaleConfig(timeframe: string) {
     return config
 }
 
-function genCandles(timeframe: string, startPrice = basePrice, bars = 0): CandleData[] {
-    const data: CandleData[] = []
+function genCandles(timeframe: string, startPrice = basePrice, bars = 0): CandlestickData[] {
+    const data: CandlestickData[] = []
     // const intervalMs = getIntervalMs(timeframe)
 
     // let open = startPrice
@@ -181,12 +198,43 @@ function genCandles(timeframe: string, startPrice = basePrice, bars = 0): Candle
     return data
 }
 
+const isAbnormalClose = (code: number): boolean => {
+
+    // WebSocket 关闭状态码参考：
+    // 1000: Normal Closure - 正常关闭，不重连
+    // 1001: Going Away - 页面刷新/关闭，不重连
+    // 1002: Protocol Error - 协议错误，可重连
+    // 1003: Unsupported Data - 不支持的数据类型，通常不重连
+    // 1006: Abnormal Closure - 异常关闭（如网络中断），需重连
+    // 1011: Internal Error - 服务器内部错误，可重连
+    // 1012: Service Restart - 服务重启，需重连
+    // 1013: Try Again Later - 临时不可用，需重连
+    // 1014: Bad Gateway - 网关错误，可重连
+    // 1015: TLS Handshake - TLS握手失败，可重连
+
+    const reconnectCodes = [
+        1002, // Protocol Error
+        1006, // Abnormal Closure
+        1011, // Internal Error
+        1012, // Service Restart
+        1013, // Try Again Later
+        1014, // Bad Gateway
+        1015  // TLS Handshake
+    ]
+
+    return reconnectCodes.includes(code)
+}
+
+
 export function TradingChart({ pair }: TradingChartProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const chartRef = useRef<any>(null)
     const priceSeriesRef = useRef<any>(null)
     const intervalIdRef = useRef<NodeJS.Timeout | null>(null)
     const wsRef = useRef<WebSocket | null>(null)
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const [isConnected, setIsConnected] = useState(false)
+
 
     const [timeframe, setTimeframe] = useState("1s")
     const [interval, setInterval] = useState("300ms")
@@ -269,7 +317,7 @@ export function TradingChart({ pair }: TradingChartProps) {
             // 初始化当前蜡烛数据
             const latestCandle = initialCandles[initialCandles.length - 1]
             if (latestCandle) {
-                setCurrentCandle(latestCandle)
+                setCurrentCandle(toCustomCandle(latestCandle))
             }
 
             // 实时更新逻辑
@@ -281,6 +329,12 @@ export function TradingChart({ pair }: TradingChartProps) {
                 wsRef.current.close()
                 wsRef.current = null
             }
+
+            // 清除可能存在的重连定时器
+            // if (reconnectTimeoutRef.current) {
+            //     clearTimeout(reconnectTimeoutRef.current)
+            //     reconnectTimeoutRef.current = null
+            // }
 
             // 建立新的 WebSocket 连接
             const ws = new WebSocket(`ws://127.0.0.1:9001/?exchange=${selectedExchange}&symbol=${pair}&interval_ms=${getFrequencyMs(interval)}`)
@@ -341,31 +395,52 @@ export function TradingChart({ pair }: TradingChartProps) {
 
             ws.onerror = (err) => {
                 console.error("WebSocket error:", err)
+                setIsConnected(false)
+
             }
 
             ws.onclose = (event) => {
+
                 console.log("WebSocket closed:", event.code, event.reason)
+                setIsConnected(false)
+
+                if (wsRef.current) {
+
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`)
+                        reconnectAttempts += 1  // 增加重连次数
+                        console.log("Scheduling auto-reconnect due to abnormal close...")
+                        if (reconnectTimeoutRef.current) {
+                            clearTimeout(reconnectTimeoutRef.current)
+                        }
+                        reconnectTimeoutRef.current = setTimeout(() => {
+                            // 重新建立连接
+                            if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+                                console.log("Auto-reconnecting...")
+                                const newWs = new WebSocket(`ws://127.0.0.1:9001/?exchange=${selectedExchange}&symbol=${pair}&interval_ms=${getFrequencyMs(interval)}`)
+                                wsRef.current = newWs
+
+                                // 重新绑定事件处理器
+                                newWs.onmessage = ws.onmessage
+                                newWs.onerror = ws.onerror
+                                newWs.onclose = ws.onclose
+                                newWs.onopen = ws.onopen
+                            }
+                        }, 5000)
+                    } else {
+                        console.warn("Max reconnect attempts reached or normal close — giving up.")
+                        if (reconnectTimeoutRef.current) {
+                            clearTimeout(reconnectTimeoutRef.current)
+                        }
+                    }
+                }
+
             }
 
             ws.onopen = () => {
                 console.log("WebSocket connected")
-            }
-
-            // 窗口大小调整处理
-            const handleResize = () => {
-                if (chartRef.current && containerRef.current) {
-                    chartRef.current.applyOptions({
-                        width: containerRef.current.clientWidth,
-                        height: containerRef.current.clientHeight,
-                    })
-                }
-            }
-
-            window.addEventListener('resize', handleResize)
-
-            // 清理函数中移除事件监听
-            return () => {
-                window.removeEventListener('resize', handleResize)
+                setIsConnected(true)
+                reconnectAttempts = 0
             }
         })
 
@@ -373,13 +448,17 @@ export function TradingChart({ pair }: TradingChartProps) {
         return () => {
             if (wsRef.current) {
                 if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
-                    wsRef.current.close()
+                    var ws = wsRef.current
+                    wsRef.current = null
+                    ws.close()
                 }
-                wsRef.current = null
             }
             if (chartRef.current) {
                 chartRef.current.remove()
                 chartRef.current = null
+            }
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current)
             }
         }
     }, [timeframe, pair, interval, selectedExchange])
@@ -440,8 +519,13 @@ export function TradingChart({ pair }: TradingChartProps) {
 
                     {/* Connection Status */}
                     <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        <span className="text-xs text-gray-500">Live</span>
+                        <div
+                            className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? "bg-green-400" : "bg-gray-400"
+                                }`}
+                        />
+                        <span className="text-xs text-gray-500">
+                            {isConnected ? "Live" : "Silent"}
+                        </span>
                     </div>
                 </div>
 

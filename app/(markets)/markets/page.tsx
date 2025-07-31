@@ -142,7 +142,7 @@ export default function LiveMarketsPage() {
     const [sortBy, setSortBy] = useState("marketCap")
     const [sortOrder, setSortOrder] = useState("desc")
     const [activeTab, setActiveTab] = useState("all")
-    const [favorites, setFavorites] = useState([2, 5])
+    const [favorites, setFavorites] = useState([2, 3])
 
     const filteredAndSortedData = useMemo(() => {
         let filtered = marketData.filter(

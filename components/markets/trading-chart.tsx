@@ -9,6 +9,9 @@ import { CandlestickData, Time } from "lightweight-charts"
 
 // type CandleData = CandlestickData
 
+const BACKENT_SERVER_API = process.env.BACKENT_SERVER_API
+
+
 const MAX_RECONNECT_ATTEMPTS = 5
 let reconnectAttempts = 0
 
@@ -337,7 +340,7 @@ export function TradingChart({ pair }: TradingChartProps) {
             // }
 
             // 建立新的 WebSocket 连接
-            const ws = new WebSocket(`ws://127.0.0.1:3001/ws?exchange=${selectedExchange}&symbol=${pair}&interval_ms=${getFrequencyMs(interval)}`)
+            const ws = new WebSocket(`ws://${BACKENT_SERVER_API}/ws?exchange=${selectedExchange}&symbol=${pair}&interval_ms=${getFrequencyMs(interval)}`)
             wsRef.current = ws
 
             ws.onmessage = (event) => {

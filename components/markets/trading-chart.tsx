@@ -337,7 +337,7 @@ export function TradingChart({ pair }: TradingChartProps) {
             // }
 
             // 建立新的 WebSocket 连接
-            const ws = new WebSocket(`ws://127.0.0.1:9001/?exchange=${selectedExchange}&symbol=${pair}&interval_ms=${getFrequencyMs(interval)}`)
+            const ws = new WebSocket(`ws://127.0.0.1:3001/ws?exchange=${selectedExchange}&symbol=${pair}&interval_ms=${getFrequencyMs(interval)}`)
             wsRef.current = ws
 
             ws.onmessage = (event) => {

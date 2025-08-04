@@ -340,6 +340,7 @@ export default function LiveMarketsPage() {
                                             Market Cap
                                         </TableHead>
                                         <TableHead className="text-right font-semibold">24h Range</TableHead>
+                                        <TableHead className="text-center font-semibold">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -395,6 +396,19 @@ export default function LiveMarketsPage() {
                                                     <div className="text-red-600">{formatPrice(item.low24h)}</div>
                                                     <div className="text-green-600">{formatPrice(item.high24h)}</div>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRowClick(item.symbol);
+                                                    }}
+                                                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 font-medium px-3 py-1 text-xs rounded-md transition-all duration-200"
+                                                >
+                                                    Trade
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}

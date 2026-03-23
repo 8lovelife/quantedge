@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ASTRA — AI Quant Terminal (Light)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{
+  /* Light Theme - QuantEdge Inspired */
+  --bg:#ffffff;--bg1:#f8fafc;--bg2:#f1f5f9;--bg3:#e2e8f0;
+  --line:rgba(100,116,139,.15);--muted:#94a3b8;--text2:#64748b;--text1:#334155;--text0:#0f172a;
+  --green:#10b981;--green-dim:rgba(16,185,129,.1);
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,.1);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,.1);
+  --red:#ef4444;--red-dim:rgba(239,68,68,.1);
+  --purple:#8b5cf6;--purple-dim:rgba(139,92,246,.1);
+  --violet:#7c3aed;
+  --cyan:#06b6d4;--cyan-dim:rgba(6,182,212,.1);
+  /* accent gradient */
+  --grad:linear-gradient(135deg,#7c3aed,#3b82f6);
+  --grad-soft:linear-gradient(135deg,rgba(124,58,237,.08),rgba(59,130,246,.08));
+  --r:8px;--r-lg:12px;
+  --draft-c:#f59e0b;--draft-dim:rgba(245,158,11,.1);
+  --bt-c:#3b82f6;  --bt-dim:rgba(59,130,246,.1);
+  --paper-c:#8b5cf6;--paper-dim:rgba(139,92,246,.1);
+  --live-c:#10b981; --live-dim:rgba(16,185,129,.1);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06);
+  --shadow-md:0 4px 16px rgba(0,0,0,.08);
+  --glow-purple:0 0 20px rgba(139,92,246,.15);
+  --glow-green:0 0 12px rgba(16,185,129,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg1);
+  color:var(--text1);
+  font-family:'Inter',sans-serif;
+  font-size:14px;height:100vh;overflow:hidden;
+}
+/* Subtle gradient background */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(124,58,237,.03) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 35% at 80% 80%, rgba(59,130,246,.03) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 60% 30%, rgba(139,92,246,.02) 0%, transparent 50%);
+}
+
+/* NAV */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:56px;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--line);
+  z-index:100;position:relative;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.nav-logo{
+  font-family:'Inter',sans-serif;font-size:18px;font-weight:700;
+  background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.02em;
+}
+.nav-logo sub{font-size:10px;font-weight:500;opacity:.7;-webkit-text-fill-color:var(--text2);}
+.nav-status{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:var(--glow-green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-badge{
+  padding:3px 12px;border-radius:20px;
+  background:var(--green-dim);border:1px solid rgba(16,185,129,.2);
+  font-size:11px;color:var(--green);font-weight:600;
+}
+
+/* ROOT LAYOUT */
+.layout{display:grid;grid-template-columns:240px 1fr 280px;height:calc(100vh - 56px);overflow:hidden;}
+.layout>*{min-height:0;}
+
+/* ── LEFT ── */
+.sidebar-left{border-right:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden;height:100%;min-height:0;}
+.s-sec{padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;}
+.s-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;font-weight:500;}
+.asset-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;cursor:pointer;transition:all .15s;border-radius:var(--r);}
+.asset-row:hover{background:var(--bg2);padding-left:6px;padding-right:6px;margin:0 -6px;}
+.asset-name{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text0);font-weight:500;}
+.asset-sub{font-size:10px;color:var(--text2);}
+.asset-price{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;}
+.up{color:var(--green);}.down{color:var(--red);}
+
+/* strategy list */
+.strat-list-header{padding:10px 14px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.strat-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 10px 10px;min-height:0;}
+.sc{margin-bottom:8px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);cursor:pointer;transition:all .2s;position:relative;box-shadow:var(--shadow-sm);}
+.sc-chevron{position:absolute;top:11px;right:11px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:color .15s;}
+.sc-chevron::after{content:'';display:block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;transition:transform .28s cubic-bezier(.4,0,.2,1),color .15s;}
+.sc.active .sc-chevron{color:var(--purple);}
+.sc.active.panel-open .sc-chevron::after{transform:rotate(180deg);}
+.sc.active:not(.panel-open) .sc-chevron::after{transform:rotate(0deg);}
+.sc:hover{border-color:rgba(139,92,246,.3);box-shadow:var(--shadow-md);}
+/* expand/collapse hint - subtle bottom indicator */
+.sc-hint{
+  display:none;
+  margin-top:8px;
+  padding-top:6px;
+  border-top:1px dashed var(--line);
+  text-align:center;
+  cursor:pointer;
+}
+.sc.active .sc-hint{display:block;}
+.sc-hint-icon{
+  display:inline-block;
+  width:16px;height:10px;
+  position:relative;
+}
+.sc-hint-icon::before{
+  content:'';position:absolute;left:50%;top:50%;
+  width:6px;height:6px;
+  border-right:1.5px solid var(--muted);
+  border-bottom:1.5px solid var(--muted);
+  transform:translate(-50%,-70%) rotate(45deg);
+  transition:all .2s;
+}
+.sc.active:hover .sc-hint-icon::before{border-color:var(--purple);}
+.sc.active.panel-open .sc-hint-icon::before{transform:translate(-50%,-30%) rotate(-135deg);}
+.sc-hint:hover .sc-hint-icon::before{border-color:var(--purple);}
+.sc.active{border-color:var(--purple);background:linear-gradient(135deg,rgba(124,58,237,.04),rgba(59,130,246,.04));box-shadow:0 0 0 3px rgba(139,92,246,.1);}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.sc-name{font-size:13px;color:var(--text0);font-weight:600;}
+.sc-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);}
+.sc-ret{font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:4px;font-weight:500;}
+/* 4-pip stage bar */
+.sc-pips{display:flex;gap:3px;margin-top:6px;}
+.pip{height:4px;flex:1;border-radius:2px;background:var(--bg3);}
+.pip.p-draft{background:var(--draft-c);}
+.pip.p-bt   {background:var(--bt-c);}
+.pip.p-paper{background:var(--paper-c);}
+.pip.p-live {background:var(--live-c);}
+.pip.p-pulse{animation:pipB 1.2s infinite;}
+@keyframes pipB{0%,100%{opacity:1}50%{opacity:.3}}
+/* badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:500;}
+.b-live  {background:var(--green-dim);color:var(--green);}
+.b-draft {background:var(--amber-dim);color:var(--amber);}
+.b-paper {background:var(--purple-dim);color:var(--purple);}
+.b-bt    {background:var(--blue-dim);color:var(--blue);}
+.b-paused{background:var(--bg3);color:var(--muted);}
+/* new strategy button */
+.new-strat-btn{padding:6px 14px;border-radius:20px;background:var(--grad);border:none;color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(124,58,237,.25);}
+.new-strat-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,58,237,.3);}
+
+/* ── CENTER MAIN ── */
+.main{display:flex;flex-direction:row;overflow:hidden;background:var(--bg1);height:100%;}
+
+/* ── STRATEGY PANEL (upper, fixed height, scrollable internally) ── */
+.strat-panel{
+  flex-shrink:0;
+  background:var(--bg);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  overflow:hidden;min-width:0;height:100%;
+  width:55%;
+  transition:width .32s cubic-bezier(.4,0,.2,1);
+  box-shadow:1px 0 3px rgba(0,0,0,.03);
+}
+.strat-panel.collapsed{width:0 !important;border-right:none;}
+.strat-panel .panel-body{
+  opacity:1;
+  transition:opacity .18s ease .1s;
+}
+.strat-panel.collapsed .panel-body{
+  opacity:0;pointer-events:none;
+  transition:opacity .1s ease;
+}
+/* resize handle becomes vertical */
+.strat-panel + .resize-handle{
+  width:4px;height:100%;cursor:ew-resize;flex-shrink:0;
+  background:var(--line);position:relative;
+  transition:background .15s,opacity .2s ease .1s;
+  opacity:1;
+}
+.strat-panel.collapsed + .resize-handle{
+  opacity:0;pointer-events:none;width:0;
+  transition:opacity .1s,width .32s cubic-bezier(.4,0,.2,1);
+}
+.strat-panel + .resize-handle:hover,
+.strat-panel + .resize-handle.dragging{background:var(--purple);}
+.strat-panel + .resize-handle::before{
+  content:'';position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:2px;height:32px;
+  background:currentColor;border-radius:1px;opacity:.4;
+}
+
+/* panel header: strat name + stage tabs */
+.panel-header{display:flex;align-items:stretch;border-bottom:1px solid var(--line);flex-shrink:0;background:var(--bg);min-height:0;}
+.panel-strat-info{padding:10px 16px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line);min-width:0;}
+
+.panel-strat-name{font-size:14px;font-weight:600;color:var(--text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.panel-strat-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);margin-top:2px;}
+
+/* stage tabs row */
+.stage-tabs{display:flex;flex:1;}
+.stage-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 10px;border-right:1px solid var(--line);cursor:pointer;position:relative;transition:all .2s;gap:3px;background:var(--bg);}
+.stage-tab:last-child{border-right:none;}
+.stage-tab:hover:not(.st-locked){background:var(--bg2);}
+.stage-tab.st-active{background:var(--grad-soft);}
+.stage-tab::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:transparent;transition:background .15s;}
+.stage-tab.st-active::after{background:var(--tab-color);}
+.stage-tab.st-locked{opacity:.4;cursor:default;}
+.st-num{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;border:1.5px solid var(--tab-color,var(--muted));color:var(--tab-color,var(--muted));font-weight:600;}
+.stage-tab.st-done .st-num,.stage-tab.st-active .st-num{background:var(--tab-color);color:#fff;}
+.st-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tab-color,var(--muted));font-weight:600;}
+.stage-tab.st-locked .st-name,.stage-tab.st-locked .st-num{color:var(--muted);border-color:var(--muted);}
+.st-status{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text2);}
+.stage-tab.st-done .st-status{color:var(--green);}
+.stage-tab.st-active .st-status{color:var(--tab-color);}
+
+/* panel body: scrollable content area */
+.panel-body{flex:1;overflow-y:scroll;overflow-x:hidden;padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-height:0;background:var(--bg1);}
+
+/* resize handle between panel and chat */
+.resize-handle{height:4px;background:var(--line);cursor:ns-resize;flex-shrink:0;position:relative;transition:background .15s;}
+.resize-handle:hover,.resize-handle.dragging{background:var(--purple);}
+.resize-handle::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:32px;height:2px;background:currentColor;border-radius:1px;opacity:.4;}
+
+/* ── AI CHAT (lower) ── */
+.chat-area{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;height:100%;background:var(--bg1);}
+.chat-feed{flex:1;min-height:0;overflow-y:scroll;overflow-x:hidden;padding:14px 18px;display:flex;flex-direction:column;gap:12px;}
+.chat-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;opacity:.5;}
+.chat-empty-icon{font-size:28px;color:var(--purple);}
+.chat-empty-text{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);}
+
+/* chat messages */
+.user-msg{align-self:flex-end;max-width:68%;min-width:0;word-break:break-word;background:var(--grad);border-radius:14px 14px 4px 14px;padding:10px 16px;font-family:'Inter',sans-serif;font-size:13px;color:#fff;box-shadow:0 2px 8px rgba(124,58,237,.2);}
+.ai-msg{background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--purple);border-radius:var(--r-lg);animation:msgIn .25s ease;box-shadow:var(--shadow-sm);}
+@keyframes msgIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+.ai-msg-head{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2);}
+.ai-orb{width:20px;height:20px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0;box-shadow:0 2px 6px rgba(124,58,237,.25);}
+.ai-msg-label{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--purple);flex:1;}
+.ai-msg-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.ai-msg-body{padding:12px;}
+.ai-msg-body p{font-size:13px;color:var(--text1);line-height:1.65;margin-bottom:8px;}
+.ai-msg-body p:last-child{margin-bottom:0;}
+
+/* INPUT BAR */
+.input-bar{border-top:1px solid var(--line);background:var(--bg);flex-shrink:0;padding:10px 16px 12px;display:flex;flex-direction:column;gap:8px;}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{padding:5px 12px;border-radius:20px;background:var(--bg2);border:1px solid var(--line);font-size:11px;color:var(--text2);cursor:pointer;transition:all .18s;font-family:'Inter',sans-serif;font-weight:500;}
+.chip:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-dim);}
+.input-wrap{display:flex;align-items:flex-end;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:10px 14px;transition:all .2s;box-shadow:var(--shadow-sm);}
+.input-wrap:focus-within{border-color:var(--purple);box-shadow:0 0 0 3px rgba(139,92,246,.1);}
+textarea.nl-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--text0);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;max-height:64px;}
+textarea.nl-input::placeholder{color:var(--muted);}
+.send-btn{padding:8px 20px;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;flex-shrink:0;border:none;background:var(--grad);color:#fff;letter-spacing:.01em;box-shadow:0 2px 8px rgba(124,58,237,.25);}
+.send-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,58,237,.3);}
+
+/* ── RIGHT ── */
+.sidebar-right{border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden;height:100%;min-height:0;}
+.r-head{padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;background:var(--bg);}
+.r-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-weight:500;}
+.log-scroll{flex:1;overflow-y:scroll;overflow-x:hidden;padding:8px 12px;min-height:0;}
+.log-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg2);}
+.log-item:last-child{border-bottom:none;}
+.log-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);flex-shrink:0;padding-top:1px;min-width:36px;}
+.log-b{font-size:12px;color:var(--text2);line-height:1.45;}
+.log-b .hi{color:var(--purple);font-weight:500;}.log-b .buy{color:var(--green);font-weight:500;}.log-b .sell{color:var(--red);font-weight:500;}.log-b .warn{color:var(--amber);font-weight:500;}
+.log-b .mono{font-family:'JetBrains Mono',monospace;font-size:10px;}
+
+/* ── PANEL CONTENT COMPONENTS ── */
+.stat-grid{display:grid;gap:10px;}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+.stat-cell{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm);}
+.stat-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:.04em;font-weight:500;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:20px;line-height:1;color:var(--text0);font-weight:600;}
+.stat-val.g{color:var(--green);}.stat-val.r{color:var(--red);}.stat-val.t{color:var(--cyan);}.stat-val.p{color:var(--purple);}.stat-val.a{color:var(--amber);}
+.stat-sub{font-size:10px;color:var(--text2);margin-top:4px;}
+
+.section-title{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.06em;margin-bottom:8px;margin-top:6px;font-weight:500;text-transform:uppercase;}
+.data-table{width:100%;border-collapse:collapse;background:var(--bg);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+.data-table th{padding:8px 10px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);border-bottom:1px solid var(--line);font-weight:500;background:var(--bg2);}
+.data-table td{padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text1);border-bottom:1px solid var(--bg2);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--bg2);}
+.td-b{color:var(--green);font-weight:500;}.td-s{color:var(--red);font-weight:500;}.td-p{color:var(--green);font-weight:500;}.td-n{color:var(--red);font-weight:500;}
+
+.dsl-block{background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--purple);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm);}
+.dsl-block pre{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text1);line-height:1.7;}
+.kw{color:var(--purple);font-weight:500;}.val{color:var(--cyan);}.cm{color:var(--muted);}.str{color:var(--green);}.nm{color:var(--amber);}
+
+.notice{padding:10px 12px;border-radius:var(--r);font-size:12px;line-height:1.5;margin-bottom:4px;}
+.notice-purple{background:var(--purple-dim);border:1px solid rgba(139,92,246,.25);color:var(--text1);}
+.notice-purple strong{color:var(--purple);}
+.notice-amber{background:var(--amber-dim);border:1px solid rgba(245,158,11,.25);color:var(--text1);}
+.notice-amber strong{color:var(--amber);}
+.notice-muted{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--muted);color:var(--text2);}
+.notice-green{background:var(--green-dim);border:1px solid rgba(16,185,129,.25);color:var(--text1);}
+.notice-green strong{color:var(--green);}
+
+.act-row{display:flex;gap:10px;}
+.act-btn{flex:1;padding:10px;border-radius:var(--r-lg);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s;border:1px solid;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:500;}
+.act-btn.bt    {background:var(--bt-dim);   border-color:var(--bt-c);   color:var(--bt-c);}
+.act-btn.bt:hover    {background:var(--bt-c);   color:#fff;}
+.act-btn.paper {background:var(--paper-dim);border-color:var(--paper-c);color:var(--paper-c);}
+.act-btn.paper:hover {background:var(--paper-c);color:#fff;}
+.act-btn.live  {background:var(--red-dim);  border-color:var(--red);    color:var(--red);}
+.act-btn.live:hover  {background:var(--red);    color:#fff;}
+.act-btn.stop  {background:var(--bg2);border-color:var(--muted);color:var(--text2);}
+.act-btn.stop:hover  {border-color:var(--red);color:var(--red);}
+.act-btn.resume{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.act-btn.resume:hover{background:var(--green);color:#fff;}
+.act-btn.sec   {background:var(--bg2);border-color:var(--line);color:var(--text2);font-size:10px;}
+.act-btn.sec:hover{border-color:var(--text2);color:var(--text0);}
+
+canvas.cvs{width:100%;height:140px;display:block;border-radius:var(--r);background:var(--bg);}
+.mini-bar-wrap{display:flex;align-items:center;gap:10px;}
+.mini-bar-track{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.mini-bar-fill{height:100%;border-radius:2px;transition:width .3s;}
+.mini-txt{font-family:'JetBrains Mono',monospace;font-size:10px;min-width:40px;text-align:right;font-weight:500;}
+
+/* novice card inside draft */
+.plain-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.plain-card{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm);}
+.plain-emoji{font-size:18px;margin-bottom:6px;}
+.plain-lbl{font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:500;}
+.plain-val{font-size:14px;font-weight:600;color:var(--text0);}
+.plain-val.g{color:var(--green);}.plain-val.r{color:var(--red);}.plain-val.a{color:var(--amber);}
+.plain-hint{font-size:10px;color:var(--text2);margin-top:4px;line-height:1.45;}
+
+.pro-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 0;}
+.pro-toggle-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);font-weight:500;}
+.pro-toggle-label:hover{color:var(--purple);}
+
+/* sent/sentiment */
+.sent-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.sent-src{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);min-width:72px;font-weight:500;}
+.sent-track{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.sent-fill{height:100%;border-radius:2px;}
+.sent-mood{font-family:'JetBrains Mono',monospace;font-size:10px;min-width:30px;text-align:right;font-weight:500;}
+
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:8000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(4px);}
+.modal-backdrop.show{opacity:1;pointer-events:all;}
+.modal{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);width:440px;overflow:hidden;transform:scale(.95);transition:transform .2s;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+.modal-backdrop.show .modal{transform:scale(1);}
+.modal-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line);background:var(--bg2);}
+.modal-title{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text0);font-weight:600;}
+.modal-body{padding:16px 18px;font-size:13px;color:var(--text2);line-height:1.65;}
+.modal-body strong{color:var(--text0);}
+.risk-list{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.risk-item{display:flex;gap:10px;}
+.risk-item span:first-child{color:var(--red);flex-shrink:0;}
+.modal-foot{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);justify-content:flex-end;background:var(--bg2);}
+.modal-cancel{padding:8px 18px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;font-weight:500;}
+.modal-cancel:hover{color:var(--text0);border-color:var(--text2);}
+.modal-confirm{padding:8px 18px;background:var(--red-dim);border:1px solid var(--red);border-radius:6px;color:var(--red);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;font-weight:500;}
+.modal-confirm:hover{background:var(--red);color:#fff;}
+
+/* toast */
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px 20px;font-family:'JetBrains Mono',monospace;font-size:12px;z-index:9000;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow-md);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.t-warn{border-color:var(--amber);color:var(--amber);}
+.toast.t-ok{border-color:var(--green);color:var(--green);}
+
+@keyframes rowFade{from{background:rgba(16,185,129,.08);}to{background:transparent;}}
+.tr-new{animation:rowFade .5s ease;}
+
+/* Strategy gen card styles */
+.sg-stat{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;}
+.sg-lbl{font-size:10px;color:var(--muted);margin-bottom:4px;font-family:'JetBrains Mono',monospace;font-weight:500;}
+.sg-val{font-size:18px;font-weight:600;color:var(--text0);font-family:'JetBrains Mono',monospace;}
+.sg-val.g{color:var(--green);}.sg-val.r{color:var(--red);}.sg-val.a{color:var(--amber);}
+.sg-sub{font-size:10px;color:var(--text2);margin-top:3px;}
+.sg-dsl{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--purple);border-radius:var(--r);overflow:hidden;margin-top:4px;}
+.sg-dsl-head{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-bottom:1px solid var(--line);background:var(--bg);}
+.sg-dsl pre{padding:10px 12px;}
+/* Thinking dots animation */
+.thinking-dots{display:flex;gap:5px;align-items:center;}
+.thinking-dots span{width:7px;height:7px;border-radius:50%;background:var(--purple);opacity:.4;animation:tdot 1.2s infinite;}
+.thinking-dots span:nth-child(2){animation-delay:.2s;}
+.thinking-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes tdot{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+
+/* scrollbars */
+.panel-body::-webkit-scrollbar,.chat-feed::-webkit-scrollbar,.strat-list::-webkit-scrollbar,.log-scroll::-webkit-scrollbar{width:5px;}
+.panel-body::-webkit-scrollbar-thumb,.chat-feed::-webkit-scrollbar-thumb,.strat-list::-webkit-scrollbar-thumb,.log-scroll::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+.panel-body::-webkit-scrollbar-track,.chat-feed::-webkit-scrollbar-track,.strat-list::-webkit-scrollbar-track,.log-scroll::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-head"><span style="font-size:18px">⚠️</span><span class="modal-title">确认启动实盘运行</span></div>
+    <div class="modal-body">
+      <strong>这将使用你的真实资金进行自动交易。</strong>
+      <div class="risk-list">
+        <div class="risk-item"><span>▸</span><span>策略将 7×24 小时自动买卖，不会自动停止</span></div>
+        <div class="risk-item"><span>▸</span><span>市场剧烈波动时实际亏损可能超出止损设定值</span></div>
+        <div class="risk-item"><span>▸</span><span>当前仓位为账户总资金的 <strong style="color:var(--amber)">10%</strong>，首次实盘建议调低至 5%</span></div>
+        <div class="risk-item"><span>▸</span><span>随时可点击面板内「暂停」彻底停止策略</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="modal-cancel" onclick="closeModal()">取消</button>
+      <button class="modal-confirm" onclick="confirmLive()">我已了解，启动实盘 →</button>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <div class="nav-logo">QuantEdge<sub>AI</sub></div>
+  <div class="nav-status">
+    <div class="dot"></div>
+    <span class="nav-badge">ENGINE LIVE</span>
+    <span style="color:var(--muted);margin:0 8px">·</span>
+    <span style="color:var(--text2)">BTC</span>
+    <span style="color:var(--text0);font-weight:600;margin:0 4px" id="btc-nav">84,231</span>
+    <span style="color:var(--green);font-size:11px">+2.41%</span>
+    <span style="color:var(--muted);margin:0 8px">·</span>
+    <span style="color:var(--text2)">ETH</span>
+    <span style="color:var(--text0);font-weight:600;margin-left:4px">3,182</span>
+    <span style="color:var(--green);font-size:11px;margin-left:3px">+1.87%</span>
+  </div>
+</nav>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="sidebar-left">
+    <div class="s-sec">
+      <div class="s-lbl">市场行情</div>
+      <div class="asset-row"><div><div class="asset-name">BTC/USDT</div><div class="asset-sub">Bitcoin</div></div><div style="text-align:right"><div class="asset-price up">84,231</div><div class="asset-sub up">+2.41%</div></div></div>
+      <div class="asset-row"><div><div class="asset-name">ETH/USDT</div><div class="asset-sub">Ethereum</div></div><div style="text-align:right"><div class="asset-price up">3,182</div><div class="asset-sub up">+1.87%</div></div></div>
+      <div class="asset-row"><div><div class="asset-name">SOL/USDT</div><div class="asset-sub">Solana</div></div><div style="text-align:right"><div class="asset-price down">148.30</div><div class="asset-sub down">-0.62%</div></div></div>
+      <div class="asset-row"><div><div class="asset-name">BNB/USDT</div><div class="asset-sub">BNB</div></div><div style="text-align:right"><div class="asset-price up">612.4</div><div class="asset-sub up">+0.94%</div></div></div>
+    </div>
+    <div class="strat-list-header">
+      <span class="s-lbl" style="margin:0">我的策略</span>
+      <button class="new-strat-btn" onclick="promptNewStrategy()">+ 新建</button>
+    </div>
+    <div class="strat-list" id="strat-list"></div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="main" id="main">
+
+    <!-- STRATEGY PANEL -->
+    <div class="strat-panel" id="strat-panel">
+      <div class="panel-header" id="panel-header">
+        <!-- rendered by JS -->
+      </div>
+      <div class="panel-body" id="panel-body">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+
+    <!-- RESIZE HANDLE -->
+    <div class="resize-handle" id="resize-handle"></div>
+
+    <!-- AI CHAT AREA -->
+    <div class="chat-area">
+      <div class="chat-feed" id="chat-feed">
+        <div class="chat-empty" id="chat-empty">
+          <div class="chat-empty-icon">✦</div>
+          <div class="chat-empty-text">告诉我你的投资想法，AI 帮你生成策略</div>
+          <div class="chat-empty-text" style="margin-top:4px;font-size:11px;opacity:.7">例如："我要最近7天可以赚钱的投资"</div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <div class="chip-row">
+          <span class="chip" onclick="chip(this)">最近7天可以赚钱的投资</span>
+          <span class="chip" onclick="chip(this)">稳健 BTC 收益策略</span>
+          <span class="chip" onclick="chip(this)">低风险 ETH 网格</span>
+          <span class="chip" onclick="chip(this)">BTC 行情</span>
+          <span class="chip" onclick="chip(this)">我的持仓</span>
+        </div>
+        <div class="input-wrap">
+          <textarea class="nl-input" id="nl-input" rows="2"
+            placeholder="用自然语言描述你的需求，例如「我要最近7天可以赚钱的投资」或「帮我做个稳健的BTC策略」…"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+          <button class="send-btn" onclick="sendChat()">发送 →</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="sidebar-right">
+    <div class="r-head"><div class="r-lbl">执行日志</div></div>
+    <div class="log-scroll" id="log-scroll"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   DATA MODEL
+═══════════════════════════════════════════ */
+const strategies = [
+  {id:'s1',name:'均线突破策略',asset:'BTC/USDT',tf:'4h',type:'趋势',ret:'+12.4%',retHint:'本月实盘'},
+  {id:'s2',name:'网格交易 ETH',  asset:'ETH/USDT',tf:'1h',type:'震荡',ret:'+6.8%', retHint:'模拟中'},
+  {id:'s3',name:'情绪反转 SOL',  asset:'SOL/USDT',tf:'1d',type:'情绪',ret:'',       retHint:'回测中'},
+  {id:'s4',name:'跨所套利',      asset:'BTC/ETH', tf:'15m',type:'套利',ret:'',      retHint:'待回测'},
+];
+const strat = {};
+strategies.forEach(s => {
+  const init = {
+    s1:{draft:'done',bt:'done',paper:'done',live:'running'},
+    s2:{draft:'done',bt:'done',paper:'running',live:'locked'},
+    s3:{draft:'done',bt:'running',paper:'locked',live:'locked'},
+    s4:{draft:'done',bt:'ready',paper:'locked',live:'locked'},
+  }[s.id];
+  strat[s.id] = {
+    stages: {...init},
+    activeTab: Object.keys(init).reverse().find(k => init[k]==='running'||init[k]==='done') || 'draft',
+    btPts:[], btSigs:[], btDone: s.id!=='s3'&&s.id!=='s4',
+    paperPts:[], paperSigs:[], paperRef:[], paperDone: s.id==='s1',
+    livePts:[], liveSigs:[],
+    showPro: false,
+  };
+});
+
+let activeId = 's1';
+let chartAnim = null, liveInterval = null;
+
+const sc = () => strat[activeId];
+const ss = () => strat[activeId].stages;
+
+/* ═══════════════════════════════════════════
+   RESIZE HANDLE
+═══════════════════════════════════════════ */
+(function initResize(){
+  const handle = document.getElementById('resize-handle');
+  const panel  = document.getElementById('strat-panel');
+  const main   = document.getElementById('main');
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; startW = panel.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    panel.style.transition = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const mainW = main.offsetWidth;
+    const newW = Math.min(Math.max(startW + e.clientX - startX, 200), mainW - 220);
+    panel.style.width = newW + 'px';
+    panel.style.flex = 'none';
+    panel._savedWidth = newW;
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    panel.style.transition = '';
+  });
+})();
+
+/* ═══════════════════════════════════════════
+   LEFT STRATEGY LIST
+═══════════════════════════════════════════ */
+const stageColors = {draft:'#f59e0b',bt:'#3b82f6',paper:'#8b5cf6',live:'#10b981'};
+const stageNames  = {draft:'草稿',bt:'回测',paper:'模拟交易',live:'实盘运行'};
+
+function pipClass(k, st) {
+  if (st==='done') return `pip p-${k}`;
+  if (st==='running'||st==='paused') return `pip p-${k} p-pulse`;
+  return 'pip';
+}
+
+function topBadge(stages) {
+  const order = ['live','paper','bt','draft'];
+  for (const k of order) {
+    const st = stages[k];
+    if (st==='running') return `<span class="badge ${{live:'b-live',paper:'b-paper',bt:'b-bt',draft:'b-draft'}[k]}">${{live:'实盘中',paper:'模拟中',bt:'回测中',draft:'草稿'}[k]}</span>`;
+    if (st==='paused')  return `<span class="badge b-paused">已暂停</span>`;
+    if (st==='done' && k!=='draft') return `<span class="badge b-live">已完成</span>`;
+  }
+  return `<span class="badge b-draft">草稿</span>`;
+}
+
+function renderStratList() {
+  const panel = document.getElementById('strat-panel');
+  const panelOpen = panel && !panel.classList.contains('collapsed');
+  
+  document.getElementById('strat-list').innerHTML = strategies.map(s => {
+    const st = strat[s.id];
+    const active = s.id === activeId;
+    const rc = s.ret.startsWith('+')?'color:var(--green)':s.ret.startsWith('-')?'color:var(--red)':'color:var(--muted)';
+    const pips = ['draft','bt','paper','live'].map(k => `<div class="${pipClass(k, st.stages[k])}"></div>`).join('');
+    
+    // 底部微妙的展开/收起提示
+    const hint = `<div class="sc-hint" onclick="event.stopPropagation();togglePanel()"><span class="sc-hint-icon"></span></div>`;
+    
+    return `<div class="sc${active?' active':''}${active && panelOpen?' panel-open':''}" onclick="switchStrat('${s.id}')">
+      <div class="sc-top"><div class="sc-name">${s.name}</div>${topBadge(st.stages)}</div>
+      <div class="sc-meta">${s.asset} · ${s.type} · ${s.tf}</div>
+      <div class="sc-ret" style="${rc}">${s.ret||s.retHint}${s.ret?` <span style="color:var(--text2)">${s.retHint}</span>`:''}</div>
+      <div class="sc-pips">${pips}</div>
+      ${hint}
+    </div>`;
+  }).join('');
+}
+
+function switchStrat(id) {
+  if (id === activeId) {
+    togglePanel();
+    return;
+  }
+  stopAnimations();
+  activeId = id;
+  const panel = document.getElementById('strat-panel');
+  if (panel.classList.contains('collapsed')) {
+    const savedW = panel._savedWidth || Math.round(document.getElementById('main').offsetWidth * 0.55);
+    panel.style.width = savedW + 'px';
+    panel.style.flex = 'none';
+    panel.classList.remove('collapsed');
+  }
+  renderStratList();
+  renderPanel();
+  addLog('→', `<span class="hi">切换</span> ${strategies.find(s=>s.id===id).name}`);
+}
+
+/* ═══════════════════════════════════════════
+   STRATEGY PANEL
+═══════════════════════════════════════════ */
+function renderPanel() {
+  renderPanelHeader();
+  renderPanelBody();
+}
+
+function renderPanelHeader() {
+  const s = strategies.find(x => x.id === activeId);
+  const stages = ss();
+  const tabs = ['draft','bt','paper','live'].map((k, i) => {
+    const st = stages[k];
+    const c = stageColors[k];
+    const isActive = sc().activeTab === k;
+    const locked = st === 'locked';
+    let stClass = locked ? 'st-locked' : isActive ? 'st-active' : '';
+    if (st === 'done') stClass += ' st-done';
+    const statusTxt = st==='locked'? `🔒 ${k==='paper'?'需完成回测':'需完成模拟'}` :
+                      st==='ready' ? '▸ 点击开始' :
+                      st==='running'? '● 运行中' :
+                      st==='paused' ? '⏸ 已暂停' :
+                      st==='done'   ? (k==='draft'?'✓ 已生成':'✓ 完成') : '';
+    return `<div class="stage-tab ${stClass}" style="--tab-color:${c}" onclick="tabClick('${k}')">
+      <div class="st-num">${i+1}</div>
+      <div class="st-name">${stageNames[k]}</div>
+      <div class="st-status">${statusTxt}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('panel-header').innerHTML = `
+    <div class="panel-strat-info">
+      <div class="panel-strat-name">${s.name}</div>
+      <div class="panel-strat-meta">${s.asset} · ${s.type} · ${s.tf}</div>
+    </div>
+    <div class="stage-tabs">${tabs}</div>`;
+}
+
+function renderPanelBody() {
+  const tab = sc().activeTab;
+  const body = document.getElementById('panel-body');
+  body.innerHTML = '';
+  if (tab === 'draft')  renderDraftTab(body);
+  if (tab === 'bt')     renderBtTab(body);
+  if (tab === 'paper')  renderPaperTab(body);
+  if (tab === 'live')   renderLiveTab(body);
+  if (tab === 'live' && ss().live === 'running') {
+    setTimeout(() => runLiveAnim(), 60);
+  }
+  if (tab === 'bt' && ss().bt === 'running') {
+    setTimeout(() => runBtAnim(), 60);
+  }
+  if (tab === 'paper' && ss().paper === 'running') {
+    setTimeout(() => runPaperAnim(), 60);
+  }
+}
+
+function tabClick(k) {
+  const s = ss()[k];
+  if (s === 'locked') {
+    showToast('warn', '🔒 '+(k==='paper'?'需要先完成「回测」':'需要先完成「模拟交易」'));
+    return;
+  }
+  if (k === 'live' && s === 'ready') { document.getElementById('modal').classList.add('show'); return; }
+  if (k === 'bt'    && s === 'ready') { startBacktest(); return; }
+  if (k === 'paper' && s === 'ready') { startPaper(); return; }
+  sc().activeTab = k;
+  stopAnimations();
+  renderPanelHeader();
+  renderPanelBody();
+}
+
+/* ─────────────────────────────────────────
+   DRAFT TAB
+───────────────────────────────────────── */
+function renderDraftTab(body) {
+  const showPro = sc().showPro;
+
+  const plain = el('div', 'plain-grid');
+  plain.innerHTML = `
+    <div class="plain-card">
+      <div class="plain-emoji">💰</div>
+      <div class="plain-lbl">过去3个月如果用这个策略</div>
+      <div class="plain-val g">大概赚了 34%</div>
+      <div class="plain-hint">投入 ¥10,000 约多了 ¥3,400（历史数据，不代表未来）</div>
+    </div>
+    <div class="plain-card">
+      <div class="plain-emoji">🎯</div>
+      <div class="plain-lbl">10次交易里</div>
+      <div class="plain-val a">大概 6次 赚钱</div>
+      <div class="plain-hint">4次亏损，但赚的时候比亏的时候多，整体正收益</div>
+    </div>
+    <div class="plain-card">
+      <div class="plain-emoji">🛡️</div>
+      <div class="plain-lbl">最坏情况</div>
+      <div class="plain-val r">最多亏过 8%</div>
+      <div class="plain-hint">即 ¥10,000 最多单次亏 ¥800，之后自动止损离场</div>
+    </div>
+    <div class="plain-card">
+      <div class="plain-emoji">⏱️</div>
+      <div class="plain-lbl">需要你做什么</div>
+      <div class="plain-val" style="font-size:13px">几乎不用管</div>
+      <div class="plain-hint">每4小时自动检查一次行情，条件满足自动买卖</div>
+    </div>`;
+  body.appendChild(plain);
+
+  const rules = el('div');
+  rules.innerHTML = `
+    <div class="section-title">策略规则（白话版）</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${[['🟢','什么时候买？','当短期趋势超过长期趋势，且今天交易量比平时多30%，自动买入。'],
+         ['🔴','什么时候卖？','涨了 <strong>6%</strong> 锁定利润；或跌超 <strong>2%</strong> 自动止损，不让亏太多。'],
+         ['💼','每次用多少钱？','每次最多用账户的 <strong>10%</strong>，不会把所有钱押上。'],
+      ].map(([ic,t,d])=>`<div style="display:flex;gap:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm)">
+        <span style="font-size:16px;flex-shrink:0">${ic}</span>
+        <div><div style="font-size:13px;color:var(--text0);margin-bottom:3px;font-weight:500">${t}</div><div style="font-size:12px;color:var(--text2);line-height:1.55">${d}</div></div>
+      </div>`).join('')}
+    </div>`;
+  body.appendChild(rules);
+
+  const proRow = el('div', 'pro-toggle');
+  proRow.innerHTML = `<span class="pro-toggle-label" onclick="togglePro()">⚙ ${showPro?'▲ 收起':'▼ 查看'} 专业模式（DSL代码）</span>`;
+  body.appendChild(proRow);
+
+  if (showPro) {
+    const pp = sc().parsedParams || {name:'均线突破策略',asset:'BTC/USDT',tf:'4h',sl:'2%',tp:'6%',pos:'10%',stratType:'ema_cross'};
+    const dslMap = {
+      ema_cross: `entry  ema(7) > ema(25) and vol > avg(20)*1.3\n  exit   close < ema(7)`,
+      grid:      `entry  price < lower_band(20, 2.0)\n  exit   price > upper_band(20, 2.0)`,
+      low_risk:  `entry  ema(7) > ema(25) and rsi < 65 and vol > avg(20)*1.2\n  exit   close < ema(7) or rsi > 75`,
+      breakout:  `entry  breakout(20) and vol > avg(20)*1.8\n  exit   close < ema(10)`,
+      arb:       `entry  spread(binance,okx) > 0.15%\n  exit   spread < 0.05%`,
+      short_term:`entry  ema(5) > ema(12) and macd > 0 and vol > avg(10)*1.2\n  exit   ema(5) < ema(12) or rsi > 72`,
+      dca:       `entry  price < ema(30)*0.95 or weekly_dip > 3%\n  exit   profit > 15% or hold_days > 90`,
+    };
+    const dslCode = dslMap[pp.stratType] || dslMap.ema_cross;
+    
+    const dslWrap = el('div');
+    dslWrap.innerHTML = `<div class="dsl-block" style="position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);font-weight:500">DSL 代码 (可编辑)</span>
+        <button onclick="saveDslCode()" style="padding:4px 10px;border-radius:4px;background:var(--purple-dim);border:1px solid rgba(139,92,246,.3);color:var(--purple);font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s" onmouseover="this.style.background='var(--purple)';this.style.color='#fff'" onmouseout="this.style.background='var(--purple-dim)';this.style.color='var(--purple)'">保存修改</button>
+      </div>
+      <textarea id="dsl-editor" spellcheck="false" style="width:100%;height:160px;padding:12px;background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text1);line-height:1.7;resize:vertical;outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--line)'">strategy "${pp.name}" {
+  asset      ${pp.asset}  tf ${pp.tf}
+  ${dslCode}
+  stop_loss  ${pp.sl}  take_profit ${pp.tp}  position ${pp.pos}
+  // AI 置信度 87% · 参数可调整
+}</textarea>
+    </div>`;
+    body.appendChild(dslWrap);
+  }
+
+  const act = el('div', 'act-row');
+  act.innerHTML = `<button class="act-btn bt" onclick="tabClick('bt')">▶ 开始回测 — 验证历史表现</button>`;
+  body.appendChild(act);
+}
+
+function togglePro() {
+  sc().showPro = !sc().showPro;
+  renderPanelBody();
+}
+
+function saveDslCode() {
+  const editor = document.getElementById('dsl-editor');
+  if(!editor) return;
+  
+  const code = editor.value;
+  // 简单解析 DSL 代码中的参数
+  const slMatch = code.match(/stop_loss\s+(\d+\.?\d*%?)/);
+  const tpMatch = code.match(/take_profit\s+(\d+\.?\d*%?)/);
+  const posMatch = code.match(/position\s+(\d+\.?\d*%?)/);
+  const tfMatch = code.match(/tf\s+(\w+)/);
+  
+  const pp = sc().parsedParams || {};
+  if(slMatch) pp.sl = slMatch[1];
+  if(tpMatch) pp.tp = tpMatch[1];
+  if(posMatch) pp.pos = posMatch[1];
+  if(tfMatch) pp.tf = tfMatch[1];
+  
+  sc().parsedParams = pp;
+  sc().dslCode = code;
+  
+  showToast('ok','DSL 代码已保存');
+  addLog('DSL',`<span class="hi">代码已更新</span>`);
+}
+
+/* ─────────────────────────────────────────
+   BACKTEST TAB
+───────────────────────────────────────── */
+function renderBtTab(body) {
+  const done = ss().bt === 'done';
+  const running = ss().bt === 'running';
+
+  if (running) {
+    body.innerHTML = `
+      <div class="section-title">回测进行中 — 加载历史K线数据…</div>
+      <div class="mini-bar-wrap" style="margin-bottom:10px">
+        <span class="mini-txt" id="bt-msg" style="color:var(--text2);min-width:140px;text-align:left">加载历史数据…</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" id="bt-fill" style="width:0%;background:var(--bt-c)"></div></div>
+        <span class="mini-txt" id="bt-pct" style="color:var(--bt-c)">0%</span>
+      </div>
+      <canvas id="bt-canvas" class="cvs"></canvas>`;
+    return;
+  }
+
+  if (done) {
+    body.innerHTML = `
+      <div class="stat-grid g4">
+        <div class="stat-cell"><div class="stat-lbl">总收益</div><div class="stat-val g">+34.2%</div><div class="stat-sub">近3个月</div></div>
+        <div class="stat-cell"><div class="stat-lbl">��定性</div><div class="stat-val t">1.82</div><div class="stat-sub">夏普比率</div></div>
+        <div class="stat-cell"><div class="stat-lbl">最大回撤</div><div class="stat-val r">-8.4%</div><div class="stat-sub">可控范围</div></div>
+        <div class="stat-cell"><div class="stat-lbl">胜率</div><div class="stat-val">61.3%</div><div class="stat-sub">57笔</div></div>
+      </div>`;
+    const chartWrap = el('div');
+    chartWrap.innerHTML = `
+      <div class="section-title">回测净值曲线 — BTC/USDT 4h · 2024-12 ~ 2025-03</div>
+      <div style="display:flex;gap:14px;margin-bottom:8px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2)"><span style="color:#3b82f6">━</span> 策略净值</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2)"><span style="color:var(--muted)">╌</span> BTC持仓</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2)"><span style="color:var(--green)">●</span> 买入</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2)"><span style="color:var(--red)">●</span> 卖出</span>
+      </div>
+      <canvas id="bt-canvas" class="cvs"></canvas>`;
+    body.appendChild(chartWrap);
+
+    const txWrap = el('div');
+    txWrap.innerHTML = `
+      <div class="section-title">回测交易记录</div>
+      <table class="data-table">
+        <thead><tr><th>时间</th><th>方向</th><th>价格</th><th>数量</th><th>盈亏</th><th>触发条件</th></tr></thead>
+        <tbody>
+          <tr><td>03-19</td><td class="td-s">卖出</td><td>85,210</td><td>0.012</td><td class="td-p">+6.0%</td><td style="color:var(--text2)">止盈 tp=6%</td></tr>
+          <tr><td>03-14</td><td class="td-b">买入</td><td>80,380</td><td>0.012</td><td class="td-p">+6.0%</td><td style="color:var(--text2)">EMA金叉+量</td></tr>
+          <tr><td>03-10</td><td class="td-s">卖出</td><td>79,200</td><td>0.010</td><td class="td-n">-2.1%</td><td style="color:var(--text2)">止损 sl=2%</td></tr>
+          <tr><td>02-28</td><td class="td-s">卖出</td><td>84,100</td><td>0.011</td><td class="td-p">+4.8%</td><td style="color:var(--text2)">close<ema(7)</td></tr>
+        </tbody>
+      </table>`;
+    body.appendChild(txWrap);
+
+    const act = el('div', 'act-row');
+    act.innerHTML = `<button class="act-btn paper" onclick="tabClick('paper')">▶ 开始模拟交易</button>`;
+    body.appendChild(act);
+
+    setTimeout(() => drawBtStatic(), 60);
+  } else {
+    body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px;opacity:.5">
+      <div style="font-size:28px">📊</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2)">尚未回测</div>
+    </div>
+    <div class="act-row" style="position:absolute;bottom:16px;left:18px;right:18px">
+      <button class="act-btn bt" onclick="startBacktest()">▶ 开始回测</button>
+    </div>`;
+    body.style.position = 'relative';
+  }
+}
+
+/* ─────────────────────────────────────────
+   PAPER TAB
+───────────────────────────────────────── */
+function renderPaperTab(body) {
+  const done = ss().paper === 'done';
+  const running = ss().paper === 'running';
+
+  const notice = el('div', 'notice notice-purple');
+  notice.innerHTML = `<strong>📋 模拟账户</strong> · 虚拟资金 ¥100,000 · 真实行情 · 零资金风险`;
+  body.appendChild(notice);
+
+  if (running) {
+    const prog = el('div');
+    prog.innerHTML = `
+      <div class="mini-bar-wrap" style="margin-bottom:10px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);min-width:120px">模拟交易运行中…</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" id="paper-fill" style="width:0%;background:var(--paper-c)"></div></div>
+        <span class="mini-txt" id="paper-pct" style="color:var(--paper-c)">0/14天</span>
+      </div>
+      <canvas id="paper-canvas" class="cvs"></canvas>`;
+    body.appendChild(prog);
+    return;
+  }
+
+  if (done) {
+    const metrics = el('div', 'stat-grid g4');
+    metrics.innerHTML = `
+      <div class="stat-cell"><div class="stat-lbl">模拟收益</div><div class="stat-val p">+5.2%</div><div class="stat-sub">14天</div></div>
+      <div class="stat-cell"><div class="stat-lbl">vs 回测</div><div class="stat-val t">-0.8%</div><div class="stat-sub">偏差正常</div></div>
+      <div class="stat-cell"><div class="stat-lbl">胜率</div><div class="stat-val">58.3%</div><div class="stat-sub">12笔</div></div>
+      <div class="stat-cell"><div class="stat-lbl">滑点</div><div class="stat-val">0.07%</div><div class="stat-sub">正常范围</div></div>`;
+    body.appendChild(metrics);
+
+    const chartWrap = el('div');
+    chartWrap.innerHTML = `
+      <div class="section-title">模拟净值 — 近14天真实行情（虚拟资金）</div>
+      <div style="display:flex;gap:14px;margin-bottom:8px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2)"><span style="color:var(--purple)">━</span> 模拟净值</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2)"><span style="color:var(--blue)">╌</span> 回测预测</span>
+      </div>
+      <canvas id="paper-canvas" class="cvs"></canvas>`;
+    body.appendChild(chartWrap);
+
+    const act = el('div', 'act-row');
+    act.innerHTML = `<button class="act-btn live" onclick="tabClick('live')">⚠ 启动实盘 — 使用真实资金，请谨慎</button>`;
+    body.appendChild(act);
+
+    setTimeout(() => drawPaperStatic(), 60);
+  }
+}
+
+/* ─────────────────────────────────────────
+   LIVE TAB
+───────────────────────────────────────── */
+function renderLiveTab(body) {
+  const paused = ss().live === 'paused';
+
+  if (paused) {
+    const n = el('div', 'notice notice-muted');
+    n.textContent = '⏸ 策略已暂停，持仓保持不动，可随时重启';
+    body.appendChild(n);
+  }
+
+  const stats = el('div', 'stat-grid g2');
+  stats.innerHTML = `
+    <div class="stat-cell" style="border-color:var(--green)">
+      <div class="stat-lbl">本月实盘收益</div>
+      <div class="stat-val g">+12.4%</div>
+      <div class="stat-sub">¥ 5,952 实际盈利</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-lbl">当前持仓</div>
+      <div class="stat-val">BTC 0.012</div>
+      <div class="stat-sub" id="live-sub">${paused?'策略已暂停':'实时更新中…'}</div>
+    </div>`;
+  body.appendChild(stats);
+
+  const chartWrap = el('div');
+  chartWrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span class="section-title" style="margin:0">实盘净值 — 实时账户</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${paused?'var(--muted)':'var(--green)'}; font-weight:500">${paused?'⏸ 暂停':'● LIVE'}</span>
+    </div>
+    <canvas id="live-canvas" class="cvs"></canvas>`;
+  body.appendChild(chartWrap);
+
+  const moreStats = el('div', 'stat-grid g4');
+  moreStats.innerHTML = `
+    <div class="stat-cell"><div class="stat-lbl">本月回撤</div><div class="stat-val r">-3.1%</div><div class="stat-sub">低于止损</div></div>
+    <div class="stat-cell"><div class="stat-lbl">已执行</div><div class="stat-val">18笔</div><div class="stat-sub">胜率 61%</div></div>
+    <div class="stat-cell"><div class="stat-lbl">月收益</div><div class="stat-val g">+12.4%</div><div class="stat-sub">¥5,952</div></div>
+    <div class="stat-cell"><div class="stat-lbl">引擎</div><div class="stat-val${paused?'':' g'}" style="font-size:12px">${paused?'⏸ 暂停':'● 运行中'}</div><div class="stat-sub">${paused?'已暂停':'4h检测'}</div></div>`;
+  body.appendChild(moreStats);
+
+  const tx = el('div');
+  tx.innerHTML = `
+    <div class="section-title">最近成交</div>
+    <table class="data-table">
+      <thead><tr><th>时间</th><th>方向</th><th>价格</th><th>盈亏</th></tr></thead>
+      <tbody>
+        <tr><td>03-22 09:42</td><td class="td-b">买入</td><td>83,940</td><td style="color:var(--text2)">持仓中</td></tr>
+        <tr><td>03-19 14:10</td><td class="td-s">卖出</td><td>85,140</td><td class="td-p">+¥342</td></tr>
+        <tr><td>03-12 11:00</td><td class="td-s">卖出</td><td>79,180</td><td class="td-n">-¥204</td></tr>
+      </tbody>
+    </table>`;
+  body.appendChild(tx);
+
+  const act = el('div', 'act-row');
+  act.innerHTML = paused
+    ? `<button class="act-btn resume" onclick="resumeLive()">▶ 重新启动策略</button>`
+    : `<button class="act-btn stop"   onclick="pauseLive()">⏸ 暂停策略运行</button>`;
+  body.appendChild(act);
+}
+
+/* ═══════════════════════════════════════════
+   BACKTEST ANIMATION
+═══════════════════════════════════════════ */
+function startBacktest() {
+  ss().bt = 'running';
+  sc().activeTab = 'bt';
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('回测', '<span class="hi">引擎启动</span>');
+}
+
+function runBtAnim() {
+  const total = 90; const full = sc().btPts;
+  if (!full.length) {
+    let v = 0;
+    for (let i = 0; i < total; i++) { v += (Math.random()-.42)*2.2+.3; full.push(v); }
+    const sigs = [];
+    for (let i = 2; i < total-2; i++) {
+      const d = full[i]-full[i-2];
+      if (d>2.2 && (sigs.length===0||sigs[sigs.length-1].type==='sell')) sigs.push({i,type:'buy'});
+      if (d<-1.5 && sigs.length>0 && sigs[sigs.length-1].type==='buy')   sigs.push({i,type:'sell'});
+    }
+    sc().btSigs = sigs;
+  }
+  const sigs = sc().btSigs;
+  let idx = 0;
+  const PAD = {l:40,r:12,t:12,b:24};
+  const mn = Math.min(...full)-2, mx = Math.max(...full)+2;
+  function frame() {
+    idx = Math.min(idx+1, total-1);
+    const c = document.getElementById('bt-canvas'); if (!c) { chartAnim=null; return; }
+    const W = c.parentElement.getBoundingClientRect().width||500, H = 140;
+    drawBtFrame(c, full.slice(0,idx+1), sigs.filter(s=>s.i<=idx), W, H, PAD, mn, mx, total, idx);
+    const pct = Math.round(idx/total*100);
+    const fill = document.getElementById('bt-fill'), pctEl = document.getElementById('bt-pct'), msg = document.getElementById('bt-msg');
+    if (fill) fill.style.width = pct+'%';
+    if (pctEl) pctEl.textContent = pct+'%';
+    if (msg)  msg.textContent = pct<30?'加载历史数据…':pct<60?'运行信号检测…':pct<88?'计算盈亏…':'生成报告…';
+    if (idx < total-1) { chartAnim = requestAnimationFrame(frame); }
+    else finishBacktest();
+  }
+  chartAnim = requestAnimationFrame(frame);
+}
+
+function drawBtStatic() {
+  const c = document.getElementById('bt-canvas'); if (!c) return;
+  const full = sc().btPts; if (!full.length) { generateBtData(); }
+  const W = c.parentElement.getBoundingClientRect().width||500, H = 140;
+  const PAD = {l:40,r:12,t:12,b:24};
+  const mn = Math.min(...full)-2, mx = Math.max(...full)+2;
+  drawBtFrame(c, full, sc().btSigs, W, H, PAD, mn, mx, full.length, full.length-1);
+}
+
+function generateBtData() {
+  let v = 0; const full = [];
+  for (let i = 0; i < 90; i++) { v += (Math.random()-.42)*2.2+.3; full.push(v); }
+  const sigs = [];
+  for (let i = 2; i < 88; i++) {
+    const d = full[i]-full[i-2];
+    if (d>2.2 && (sigs.length===0||sigs[sigs.length-1].type==='sell')) sigs.push({i,type:'buy'});
+    if (d<-1.5 && sigs.length>0 && sigs[sigs.length-1].type==='buy')   sigs.push({i,type:'sell'});
+  }
+  sc().btPts = full; sc().btSigs = sigs;
+}
+
+function drawBtFrame(c, pts, sigs, W, H, PAD, mn, mx, total, idx) {
+  const cW = W-PAD.l-PAD.r, cH = H-PAD.t-PAD.b;
+  const dpr = window.devicePixelRatio||1;
+  c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const range2=mx-mn||1; const yM = v => PAD.t+cH-(v-mn)/range2*cH;
+  const xM = i => PAD.l+(i/(total-1))*cW;
+  // grid
+  [0,.25,.5,.75,1].forEach(t => {
+    const y = PAD.t+cH*(1-t);
+    ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
+    ctx.fillStyle='#94a3b8'; ctx.font='9px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillText((t===.5?'0%':(t>.5?'+':'')+Math.round((mn+(mx-mn)*t)*.4)+'%'), PAD.l-4, y+3);
+  });
+  // BTC hold dashed
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(xM(0),yM(0)); ctx.lineTo(xM(pts.length-1),yM(pts[pts.length-1]*.35)); ctx.stroke();
+  ctx.setLineDash([]);
+  if (pts.length < 2) return;
+  // area
+  const g = ctx.createLinearGradient(0,PAD.t,0,PAD.t+cH);
+  g.addColorStop(0,'rgba(59,130,246,.12)'); g.addColorStop(1,'rgba(59,130,246,0)');
+  ctx.beginPath(); ctx.moveTo(xM(0),yM(pts[0]));
+  pts.forEach((v,i) => { if(i>0) ctx.lineTo(xM(i),yM(v)); });
+  ctx.lineTo(xM(pts.length-1),PAD.t+cH); ctx.lineTo(xM(0),PAD.t+cH);
+  ctx.closePath(); ctx.fillStyle=g; ctx.fill();
+  // line
+  ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2; ctx.lineJoin='round';
+  ctx.beginPath(); pts.forEach((v,i) => i===0?ctx.moveTo(xM(i),yM(v)):ctx.lineTo(xM(i),yM(v))); ctx.stroke();
+  // signals
+  sigs.filter(s=>s.i<pts.length).forEach(s => {
+    ctx.beginPath(); ctx.arc(xM(s.i),yM(pts[s.i]),5,0,Math.PI*2);
+    ctx.fillStyle = s.type==='buy'?'#10b981':'#ef4444'; ctx.fill();
+  });
+  // cursor
+  if (idx < total-1) {
+    ctx.beginPath(); ctx.arc(xM(pts.length-1),yM(pts[pts.length-1]),4,0,Math.PI*2);
+    ctx.fillStyle='#3b82f6'; ctx.fill();
+  }
+  // x labels
+  ['12月','1月','2月','3月'].forEach((l,i) => {
+    ctx.fillStyle='#94a3b8'; ctx.font='9px JetBrains Mono'; ctx.textAlign='left';
+    ctx.fillText(l, PAD.l+cW*(i/3), H-6);
+  });
+}
+
+function finishBacktest() {
+  ss().bt = 'done'; ss().paper = 'ready';
+  sc().btDone = true;
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('回测', '<span class="hi">完成</span> · 胜率 61.3%');
+  showToast('ok', '✓ 回测完成！可以开始模拟交易了');
+}
+
+/* ═══════════════════════════════════════════
+   PAPER ANIMATION
+═══════════════════════════════════════════ */
+function startPaper() {
+  ss().paper = 'running';
+  sc().activeTab = 'paper';
+  sc().paperPts = []; sc().paperSigs = []; sc().paperRef = [];
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('模拟', '<span class="hi">引擎启动</span>，虚拟 ¥100,000');
+}
+
+function runPaperAnim() {
+  const total = 120;
+  if (!sc().paperPts.length) {
+    let v = 0;
+    for (let i = 0; i < total; i++) { v+=(Math.random()-.46)*1.6+.18+(i>40&&i<65?-.3:0); sc().paperPts.push(v); }
+    sc().paperRef = sc().paperPts.map((v,i) => v*.85+i*.04);
+    for (let i = 4; i < total-4; i++) {
+      const d = sc().paperPts[i]-sc().paperPts[i-3];
+      if (d>1.5 && (sc().paperSigs.length===0||sc().paperSigs[sc().paperSigs.length-1].type==='sell')) sc().paperSigs.push({i,type:'buy'});
+      if (d<-1.2 && sc().paperSigs.length>0 && sc().paperSigs[sc().paperSigs.length-1].type==='buy') sc().paperSigs.push({i,type:'sell'});
+    }
+  }
+  const full=sc().paperPts, ref=sc().paperRef, sigs=sc().paperSigs;
+  const mn=Math.min(...full)-1.5, mx=Math.max(...full)+1.5;
+  const PAD={l:40,r:12,t:12,b:24};
+  let idx=0;
+  function frame(){
+    idx=Math.min(idx+1,total-1);
+    const c=document.getElementById('paper-canvas'); if(!c){chartAnim=null;return;}
+    const W=c.parentElement.getBoundingClientRect().width||500, H=140;
+    drawPaperFrame(c,full.slice(0,idx+1),sigs.filter(s=>s.i<=idx),ref,W,H,PAD,mn,mx,total,idx);
+    const pct=Math.round(idx/total*100), days=Math.round(idx/total*14);
+    const fill=document.getElementById('paper-fill'),pctEl=document.getElementById('paper-pct');
+    if(fill) fill.style.width=pct+'%';
+    if(pctEl) pctEl.textContent=days+'/14天';
+    if(idx===35) addLog('模拟','<span class="buy">模拟买入</span> BTC @ 83,940');
+    if(idx===65) addLog('模拟','<span class="sell">模拟卖出</span> <span class="buy">+5.7%</span>');
+    if(idx<total-1){chartAnim=requestAnimationFrame(frame);}else finishPaper();
+  }
+  chartAnim=requestAnimationFrame(frame);
+}
+
+function drawPaperStatic(){
+  const c=document.getElementById('paper-canvas'); if(!c) return;
+  if(!sc().paperPts.length) return;
+  const full=sc().paperPts, ref=sc().paperRef, sigs=sc().paperSigs;
+  const W=c.parentElement.getBoundingClientRect().width||500, H=140;
+  const PAD={l:40,r:12,t:12,b:24};
+  const mn=Math.min(...full)-1.5, mx=Math.max(...full)+1.5;
+  drawPaperFrame(c,full,sigs,ref,W,H,PAD,mn,mx,full.length,full.length-1);
+}
+
+function drawPaperFrame(c,pts,sigs,ref,W,H,PAD,mn,mx,total,idx){
+  const cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+  const dpr=window.devicePixelRatio||1;
+  c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px';
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const yM=v=>PAD.t+cH-(v-mn)/(mx-mn)*cH;
+  const xM=i=>PAD.l+(i/(total-1))*cW;
+  // ref dashed
+  if(ref&&pts.length>1){
+    ctx.strokeStyle='#3b82f6'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ref.slice(0,pts.length).forEach((v,i)=>i===0?ctx.moveTo(xM(i),yM(v)):ctx.lineTo(xM(i),yM(v))); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if(pts.length<2) return;
+  const g=ctx.createLinearGradient(0,PAD.t,0,PAD.t+cH);
+  g.addColorStop(0,'rgba(139,92,246,.1)'); g.addColorStop(1,'rgba(139,92,246,0)');
+  ctx.beginPath(); ctx.moveTo(xM(0),yM(pts[0])); pts.forEach((v,i)=>{if(i>0)ctx.lineTo(xM(i),yM(v));}); ctx.lineTo(xM(pts.length-1),PAD.t+cH); ctx.lineTo(xM(0),PAD.t+cH); ctx.closePath(); ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle='#8b5cf6'; ctx.lineWidth=2; ctx.lineJoin='round';
+  ctx.beginPath(); pts.forEach((v,i)=>i===0?ctx.moveTo(xM(i),yM(v)):ctx.lineTo(xM(i),yM(v))); ctx.stroke();
+  sigs.filter(s=>s.i<pts.length).forEach(s=>{ctx.beginPath();ctx.arc(xM(s.i),yM(pts[s.i]),5,0,Math.PI*2);ctx.fillStyle=s.type==='buy'?'#10b981':'#ef4444';ctx.fill();});
+  if(idx<total-1){const cx=xM(pts.length-1),cy=yM(pts[pts.length-1]);ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#8b5cf6';ctx.fill();ctx.beginPath();ctx.arc(cx,cy,8,0,Math.PI*2);ctx.strokeStyle='rgba(139,92,246,.2)';ctx.lineWidth=1.5;ctx.stroke();}
+  ['3/8','3/12','3/17','3/22'].forEach((l,i)=>{ctx.fillStyle='#94a3b8';ctx.font='9px JetBrains Mono';ctx.textAlign='left';ctx.fillText(l,PAD.l+cW*(i/3),H-6);});
+}
+
+function finishPaper(){
+  ss().paper='done'; ss().live='ready'; sc().paperDone=true;
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('模拟','<span class="hi">完成</span> · 14天 · +5.2%');
+  showToast('ok','✓ 模拟交易完成！可以考虑实盘了');
+}
+
+/* ═══════════════════════════════════════════
+   LIVE ANIMATION
+═══════════════════════════════════════════ */
+function confirmLive(){
+  closeModal();
+  ss().live='running'; sc().activeTab='live';
+  if(!sc().livePts.length){let v=0;for(let i=0;i<20;i++){v+=(Math.random()-.44)*1.2+.2;sc().livePts.push(v);}}
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('实盘','<span class="hi">引擎启动</span>，连接��易所');
+}
+
+function runLiveAnim(){
+  const d=sc();
+  liveInterval=setInterval(()=>{
+    if(ss().live!=='running') return;
+    const last=d.livePts[d.livePts.length-1];
+    const nv=last+(Math.random()-.46)*1.4+.15;
+    d.livePts.push(nv); if(d.livePts.length>120) d.livePts.shift();
+    if(d.livePts.length>5){
+      const delta=d.livePts[d.livePts.length-1]-d.livePts[d.livePts.length-4];
+      if(delta>1.8&&(d.liveSigs.length===0||d.liveSigs[d.liveSigs.length-1].type==='sell')){
+        d.liveSigs.push({i:d.livePts.length-1,type:'buy'});
+        addLog('实盘',`<span class="buy">买入</span> BTC <span class="mono">@ ${(83000+Math.round(nv*200)).toLocaleString()}</span>`);
+      }
+      if(delta<-1.3&&d.liveSigs.length>0&&d.liveSigs[d.liveSigs.length-1].type==='buy'){
+        d.liveSigs.push({i:d.livePts.length-1,type:'sell'});
+        addLog('实盘',`<span class="sell">卖出</span> <span class="${nv>last?'buy':'sell'}">${nv>last?'+':''}${Math.round(Math.abs(delta)*1.2)}%</span>`);
+      }
+    }
+    const nav=document.getElementById('btc-nav'); if(nav) nav.textContent=(84231+Math.round(nv*80)).toLocaleString();
+    const sub=document.getElementById('live-sub'); if(sub) sub.textContent=`成本 83,940 · 浮盈 ${nv*80>=0?'+':''}${Math.round(nv*80)}¥`;
+    drawLiveFrame();
+  },300);
+  drawLiveFrame();
+}
+
+function drawLiveFrame(){
+  const c=document.getElementById('live-canvas'); if(!c) return;
+  const pts=sc().livePts; if(pts.length<2) return;
+  const W=c.parentElement.getBoundingClientRect().width||500, H=140;
+  const PAD={l:40,r:12,t:12,b:24}, cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+  const mn=Math.min(...pts)-1.5, mx=Math.max(...pts)+1.5;
+  const dpr=window.devicePixelRatio||1;
+  c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px';
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const range=mx-mn||1; const yM=v=>PAD.t+cH-(v-mn)/range*cH;
+  const xM=i=>PAD.l+(i/(pts.length-1))*cW;
+  [0,.25,.5,.75,1].forEach(t=>{const y=PAD.t+cH*(1-t);ctx.strokeStyle='#e2e8f0';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();ctx.fillStyle='#94a3b8';ctx.font='9px JetBrains Mono';ctx.textAlign='right';ctx.fillText((t===.5?'0%':(t>.5?'+':'')+Math.round((mn+(mx-mn)*t)*.3)+'%'),PAD.l-4,y+3);});
+  const g=ctx.createLinearGradient(0,PAD.t,0,PAD.t+cH);g.addColorStop(0,'rgba(16,185,129,.12)');g.addColorStop(1,'rgba(16,185,129,0)');
+  ctx.beginPath();ctx.moveTo(xM(0),yM(pts[0]));pts.forEach((v,i)=>{if(i>0)ctx.lineTo(xM(i),yM(v));});ctx.lineTo(xM(pts.length-1),PAD.t+cH);ctx.lineTo(xM(0),PAD.t+cH);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle='#10b981';ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();pts.forEach((v,i)=>i===0?ctx.moveTo(xM(i),yM(v)):ctx.lineTo(xM(i),yM(v)));ctx.stroke();
+  const off=Math.max(0,sc().livePts.length-120);
+  sc().liveSigs.forEach(s=>{const ri=s.i-off;if(ri<0||ri>=pts.length)return;ctx.beginPath();ctx.arc(xM(ri),yM(pts[ri]),5,0,Math.PI*2);ctx.fillStyle=s.type==='buy'?'#10b981':'#ef4444';ctx.fill();ctx.beginPath();ctx.arc(xM(ri),yM(pts[ri]),9,0,Math.PI*2);ctx.strokeStyle=s.type==='buy'?'rgba(16,185,129,.2)':'rgba(239,68,68,.2)';ctx.lineWidth=2;ctx.stroke();});
+  const lx=xM(pts.length-1),ly=yM(pts[pts.length-1]);
+  ctx.beginPath();ctx.arc(lx,ly,6,0,Math.PI*2);ctx.fillStyle='#10b981';ctx.fill();
+  ctx.beginPath();ctx.arc(lx,ly,10,0,Math.PI*2);ctx.strokeStyle='rgba(16,185,129,.2)';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(lx,ly,15,0,Math.PI*2);ctx.strokeStyle='rgba(16,185,129,.08)';ctx.lineWidth=2;ctx.stroke();
+  const price=(84231+Math.round(pts[pts.length-1]*80)).toLocaleString();
+  ctx.fillStyle='#10b981';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='left';ctx.fillText(price,Math.min(lx+16,W-PAD.r-60),ly+4);
+}
+
+function pauseLive(){
+  clearInterval(liveInterval); liveInterval=null;
+  ss().live='paused';
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('实盘','<span class="warn">已暂停</span>，持仓保持');
+  showToast('warn','⏸ 策略已暂停，持仓保持不动');
+}
+
+function resumeLive(){
+  ss().live='running';
+  renderStratList(); renderPanelHeader(); renderPanelBody();
+  addLog('实盘','<span class="hi">已恢复</span>');
+  showToast('ok','▶ 策略已恢复运行');
+  setTimeout(runLiveAnim, 60);
+}
+
+/* ═══════════════════════════════════════════
+   AI CHAT
+═══════════════════════════════════════════ */
+const intentRules=[
+  {intent:'market',   patterns:['行情','价格','多少钱','涨跌','btc行情','eth行情','sol行情','bnb行情','走势怎么样','技术面']},
+  {intent:'position', patterns:['持仓','持有','仓位','盈亏','亏了多少','赚了多少','浮盈','成交记录','今日收益']},
+  {intent:'account',  patterns:['账户','余额','可用','总资产','充值','提现','资金','风险','本月盈亏','资产总额']},
+  {intent:'strategy', patterns:['策略','稳健','收益','赚钱','增值','低风险','高收益','均线','网格','趋势','突破','套利','做个','帮我','需要','想要','创建','生成','btc策略','eth策略','sol策略','最近','7天','七天','一周','投资','可以赚','能赚','短期','长期','定投','自动','量化','交易']},
+];
+function detectIntent(text){
+  const q=text.toLowerCase();
+  for(const r of intentRules) if(r.patterns.some(p=>q.includes(p))) return r.intent;
+  return 'general';
+}
+
+function chip(el){ const inp=document.getElementById('nl-input'); inp.value=el.textContent; inp.focus(); }
+
+function parseStrategyIntent(q){
+  const lq = q.toLowerCase();
+  let asset = 'BTC/USDT', assetName = 'BTC';
+  if(lq.includes('eth')||lq.includes('以太')) { asset='ETH/USDT'; assetName='ETH'; }
+  else if(lq.includes('sol')||lq.includes('solana')) { asset='SOL/USDT'; assetName='SOL'; }
+  else if(lq.includes('bnb')) { asset='BNB/USDT'; assetName='BNB'; }
+
+  let type='趋势', stratType='ema_cross', name, desc, sl='2%', tp='6%', pos='10%', tf='4h';
+  
+  // 检测时间周期偏好
+  const hasShortTerm = lq.includes('7天')||lq.includes('七天')||lq.includes('一周')||lq.includes('短期')||lq.includes('最近');
+  const hasLongTerm = lq.includes('长期')||lq.includes('定投')||lq.includes('一个月')||lq.includes('月');
+  
+  // 检测风险偏好
+  const wantsMoney = lq.includes('赚钱')||lq.includes('收益')||lq.includes('能赚')||lq.includes('可以赚')||lq.includes('增值')||lq.includes('投资');
+  const wantsLowRisk = lq.includes('稳健')||lq.includes('保守')||lq.includes('低风险')||lq.includes('稳定')||lq.includes('安全');
+
+  if(lq.includes('网格')||lq.includes('震荡')||lq.includes('区间')) {
+    type='震荡'; stratType='grid';
+    name=`网格交易 ${assetName}`;
+    desc='在价格低位买入、高位卖出，反复赚取区间差价，适合横盘震荡行情。';
+    sl='1.5%'; tp='3%'; pos='15%'; tf='1h';
+  } else if(wantsLowRisk) {
+    type='稳健'; stratType='low_risk';
+    name=`稳健收益 ${assetName}`;
+    desc='只在趋势明确、信号可靠时入场，止损严格，单次最多亏 1%，以稳健积累收益为目标。';
+    sl='1%'; tp='3%'; pos='5%'; tf='4h';
+  } else if(lq.includes('套利')||lq.includes('价差')) {
+    type='套利'; stratType='arb';
+    name=`跨所套利 ${assetName}`;
+    desc='监测不同交易所的价格差异，低买高卖，几乎无方向风险。';
+    sl='0.5%'; tp='1.5%'; pos='20%'; tf='15m';
+  } else if(lq.includes('突破')||lq.includes('追涨')||lq.includes('高收益')) {
+    type='趋势'; stratType='breakout';
+    name=`突破追涨 ${assetName}`;
+    desc='当价格放量突破关键阻力位时追入，顺势而为，止盈目标较高，适合趋势行情。';
+    sl='3%'; tp='9%'; pos='8%'; tf='1h';
+  } else if(hasShortTerm && wantsMoney) {
+    // 短期赚钱需求，推荐短周期趋势策略
+    type='趋势'; stratType='short_term';
+    name=`短线趋势 ${assetName}`;
+    desc=`针对最近7天行情优化的短线策略，抓住短期趋势波段。${assetName} 近期走势较好，策略信号活跃。`;
+    sl='1.5%'; tp='4%'; pos='8%'; tf='1h';
+  } else if(hasLongTerm) {
+    // 长期投资需求
+    type='稳健'; stratType='dca';
+    name=`定投策略 ${assetName}`;
+    desc='适合长期投资者，在价格回调时自动加仓，分散成本，降低单次买入的风险。';
+    sl='5%'; tp='15%'; pos='5%'; tf='1d';
+  } else if(wantsMoney) {
+    // 通用赚钱需求，推荐经典均线策略
+    type='趋势'; stratType='ema_cross';
+    name=`智能趋势 ${assetName}`;
+    desc='根据当前市场情况自动优化的趋势策略，结合均线和成交量信号，历史胜率约 61%。';
+    sl='2%'; tp='6%'; pos='10%'; tf='4h';
+  } else {
+    name=`均线突破 ${assetName}`;
+    desc='当短期均线上穿长期均线且成交量放大时买入，是最经典的趋势追踪策略，历史胜率约 61%。';
+    sl='2%'; tp='6%'; pos='10%'; tf='4h';
+  }
+
+  const retEstimate = {low_risk:'+12~18%', grid:'+8~15%', ema_cross:'+20~34%', breakout:'+25~40%', arb:'+6~12%', short_term:'+15~25%', dca:'+18~30%'}[stratType]||'+20~34%';
+
+  return { asset, assetName, type, stratType, name, desc, sl, tp, pos, tf, retEstimate, query:q };
+}
+
+function appendThinking(q){
+  const feed = document.getElementById('chat-feed');
+  const empty = document.getElementById('chat-empty');
+  if(empty) empty.style.display='none';
+
+  const thinking = document.createElement('div');
+  thinking.className = 'ai-msg';
+  thinking.id = 'thinking-bubble';
+  thinking.innerHTML = `<div class="ai-msg-head">
+    <div class="ai-orb">✦</div>
+    <span class="ai-msg-label">✦ ASTRA AI · 策略生成中…</span>
+  </div>
+  <div class="ai-msg-body">
+    <div class="thinking-dots"><span></span><span></span><span></span></div>
+    <p style="color:var(--text2);font-size:12px;margin-top:8px">正在分析你的需求，生成最优策略参数…</p>
+  </div>`;
+  feed.appendChild(thinking);
+  scrollChat();
+
+  setTimeout(()=>{
+    const parsed = parseStrategyIntent(q);
+    thinking.remove();
+    appendStrategyPreview(parsed);
+    // 不再自动创建策略，等用户点击"使用此策略"按钮
+  }, 1400);
+}
+
+function appendStrategyPreview(p){
+  const feed = document.getElementById('chat-feed');
+  const dslMap = {
+    ema_cross: `entry  ema(7) > ema(25) and vol > avg(20)*1.3
+  exit   close < ema(7)`,
+    grid:      `entry  price < lower_band(20, 2.0)
+  exit   price > upper_band(20, 2.0)`,
+    low_risk:  `entry  ema(7) > ema(25) and rsi < 65 and vol > avg(20)*1.2
+  exit   close < ema(7) or rsi > 75`,
+    breakout:  `entry  breakout(20) and vol > avg(20)*1.8
+  exit   close < ema(10)`,
+    arb:       `entry  spread(binance,okx) > 0.15%
+  exit   spread < 0.05%`,
+    short_term:`entry  ema(5) > ema(12) and macd > 0 and vol > avg(10)*1.2
+  exit   ema(5) < ema(12) or rsi > 72`,
+    dca:       `entry  price < ema(30)*0.95 or weekly_dip > 3%
+  exit   profit > 15% or hold_days > 90`,
+  };
+  const dsl = dslMap[p.stratType]||dslMap.ema_cross;
+
+  const card = document.createElement('div');
+  card.className = 'ai-msg strategy-gen-card';
+  card.innerHTML = `
+  <div class="ai-msg-head" style="background:var(--grad-soft);border-bottom:1px solid var(--line)">
+    <div class="ai-orb" style="background:var(--grad)">✦</div>
+    <span class="ai-msg-label" style="color:var(--purple)">✦ 策略已生成 — ${p.name}</span>
+    <span class="ai-msg-time">${new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'})}</span>
+  </div>
+  <div class="ai-msg-body">
+    <p>${p.desc}</p>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">
+      <div class="sg-stat"><div class="sg-lbl">预期收益</div><div class="sg-val g">${p.retEstimate}</div><div class="sg-sub">历史估算</div></div>
+      <div class="sg-stat"><div class="sg-lbl">止损</div><div class="sg-val r">${p.sl}</div><div class="sg-sub">单次最大</div></div>
+      <div class="sg-stat"><div class="sg-lbl">止盈</div><div class="sg-val a">${p.tp}</div><div class="sg-sub">目标</div></div>
+      <div class="sg-stat"><div class="sg-lbl">仓位</div><div class="sg-val">${p.pos}</div><div class="sg-sub">账户占比</div></div>
+    </div>
+
+    <div class="sg-dsl">
+      <div class="sg-dsl-head">
+        <span style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-weight:500">STRATEGY DSL</span>
+        <span style="font-size:10px;color:var(--purple);font-weight:500">${p.asset} · ${p.tf}</span>
+      </div>
+      <pre style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text1);line-height:1.7"><span style="color:#7c3aed">strategy</span> <span style="color:var(--green)">"${p.name}"</span> {
+  asset      <span style="color:var(--cyan)">${p.asset}</span>  tf <span style="color:var(--cyan)">${p.tf}</span>
+  ${dsl}
+  <span style="color:#7c3aed">stop_loss</span>  <span style="color:var(--amber)">${p.sl}</span>  take_profit <span style="color:var(--amber)">${p.tp}</span>  position <span style="color:var(--amber)">${p.pos}</span>
+}</pre>
+    </div>
+
+    <div style="margin-top:12px">
+      <button class="strat-preview-use-btn" data-strat='${JSON.stringify(p).replace(/'/g,"&#39;")}' onclick="useGeneratedStrategy(this)" style="width:100%;padding:10px;border-radius:var(--r);background:var(--grad);border:none;color:#fff;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 2px 8px rgba(124,58,237,.25)" onmouseover="this.style.opacity='.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform='none'">
+        使用此策略
+      </button>
+    </div>
+  </div>`;
+  feed.appendChild(card);
+  scrollChat();
+}
+
+// 用户点击"使用此策略"按钮时调用
+function useGeneratedStrategy(btn){
+  const p = JSON.parse(btn.dataset.strat.replace(/&#39;/g,"'"));
+  createStrategyFromParsed(p);
+  
+  // 更新按钮状态
+  btn.textContent = '已添加到左侧';
+  btn.disabled = true;
+  btn.style.background = 'var(--green)';
+  btn.style.cursor = 'default';
+  btn.style.boxShadow = 'none';
+  
+  showToast('ok','策略已添加，已自动展开详情');
+}
+
+function createStrategyFromParsed(p){
+  const id = 's' + Date.now();
+  strategies.push({id, name:p.name, asset:p.asset, tf:p.tf, type:p.type, ret:'', retHint:'草稿'});
+  strat[id] = {
+    stages:{draft:'done',bt:'ready',paper:'locked',live:'locked'},
+    activeTab:'draft', btPts:[],btSigs:[],btDone:false,
+    paperPts:[],paperSigs:[],paperRef:[],paperDone:false,
+    livePts:[],liveSigs:[], showPro:false,
+    parsedParams: p,
+  };
+  
+  // 自动聚焦到新策略
+  activeId = id;
+  const panel = document.getElementById('strat-panel');
+  if(panel.classList.contains('collapsed')){
+    const savedW = panel._savedWidth || Math.round(document.getElementById('main').offsetWidth * 0.55);
+    panel.style.width = savedW + 'px';
+    panel.style.flex = 'none';
+    panel.classList.remove('collapsed');
+  }
+
+  renderStratList();
+  renderPanel();
+  addLog('策略',`<span class="hi">草稿生成</span> · ${p.name}`);
+  
+  return id;
+}
+
+
+
+function sendChat(){
+  const inp=document.getElementById('nl-input');
+  const q=inp.value.trim(); if(!q) return;
+  inp.value='';
+  const intent=detectIntent(q);
+  appendUserMsg(q);
+  if(intent==='strategy'){
+    appendThinking(q);
+  } else {
+    setTimeout(()=>{ appendAiMsg(intent, q); }, 200);
+  }
+  addLog('问',`<span class="hi">${{market:'行情',position:'持仓',account:'账户',strategy:'策略',general:'提问'}[intent]||'提问'}</span>：${q.slice(0,14)}…`);
+}
+
+function appendUserMsg(text){
+  const empty=document.getElementById('chat-empty');
+  if(empty) empty.style.display='none';
+  const div=document.createElement('div'); div.className='user-msg'; div.textContent=text;
+  document.getElementById('chat-feed').appendChild(div);
+  scrollChat();
+}
+
+function appendAiMsg(intent, query){
+  const labels={market:'📈 行情分析',position:'📊 持仓概览',account:'👤 账户信息',general:'✦ ASTRA AI'};
+  const body = buildChatBody(intent, query);
+  const card=document.createElement('div'); card.className='ai-msg';
+  card.innerHTML=`<div class="ai-msg-head">
+    <div class="ai-orb">✦</div>
+    <span class="ai-msg-label">${labels[intent]||'ASTRA AI'}</span>
+    <span class="ai-msg-time">${new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'})}</span>
+  </div>
+  <div class="ai-msg-body">${body}</div>`;
+  document.getElementById('chat-feed').appendChild(card);
+  scrollChat();
+}
+
+function buildChatBody(intent, q){
+  const qi=q.toLowerCase();
+  if(intent==='market') return `<p>当前行情：<br>
+    BTC/USDT <strong style="color:var(--text0)">84,231</strong> <span style="color:var(--green)">+2.41%</span> · 
+    ETH/USDT <strong style="color:var(--text0)">3,182</strong> <span style="color:var(--green)">+1.87%</span> · 
+    SOL/USDT <strong style="color:var(--text0)">148.30</strong> <span style="color:var(--red)">-0.62%</span></p>
+    <p>BTC 过去7天累计 <span style="color:var(--green)">+8.3%</span>，突破 82,000 阻力位，均线多头排列。恐贪指数 68（贪婪区），社媒情绪偏正面。</p>
+    <p>当前成交量比20日均量高 <span style="color:var(--green)">+38%</span>，符合你的策略入场条件 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">vol > avg(20)×1.3</span>。</p>`;
+
+  if(intent==='position') return `<p>当前持有：<strong>BTC 0.012 枚</strong>（成本 83,940，浮盈 <span style="color:var(--green)">+0.35%</span>）</p>
+    <p>策略月度盈亏：均线突破 BTC 实盘 <span style="color:var(--green)">+12.4% (+¥5,952)</span> · 网格 ETH 模拟 <span style="color:var(--purple)">+6.8%</span></p>`;
+
+  if(intent==='account') return `<p>账户总资产 <strong>¥ 58,230</strong> · 可用余额 <strong>¥ 48,230</strong> · 本月盈利 <span style="color:var(--green)">+¥5,952</span></p>
+    <p>当前策略仓位占比 10%，剩余 90% 可用。风险评级：<span style="color:var(--amber)">中等</span>。</p>`;
+
+  return `<p>直接告诉我你的交易想法，我就能帮你生成策略。例如：<em>「我需要稳健的 BTC 收入」</em>或<em>「帮我做个低风险 ETH 网格策略」</em>。</p>`;
+}
+
+function scrollChat(){ const f=document.getElementById('chat-feed'); setTimeout(()=>f.scrollTop=f.scrollHeight,30); }
+
+/* ═══════════════════════════════════════════
+   NEW STRATEGY
+═══════════════════════════════════════════ */
+function promptNewStrategy(){
+  const q = prompt('描述你的交易想法：');
+  if (!q) return;
+  const id = 's'+Date.now();
+  strategies.push({id, name: q.slice(0,12)+'…', asset:'BTC/USDT', tf:'4h', type:'趋势', ret:'', retHint:'草稿'});
+  strat[id] = {
+    stages:{draft:'done',bt:'ready',paper:'locked',live:'locked'},
+    activeTab:'draft', btPts:[],btSigs:[],btDone:false,
+    paperPts:[],paperSigs:[],paperRef:[],paperDone:false,
+    livePts:[],liveSigs:[], showPro:false,
+  };
+  activeId = id;
+  renderStratList(); renderPanel();
+  addLog('新策略','<span class="hi">草稿生成</span>');
+}
+
+/* ═══════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════ */
+function el(tag, cls){
+  const e=document.createElement(tag);
+  if(cls) e.className=cls;
+  return e;
+}
+
+function togglePanel() {
+  const panel = document.getElementById('strat-panel');
+  const wasCollapsed = panel.classList.contains('collapsed');
+
+  if (wasCollapsed) {
+    const savedW = panel._savedWidth || Math.round(document.getElementById('main').offsetWidth * 0.55);
+    panel.style.width = savedW + 'px';
+    panel.style.flex = 'none';
+    panel.classList.remove('collapsed');
+    setTimeout(() => renderPanelBody(), 80);
+  } else {
+    panel._savedWidth = panel.offsetWidth;
+    panel.style.width = panel.offsetWidth + 'px';
+    panel.style.flex = 'none';
+    stopAnimations();
+    panel.getBoundingClientRect();
+    panel.classList.add('collapsed');
+  }
+
+  renderPanelHeader();
+  renderStratList();
+}
+function stopAnimations(){
+  if(chartAnim){cancelAnimationFrame(chartAnim);chartAnim=null;}
+  if(liveInterval){clearInterval(liveInterval);liveInterval=null;}
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+let toastTimer=null;
+function showToast(type,msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast t-'+type+' show';
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+function addLog(time,html){
+  const scroll=document.getElementById('log-scroll');
+  const item=document.createElement('div');item.className='log-item tr-new';
+  item.innerHTML=`<span class="log-t">${time}</span><span class="log-b">${html}</span>`;
+  scroll.insertBefore(item,scroll.firstChild);
+}
+
+/* ═══════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════ */
+strategies.forEach(s=>{
+  if(strat[s.id].btDone && !strat[s.id].btPts.length){
+    let v=0;const arr=[];for(let i=0;i<90;i++){v+=(Math.random()-.42)*2.2+.3;arr.push(v);}
+    const sigs=[];for(let i=2;i<88;i++){const d=arr[i]-arr[i-2];if(d>2.2&&(sigs.length===0||sigs[sigs.length-1].type==='sell'))sigs.push({i,type:'buy'});if(d<-1.5&&sigs.length>0&&sigs[sigs.length-1].type==='buy')sigs.push({i,type:'sell'});}
+    strat[s.id].btPts=arr; strat[s.id].btSigs=sigs;
+  }
+  if(strat[s.id].paperDone && !strat[s.id].paperPts.length){
+    let v=0;const arr=[];for(let i=0;i<120;i++){v+=(Math.random()-.46)*1.6+.18+(i>40&&i<65?-.3:0);arr.push(v);}
+    strat[s.id].paperPts=arr;
+    strat[s.id].paperRef=arr.map((x,i)=>x*.85+i*.04);
+    const sigs=[];for(let i=4;i<116;i++){const d=arr[i]-arr[i-3];if(d>1.5&&(sigs.length===0||sigs[sigs.length-1].type==='sell'))sigs.push({i,type:'buy'});if(d<-1.2&&sigs.length>0&&sigs[sigs.length-1].type==='buy')sigs.push({i,type:'sell'});}
+    strat[s.id].paperSigs=sigs;
+  }
+});
+
+renderStratList();
+renderPanel();
+addLog('系统','<span class="hi">QuantEdge AI</span> 明亮模式已加载');
+addLog('实盘','<span class="hi">均线突破 BTC</span> 运行中');
+</script>
+</body>
+</html>

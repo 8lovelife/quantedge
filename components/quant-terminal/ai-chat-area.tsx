@@ -38,17 +38,17 @@ function DSLCodeBlock({ code, asset, timeframe }: { code: string; asset: string;
     const tokens: React.ReactNode[] = []
     let remaining = line
     let keyIdx = 0
-    
+
     // Keywords (purple)
     const keywords = ['strategy', 'asset', 'entry', 'exit', 'stop_loss', 'take_profit', 'position', 'type', 'grid_count', 'grid_gap', 'per_grid', 'tf']
     // Functions (cyan)
     const functions = ['ema', 'macd', 'rsi', 'vol', 'avg']
     // Operators (cyan)
     const operators = ['and', 'or']
-    
+
     // Simple tokenizer
     const parts = remaining.split(/(\s+|[{}()<>])/g).filter(Boolean)
-    
+
     for (const part of parts) {
       if (keywords.includes(part)) {
         tokens.push(<span key={keyIdx++} className="text-violet-400">{part}</span>)
@@ -64,21 +64,23 @@ function DSLCodeBlock({ code, asset, timeframe }: { code: string; asset: string;
         tokens.push(<span key={keyIdx++}>{part}</span>)
       }
     }
-    
+
     return <div key={idx}>{tokens}</div>
   }
-  
+
   const lines = code.split('\n')
-  
+
   return (
-    <div className="bg-[#1a1b26] rounded-lg overflow-hidden border border-white/10">
+    <div className="bg-[#1a1b26] rounded-lg overflow-hidden border border-white/10 min-w-0">
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
         <span className="font-mono text-[10px] text-white/60 tracking-wider uppercase">STRATEGY DSL</span>
-        <span className="font-mono text-[10px] text-blue-400">{asset} · {timeframe}</span>
+        <span className="font-mono text-[10px] text-blue-400 flex-shrink-0 ml-2">{asset} · {timeframe}</span>
       </div>
-      <pre className="p-4 font-mono text-[12px] leading-relaxed text-white/90 overflow-x-auto whitespace-pre">
-        {lines.map((line, idx) => renderLine(line, idx))}
-      </pre>
+      <div className="overflow-x-auto">
+        <pre className="p-4 font-mono text-[12px] leading-relaxed text-white/90 whitespace-pre">
+          {lines.map((line, idx) => renderLine(line, idx))}
+        </pre>
+      </div>
     </div>
   )
 }
@@ -87,48 +89,50 @@ function StrategyCard({ message, onUseStrategy }: { message: Message; onUseStrat
   const strategy = message.strategy!
 
   return (
-    <div className="bg-card border border-border/50 border-l-[3px] border-l-violet-500 rounded-xl animate-in fade-in slide-in-from-bottom-1 duration-300 shadow-sm overflow-hidden">
+    <div className="min-w-0 w-full bg-card border border-border/50 border-l-[3px] border-l-violet-500 rounded-xl animate-in fade-in slide-in-from-bottom-1 duration-300 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-gradient-to-r from-violet-500/5 to-blue-500/5">
-        <div className="w-6 h-6 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 flex items-center justify-center text-[10px] text-white shadow-md shadow-violet-500/25">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-gradient-to-r from-violet-500/5 to-blue-500/5 min-w-0">
+        <div className="w-6 h-6 flex-shrink-0 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 flex items-center justify-center text-[10px] text-white shadow-md shadow-violet-500/25">
           &#10022;
         </div>
-        <span className="text-sm font-semibold text-violet-500 flex-1">
+        <span className="text-sm font-semibold text-violet-500 flex-1 truncate min-w-0">
           &#10022; 策略已生成 — {strategy.title}
         </span>
-        <span className="font-mono text-[10px] text-muted-foreground">
+        <span className="font-mono text-[10px] text-muted-foreground flex-shrink-0">
           {message.timestamp.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col gap-4">
+      <div className="p-4 flex flex-col gap-4 min-w-0">
         {/* Description */}
-        <p className="text-[13px] text-foreground leading-relaxed">{strategy.description}</p>
+        <p className="text-[13px] text-foreground leading-relaxed break-words">{strategy.description}</p>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-4 gap-2.5">
+        {/* Metrics Grid — 2 cols on narrow, 4 cols when space allows */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {strategy.metrics.map((metric, i) => (
-            <div key={i} className="bg-muted/50 border border-border/50 rounded-lg p-3">
-              <div className="font-mono text-[9px] text-muted-foreground mb-1 tracking-wider uppercase">
+            <div key={i} className="bg-muted/50 border border-border/50 rounded-lg p-2.5 min-w-0">
+              <div className="font-mono text-[9px] text-muted-foreground mb-1 tracking-wider uppercase truncate">
                 {metric.label}
               </div>
-              <div 
-                className="font-mono text-xl font-semibold"
+              <div
+                className="font-mono text-lg font-semibold truncate"
                 style={{ color: metric.color || 'inherit' }}
               >
                 {metric.value}
               </div>
-              <div className="text-[10px] text-muted-foreground mt-1">{metric.sub}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{metric.sub}</div>
             </div>
           ))}
         </div>
 
         {/* DSL Code Block */}
-        <DSLCodeBlock code={strategy.dsl} asset={strategy.asset} timeframe={strategy.timeframe} />
+        <div className="min-w-0 overflow-hidden">
+          <DSLCodeBlock code={strategy.dsl} asset={strategy.asset} timeframe={strategy.timeframe} />
+        </div>
 
         {/* Action Button */}
-        <Button 
+        <Button
           onClick={() => onUseStrategy?.(strategy)}
           className="w-full h-11 bg-gradient-to-r from-violet-600 to-blue-500 text-white font-semibold text-sm shadow-lg shadow-violet-500/25 hover:opacity-90 transition-all"
         >
@@ -150,7 +154,7 @@ export function AIChatArea() {
   const handleUseStrategy = (strategy: StrategyData) => {
     // Extract type from asset (e.g., BTC/USDT -> 趋势)
     const type = strategy.title.includes('网格') ? '震荡' : '趋势'
-    
+
     addStrategy({
       name: strategy.title,
       asset: strategy.asset,
@@ -159,7 +163,7 @@ export function AIChatArea() {
       returnRate: strategy.metrics[0]?.value || '',
       returnHint: '待回测',
     }, strategy.dsl)
-    
+
     addLog('AI', `<span class="hi">添加策略</span> ${strategy.title}`)
   }
 
@@ -216,7 +220,7 @@ export function AIChatArea() {
     <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden h-full bg-muted/30">
       {/* Chat feed */}
       <ScrollArea className="flex-1 min-h-0">
-        <div ref={scrollRef} className="p-4 flex flex-col gap-3">
+        <div ref={scrollRef} className="p-4 flex flex-col gap-3 min-w-0 w-full">
           {messages.length === 0 && !isThinking && (
             <div className="flex flex-col items-center justify-center h-full py-20 gap-2 opacity-50">
               <div className="text-3xl text-violet-500">&#10022;</div>
@@ -232,50 +236,61 @@ export function AIChatArea() {
           {messages.map((message) => (
             <div key={message.id}>
               {message.type === 'user' ? (
+                /* User bubble — right aligned */
                 <div className="flex justify-end">
-                  <div className="max-w-[68%] min-w-0 break-words bg-gradient-to-r from-violet-600 to-blue-500 rounded-[14px] rounded-br-[4px] px-4 py-2.5 text-[13px] text-white shadow-lg shadow-violet-500/20">
+                  <div className="max-w-[72%] min-w-0 break-words bg-gradient-to-r from-violet-600 to-blue-500 rounded-[14px] rounded-br-[4px] px-4 py-2.5 text-[13px] text-white shadow-lg shadow-violet-500/20">
                     {message.content}
                   </div>
                 </div>
               ) : message.responseType === 'strategy' && message.strategy ? (
-                <StrategyCard message={message} onUseStrategy={handleUseStrategy} />
-              ) : (
-                <div className="bg-card border border-border/50 border-l-[3px] border-l-violet-500 rounded-xl animate-in fade-in slide-in-from-bottom-1 duration-300 shadow-sm">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/50">
-                    <div className="w-5 h-5 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 flex items-center justify-center text-[9px] text-white shadow-md shadow-violet-500/25">
-                      &#10022;
-                    </div>
-                    <span className="text-xs font-semibold text-violet-500 flex-1">ASTRA AI</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      {message.timestamp.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                /* Strategy card — left aligned, naturally sized up to 92% */
+                <div className="flex justify-start">
+                  <div className="w-full max-w-[92%] min-w-0">
+                    <StrategyCard message={message} onUseStrategy={handleUseStrategy} />
                   </div>
-                  <div
-                    className="p-3 text-[13px] text-foreground leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0"
-                    dangerouslySetInnerHTML={{ __html: message.content }}
-                  />
+                </div>
+              ) : (
+                /* Text reply — left aligned, up to 80% */
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] min-w-0 bg-card border border-border/50 border-l-[3px] border-l-violet-500 rounded-xl animate-in fade-in slide-in-from-bottom-1 duration-300 shadow-sm">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/50">
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 flex items-center justify-center text-[9px] text-white shadow-md shadow-violet-500/25">
+                        &#10022;
+                      </div>
+                      <span className="text-xs font-semibold text-violet-500 flex-1">ASTRA AI</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {message.timestamp.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div
+                      className="p-3 text-[13px] text-foreground leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0"
+                      dangerouslySetInnerHTML={{ __html: message.content }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           ))}
 
           {isThinking && (
-            <div className="bg-card border border-border/50 border-l-[3px] border-l-violet-500 rounded-xl shadow-sm">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/50">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 flex items-center justify-center text-[9px] text-white shadow-md shadow-violet-500/25">
-                  &#10022;
+            <div className="flex justify-start">
+              <div className="max-w-[80%] min-w-0 bg-card border border-border/50 border-l-[3px] border-l-violet-500 rounded-xl shadow-sm">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/50">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 flex items-center justify-center text-[9px] text-white shadow-md shadow-violet-500/25">
+                    &#10022;
+                  </div>
+                  <span className="text-xs font-semibold text-violet-500 flex-1">ASTRA AI</span>
                 </div>
-                <span className="text-xs font-semibold text-violet-500 flex-1">ASTRA AI</span>
-              </div>
-              <div className="p-3">
-                <div className="flex gap-1.5 items-center">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="w-[7px] h-[7px] rounded-full bg-violet-500 opacity-40 animate-pulse"
-                      style={{ animationDelay: `${i * 0.2}s` }}
-                    />
-                  ))}
+                <div className="p-3">
+                  <div className="flex gap-1.5 items-center">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className="w-[7px] h-[7px] rounded-full bg-violet-500 opacity-40 animate-pulse"
+                        style={{ animationDelay: `${i * 0.2}s` }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

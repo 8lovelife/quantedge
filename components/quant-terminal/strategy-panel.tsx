@@ -97,6 +97,7 @@ export function StrategyPanel() {
   const {
     activeStrategyId,
     strategyStates,
+    strategies,
     panelCollapsed,
     setActiveTab,
     setStrategyState,
@@ -106,7 +107,8 @@ export function StrategyPanel() {
   const [showLiveModal, setShowLiveModal] = useState(false)
 
   const state = strategyStates[activeStrategyId]
-  const strategy = initialStrategies.find((s) => s.id === activeStrategyId)
+
+  const strategy = strategies.find((s) => s.id === activeStrategyId)
 
   if (!state || !strategy) return null
 

@@ -9,9 +9,10 @@ import { ExecutionLog } from './execution-log'
 import { useQuantTerminalStore } from './store'
 import { cn } from '@/lib/utils'
 import { useRef, useState, useCallback } from 'react'
+import { ChevronRight } from 'lucide-react'
 
 export function QuantTerminal() {
-  const { panelCollapsed } = useQuantTerminalStore()
+  const { panelCollapsed, logCollapsed, toggleLog } = useQuantTerminalStore()
   const [panelWidth, setPanelWidth] = useState(55)
   const mainRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -35,7 +36,6 @@ export function QuantTerminal() {
     document.body.style.cursor = ''
   }, [])
 
-  // Add/remove global listeners
   const handleResizeStart = useCallback(() => {
     handleMouseDown()
     document.addEventListener('mousemove', handleMouseMove)
@@ -47,29 +47,17 @@ export function QuantTerminal() {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-muted/50">
-      {/* Background gradient */}
-      <div
-        className="fixed inset-0 pointer-events-none z-0"
-        style={{
-          background: `
-            radial-gradient(ellipse 60% 40% at 20% 10%, rgba(124, 58, 237, 0.03) 0%, transparent 60%),
-            radial-gradient(ellipse 50% 35% at 80% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 55%),
-            radial-gradient(ellipse 40% 30% at 60% 30%, rgba(139, 92, 246, 0.02) 0%, transparent 50%)
-          `,
-        }}
-      />
-
       <TerminalNav />
 
-      <div className="flex-1 grid grid-cols-[240px_1fr_280px] overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Left sidebar */}
-        <div className="border-r border-border/40 bg-card flex flex-col overflow-hidden h-full min-h-0">
+        <div className="w-[240px] border-r border-border/40 bg-card flex flex-col overflow-hidden h-full min-h-0 flex-shrink-0">
           <MarketQuotes />
           <StrategyList />
         </div>
 
         {/* Center main area */}
-        <div ref={mainRef} className="flex flex-row overflow-hidden bg-muted/30 h-full min-h-0">
+        <div ref={mainRef} className="flex flex-1 flex-row overflow-hidden bg-muted/30 h-full min-h-0">
           <div
             className={cn(
               "flex-shrink-0 transition-all duration-300 ease-out",
@@ -96,6 +84,34 @@ export function QuantTerminal() {
 
         {/* Right sidebar */}
         <ExecutionLog />
+
+        {/* Log toggle button — floats above layout on the right edge, always visible */}
+        <button
+          onClick={toggleLog}
+          title={logCollapsed ? '展开执行日志' : '收起执行日志'}
+          className={cn(
+            'absolute top-1/2 -translate-y-1/2 right-0 z-30',
+            'w-5 h-12 rounded-l-lg',
+            'flex flex-col items-center justify-center gap-1.5',
+            'bg-card border border-r-0 border-border/60',
+            'shadow-[-3px_0_10px_rgba(0,0,0,0.07)]',
+            'text-muted-foreground hover:text-violet-500 hover:border-violet-500/40',
+            'hover:shadow-[-3px_0_14px_rgba(139,92,246,0.15)]',
+            'transition-all duration-200 cursor-pointer',
+            // shift left when panel is open to sit on its edge
+            logCollapsed ? 'translate-x-0' : '-translate-x-[280px]'
+          )}
+        >
+          <ChevronRight
+            className={cn(
+              'w-2.5 h-2.5 transition-transform duration-300',
+              !logCollapsed && 'rotate-180'
+            )}
+          />
+          {logCollapsed && (
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
+          )}
+        </button>
       </div>
     </div>
   )

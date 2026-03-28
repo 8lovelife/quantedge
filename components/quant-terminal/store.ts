@@ -65,6 +65,7 @@ interface QuantTerminalStore {
   logs: LogItem[]
   messages: ChatMessage[]
   panelCollapsed: boolean
+  logCollapsed: boolean
   panelWidth: number
   btcPrice: number
 
@@ -76,6 +77,7 @@ interface QuantTerminalStore {
   addLog: (tag: string, message: string) => void
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void
   togglePanel: () => void
+  toggleLog: () => void
   setPanelWidth: (width: number) => void
   setBtcPrice: (price: number) => void
   togglePro: () => void
@@ -94,6 +96,7 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
   ],
   messages: [],
   panelCollapsed: false,
+  logCollapsed: false,
   panelWidth: 55,
   btcPrice: 84231,
 
@@ -151,6 +154,8 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
   })),
 
   togglePanel: () => set((prev) => ({ panelCollapsed: !prev.panelCollapsed })),
+
+  toggleLog: () => set((prev) => ({ logCollapsed: !prev.logCollapsed })),
 
   setPanelWidth: (width) => set({ panelWidth: width }),
 

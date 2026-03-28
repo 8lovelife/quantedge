@@ -143,8 +143,10 @@ export function drawPaperChart(
   const cW = W - PAD.l - PAD.r
   const cH = H - PAD.t - PAD.b
 
-  const mn = Math.min(...pts) - 1.5
-  const mx = Math.max(...pts) + 1.5
+  const allVals = ref && ref.length > 0 ? [...pts, ...ref.slice(0, pts.length)] : pts
+  const mn = Math.min(...allVals) - 1.5
+  const mx = Math.max(...allVals) + 1.5
+  const range = mx - mn || 1
 
   const dpr = window.devicePixelRatio || 1
   canvas.width = W * dpr
@@ -158,14 +160,33 @@ export function drawPaperChart(
   ctx.scale(dpr, dpr)
   ctx.clearRect(0, 0, W, H)
 
-  const yM = (v: number) => PAD.t + cH - ((v - mn) / (mx - mn)) * cH
+  const yM = (v: number) => PAD.t + cH - ((v - mn) / range) * cH
   const xM = (i: number) => PAD.l + (i / (pts.length - 1)) * cW
 
-  // Reference line (dashed)
-  if (ref && pts.length > 1) {
+  // Grid lines (unified with backtest/live)
+  const gridStops = [0, 0.25, 0.5, 0.75, 1]
+  gridStops.forEach((t) => {
+    const y = PAD.t + cH * (1 - t)
+    ctx.strokeStyle = '#e2e8f0'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    ctx.moveTo(PAD.l, y)
+    ctx.lineTo(W - PAD.r, y)
+    ctx.stroke()
+
+    ctx.fillStyle = '#94a3b8'
+    ctx.font = '9px JetBrains Mono, monospace'
+    ctx.textAlign = 'right'
+    const label = t === 0.5 ? '0%' : (t > 0.5 ? '+' : '') + Math.round((mn + range * t) * 0.4) + '%'
+    ctx.fillText(label, PAD.l - 4, y + 3)
+  })
+
+  // Reference line (benchmark, dashed blue — same style as backtest benchmark)
+  if (ref && ref.length > 1) {
     ctx.strokeStyle = '#3b82f6'
     ctx.lineWidth = 1
-    ctx.setLineDash([5, 4])
+    ctx.setLineDash([4, 4])
+    ctx.globalAlpha = 0.5
     ctx.beginPath()
     ref.slice(0, pts.length).forEach((v, i) => {
       if (i === 0) ctx.moveTo(xM(i), yM(v))
@@ -173,11 +194,12 @@ export function drawPaperChart(
     })
     ctx.stroke()
     ctx.setLineDash([])
+    ctx.globalAlpha = 1
   }
 
   // Area fill
   const gradient = ctx.createLinearGradient(0, PAD.t, 0, PAD.t + cH)
-  gradient.addColorStop(0, 'rgba(139, 92, 246, 0.1)')
+  gradient.addColorStop(0, 'rgba(139, 92, 246, 0.12)')
   gradient.addColorStop(1, 'rgba(139, 92, 246, 0)')
 
   ctx.beginPath()
@@ -202,13 +224,34 @@ export function drawPaperChart(
   })
   ctx.stroke()
 
-  // Signals
+  // Signals (unified with backtest/live)
   sigs.filter((s) => s.i < pts.length).forEach((s) => {
     ctx.beginPath()
     ctx.arc(xM(s.i), yM(pts[s.i]), 5, 0, Math.PI * 2)
     ctx.fillStyle = s.type === 'buy' ? '#10b981' : '#ef4444'
     ctx.fill()
   })
+
+  // Current point with pulse rings (unified with live chart style)
+  const lx = xM(pts.length - 1)
+  const ly = yM(pts[pts.length - 1])
+
+  ctx.beginPath()
+  ctx.arc(lx, ly, 4, 0, Math.PI * 2)
+  ctx.fillStyle = '#8b5cf6'
+  ctx.fill()
+
+  ctx.beginPath()
+  ctx.arc(lx, ly, 8, 0, Math.PI * 2)
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)'
+  ctx.lineWidth = 2
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.arc(lx, ly, 13, 0, Math.PI * 2)
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.08)'
+  ctx.lineWidth = 2
+  ctx.stroke()
 
   // X-axis labels
   const labels = ['3/8', '3/12', '3/17', '3/22']

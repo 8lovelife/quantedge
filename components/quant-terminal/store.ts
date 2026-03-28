@@ -83,6 +83,7 @@ interface QuantTerminalStore {
   togglePro: () => void
   updateLiveData: (pts: number[], sigs: { i: number; type: 'buy' | 'sell' }[]) => void
   addStrategy: (strategy: Omit<Strategy, 'id'>, dslCode?: string) => string
+  updateStrategy: (id: string, patch: Partial<Omit<Strategy, 'id'>>) => void
 }
 
 export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
@@ -219,4 +220,8 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
 
     return newId
   },
+
+  updateStrategy: (id, patch) => set((prev) => ({
+    strategies: prev.strategies.map((s) => s.id === id ? { ...s, ...patch } : s)
+  })),
 }))

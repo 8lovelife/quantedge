@@ -38,17 +38,17 @@ function DSLCodeBlock({ code, asset, timeframe }: { code: string; asset: string;
     const tokens: React.ReactNode[] = []
     let remaining = line
     let keyIdx = 0
-
+    
     // Keywords (purple)
     const keywords = ['strategy', 'asset', 'entry', 'exit', 'stop_loss', 'take_profit', 'position', 'type', 'grid_count', 'grid_gap', 'per_grid', 'tf']
     // Functions (cyan)
     const functions = ['ema', 'macd', 'rsi', 'vol', 'avg']
     // Operators (cyan)
     const operators = ['and', 'or']
-
+    
     // Simple tokenizer
     const parts = remaining.split(/(\s+|[{}()<>])/g).filter(Boolean)
-
+    
     for (const part of parts) {
       if (keywords.includes(part)) {
         tokens.push(<span key={keyIdx++} className="text-violet-400">{part}</span>)
@@ -64,12 +64,12 @@ function DSLCodeBlock({ code, asset, timeframe }: { code: string; asset: string;
         tokens.push(<span key={keyIdx++}>{part}</span>)
       }
     }
-
+    
     return <div key={idx}>{tokens}</div>
   }
-
+  
   const lines = code.split('\n')
-
+  
   return (
     <div className="bg-[#1a1b26] rounded-lg overflow-hidden border border-white/10 min-w-0">
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
@@ -154,7 +154,7 @@ export function AIChatArea() {
   const handleUseStrategy = (strategy: StrategyData) => {
     // Extract type from asset (e.g., BTC/USDT -> 趋势)
     const type = strategy.title.includes('网格') ? '震荡' : '趋势'
-
+    
     addStrategy({
       name: strategy.title,
       asset: strategy.asset,
@@ -163,7 +163,7 @@ export function AIChatArea() {
       returnRate: strategy.metrics[0]?.value || '',
       returnHint: '待回测',
     }, strategy.dsl)
-
+    
     addLog('AI', `<span class="hi">添加策略</span> ${strategy.title}`)
   }
 
@@ -218,9 +218,9 @@ export function AIChatArea() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden h-full bg-muted/30">
-      {/* Chat feed */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div ref={scrollRef} className="p-4 flex flex-col gap-3 min-w-0 w-full">
+      {/* Chat feed — native scroll so scrollRef works directly */}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+        <div className="p-4 flex flex-col gap-3 min-w-0 w-full">
           {messages.length === 0 && !isThinking && (
             <div className="flex flex-col items-center justify-center h-full py-20 gap-2 opacity-50">
               <div className="text-3xl text-violet-500">&#10022;</div>
@@ -296,7 +296,7 @@ export function AIChatArea() {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input bar */}
       <div className="border-t border-border/40 bg-card p-3 flex flex-col gap-2">

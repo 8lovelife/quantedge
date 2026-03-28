@@ -7,9 +7,10 @@ import { cn } from '@/lib/utils'
 
 interface DraftTabProps {
   onStartBacktest: () => void
+  readOnly?: boolean
 }
 
-export function DraftTab({ onStartBacktest }: DraftTabProps) {
+export function DraftTab({ onStartBacktest, readOnly }: DraftTabProps) {
   const { togglePro, activeStrategyId, strategyStates } = useQuantTerminalStore()
   const state = strategyStates[activeStrategyId]
   const showPro = state?.showPro ?? false
@@ -136,7 +137,7 @@ export function DraftTab({ onStartBacktest }: DraftTabProps) {
       )}
 
       {/* Action button */}
-      <div className="flex gap-2.5">
+      {!readOnly && <div className="flex gap-2.5">
         <Button
           onClick={onStartBacktest}
           className="flex-1 h-10 bg-blue-500/10 border border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white font-mono text-[11px] font-medium"
@@ -144,7 +145,7 @@ export function DraftTab({ onStartBacktest }: DraftTabProps) {
         >
           &#9654; 开始回测 — 验证历史表现
         </Button>
-      </div>
+      </div>}
     </div>
   )
 }

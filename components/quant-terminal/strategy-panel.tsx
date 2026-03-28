@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuantTerminalStore, initialStrategies } from './store'
+import { useQuantTerminalStore } from './store'
 import { cn } from '@/lib/utils'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { DraftTab } from './tabs/draft-tab'
 import { BacktestTab } from './tabs/backtest-tab'
 import { PaperTab } from './tabs/paper-tab'
@@ -38,12 +37,14 @@ function StageTab({ stage, index, status, isActive, onClick }: StageTabProps) {
   const name = stageNames[stage]
   const isLocked = status === 'locked'
   const isDone = status === 'done'
+  const isStopped = status === 'stopped'
 
   const getStatusText = () => {
     if (isLocked) return stage === 'paper' ? '&#128274; 需完成回测' : '&#128274; 需完成模拟'
     if (status === 'ready') return '&#9654; 点击开始'
     if (status === 'running') return '● 运行中'
     if (status === 'paused') return '&#9208; 已暂停'
+    if (status === 'stopped') return '&#9632; 已终止'
     if (isDone) return stage === 'draft' ? '&#10003; 已生成' : '&#10003; 完成'
     return ''
   }
@@ -80,7 +81,7 @@ function StageTab({ stage, index, status, isActive, onClick }: StageTabProps) {
       </div>
       <div
         className="font-mono text-[9px]"
-        style={{ color: isDone ? '#10b981' : isActive ? color : 'currentColor' }}
+        style={{ color: isStopped ? '#ef4444' : isDone ? '#10b981' : isActive ? color : 'currentColor' }}
         dangerouslySetInnerHTML={{ __html: getStatusText() }}
       />
       {isActive && (
@@ -102,19 +103,29 @@ export function StrategyPanel() {
     setActiveTab,
     setStrategyState,
     addLog,
+    updateStrategy,
   } = useQuantTerminalStore()
 
   const [showLiveModal, setShowLiveModal] = useState(false)
 
   const state = strategyStates[activeStrategyId]
-
   const strategy = strategies.find((s) => s.id === activeStrategyId)
 
   if (!state || !strategy) return null
 
+  // All stages done = fully archived, read-only
+  const isArchived = state.stages.live === 'done' &&
+    state.stages.paper === 'done' &&
+    state.stages.bt === 'done'
+
   const handleTabClick = (tab: keyof StrategyStages) => {
     const status = state.stages[tab]
     if (status === 'locked') return
+    if (isArchived) {
+      // read-only: just switch view, no actions
+      setActiveTab(tab)
+      return
+    }
 
     if (tab === 'live' && status === 'ready') {
       setShowLiveModal(true)
@@ -128,6 +139,11 @@ export function StrategyPanel() {
 
     if (tab === 'paper' && status === 'ready') {
       handleStartPaper()
+      return
+    }
+
+    if (tab === 'paper' && (status === 'running' || status === 'paused')) {
+      setActiveTab(tab)
       return
     }
 
@@ -176,16 +192,45 @@ export function StrategyPanel() {
     addLog('实盘', '<span class="hi">已恢复</span>')
   }
 
+  const handleStopLive = () => {
+    setStrategyState(activeStrategyId, {
+      stages: { ...state.stages, live: 'stopped' },
+    })
+    addLog('实盘', '<span class="sell">已终止</span>，所有持仓已平仓')
+  }
+
+  const handleRestartLive = () => {
+    setShowLiveModal(true)
+  }
+
+  const handleArchiveLive = () => {
+    setStrategyState(activeStrategyId, {
+      stages: { ...state.stages, live: 'done' },
+      activeTab: 'live',
+    })
+    updateStrategy(activeStrategyId, { returnHint: '已归档' })
+    addLog('实盘', '策略已<span class="mono">归档</span>')
+  }
+
   const renderTabContent = () => {
     switch (state.activeTab) {
       case 'draft':
-        return <DraftTab onStartBacktest={handleStartBacktest} />
+        return <DraftTab onStartBacktest={handleStartBacktest} readOnly={isArchived} />
       case 'bt':
-        return <BacktestTab onStartPaper={handleStartPaper} onStartBacktest={handleStartBacktest} />
+        return <BacktestTab onStartPaper={handleStartPaper} onStartBacktest={handleStartBacktest} readOnly={isArchived} />
       case 'paper':
-        return <PaperTab onStartLive={() => setShowLiveModal(true)} />
+        return <PaperTab onStartLive={() => setShowLiveModal(true)} readOnly={isArchived} />
       case 'live':
-        return <LiveTab onPause={handlePauseLive} onResume={handleResumeLive} />
+        return (
+          <LiveTab
+            onPause={handlePauseLive}
+            onResume={handleResumeLive}
+            onStop={handleStopLive}
+            onRestart={handleRestartLive}
+            onArchive={handleArchiveLive}
+            readOnly={isArchived}
+          />
+        )
       default:
         return null
     }
@@ -224,6 +269,12 @@ export function StrategyPanel() {
 
           {/* Body */}
           <div className="flex-1 overflow-auto bg-muted/30">
+            {isArchived && (
+              <div className="mx-5 mt-4 px-3 py-2 rounded-lg bg-muted/80 border border-border/60 flex items-center gap-2">
+                <span className="text-[11px]">&#128193;</span>
+                <span className="font-mono text-[10px] text-muted-foreground">策略已归档，仅供查看，所有操作已禁用</span>
+              </div>
+            )}
             <div className="p-5 flex flex-col gap-3.5 min-h-full">
               {renderTabContent()}
             </div>

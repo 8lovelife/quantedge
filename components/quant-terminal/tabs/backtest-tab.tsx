@@ -8,9 +8,10 @@ import { drawBacktestChart, generateBacktestData } from '../chart-utils'
 interface BacktestTabProps {
   onStartPaper: () => void
   onStartBacktest: () => void
+  readOnly?: boolean
 }
 
-export function BacktestTab({ onStartPaper, onStartBacktest }: BacktestTabProps) {
+export function BacktestTab({ onStartPaper, onStartBacktest, readOnly }: BacktestTabProps) {
   const { activeStrategyId, strategyStates, setStrategyState, addLog } = useQuantTerminalStore()
   const state = strategyStates[activeStrategyId]
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -177,7 +178,7 @@ export function BacktestTab({ onStartPaper, onStartBacktest }: BacktestTabProps)
         </div>
 
         {/* Action button */}
-        <div className="flex gap-2.5">
+        {!readOnly && <div className="flex gap-2.5">
           <Button
             onClick={onStartPaper}
             className="flex-1 h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
@@ -185,7 +186,7 @@ export function BacktestTab({ onStartPaper, onStartBacktest }: BacktestTabProps)
           >
             &#9654; 开始模拟交易
           </Button>
-        </div>
+        </div>}
       </div>
     )
   }

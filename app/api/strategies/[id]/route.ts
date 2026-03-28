@@ -62,11 +62,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 }
 
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
 
     const token = request.cookies.get("session_id")?.value
-    const id = (await params).id
+    const id = Number.parseInt((await params).id)
+
     const response = await fetch(`${BACKENT_SERVER_API}/api/strategies/details?id=${id}`, {
       method: "GET",
       headers: {

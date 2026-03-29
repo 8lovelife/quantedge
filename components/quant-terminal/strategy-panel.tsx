@@ -135,6 +135,10 @@ export function StrategyPanel() {
 
   if (!state || !strategy) return null
 
+  // Max 3 versions per family — disable improve button when at limit
+  const familySize = strategies.filter((s) => s.familyId === strategy.familyId).length
+  const canImprove = familySize < 3
+
   const isArchived = state.stages.live === 'done' && state.stages.paper === 'done' && state.stages.bt === 'done'
   const access = getTabAccess(state.stages)
 
@@ -212,6 +216,7 @@ export function StrategyPanel() {
 
   // THE ONE improve action — always creates a new version in the same family, always goes forward
   const handleImprove = () => {
+    if (!canImprove) return
     cloneStrategy(activeStrategyId)
     addLog('策略', '已创建新版本，<span class="hi">从草稿开始</span> →')
   }
@@ -238,7 +243,7 @@ export function StrategyPanel() {
             viewOnly={viewOnly && !isArchived}
             viewOnlyReason={viewOnlyReason}
             readOnly={isArchived}
-            onClone={handleImprove}
+            onClone={canImprove ? handleImprove : undefined}
           />
         )
       case 'paper':
@@ -248,7 +253,7 @@ export function StrategyPanel() {
             viewOnly={viewOnly && !isArchived}
             viewOnlyReason={viewOnlyReason}
             readOnly={isArchived}
-            onClone={handleImprove}
+            onClone={canImprove ? handleImprove : undefined}
           />
         )
       case 'live':
@@ -260,7 +265,7 @@ export function StrategyPanel() {
             onRestart={handleRestartLive}
             onArchive={handleArchiveLive}
             readOnly={isArchived}
-            onClone={handleImprove}
+            onClone={canImprove ? handleImprove : undefined}
           />
         )
       default:
@@ -307,9 +312,15 @@ export function StrategyPanel() {
               <div className="mx-5 mt-4 px-3 py-2 rounded-lg bg-muted/80 border border-border/60 flex items-center gap-2">
                 <span className="text-[11px]">&#128193;</span>
                 <span className="font-mono text-[10px] text-muted-foreground">策略已归档，仅供查看</span>
-                <button onClick={handleImprove} className="ml-auto font-mono text-[10px] text-violet-500 hover:underline">
-                  📊 调整参数再跑一次 →
-                </button>
+                {canImprove ? (
+                  <button onClick={handleImprove} className="ml-auto font-mono text-[10px] text-violet-500 hover:underline">
+                    📊 调整参数再跑一次 →
+                  </button>
+                ) : (
+                  <span className="ml-auto font-mono text-[10px] text-muted-foreground/50">
+                    已达最大版本数 (3)
+                  </span>
+                )}
               </div>
             )}
             <div className="p-5 flex flex-col gap-3.5 min-h-full">

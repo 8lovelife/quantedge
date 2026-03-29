@@ -71,6 +71,8 @@ interface QuantTerminalStore {
   setStageStatus: (stage: keyof StrategyState['stages'], status: StrategyState['stages']['draft']) => void
   setBtRange: (id: string, range: BtRange) => void
   toggleFamilyCollapse: (familyId: string) => void
+  unreadLogCount: number       // logs added while sidebar is collapsed
+  resetUnreadLogCount: () => void
   addLog: (tag: string, message: string) => void
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void
   togglePanel: () => void
@@ -90,6 +92,7 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
   activeStrategyId: 's1',
   strategyStates: createInitialStrategyStates(),
   collapsedFamilies: {},
+  unreadLogCount: 0,
   logs: [
     { time: '14:32', tag: '系统', message: '引擎已连接' },
     { time: '14:30', tag: '实盘', message: '<span class="hi">买入</span> BTC @ 83,940' },
@@ -143,7 +146,9 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
     logs: [
       { time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), tag, message },
       ...prev.logs
-    ].slice(0, 100)
+    ].slice(0, 100),
+    // increment unread count only when log panel is collapsed
+    unreadLogCount: prev.logCollapsed ? prev.unreadLogCount + 1 : 0,
   })),
 
   addMessage: (message) => set((prev) => ({
@@ -151,7 +156,12 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
   })),
 
   togglePanel: () => set((prev) => ({ panelCollapsed: !prev.panelCollapsed })),
-  toggleLog: () => set((prev) => ({ logCollapsed: !prev.logCollapsed })),
+  resetUnreadLogCount: () => set({ unreadLogCount: 0 }),
+  toggleLog: () => set((prev) => ({
+    logCollapsed: !prev.logCollapsed,
+    // clear unread count when expanding
+    unreadLogCount: prev.logCollapsed ? 0 : prev.unreadLogCount,
+  })),
   setPanelWidth: (width) => set({ panelWidth: width }),
   setBtcPrice: (price) => set({ btcPrice: price }),
 
@@ -204,6 +214,10 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
 
     // Find the highest version in this family to increment
     const familyMembers = strategies.filter((s) => s.familyId === src.familyId)
+
+    // Hard limit: max 3 versions per family (original + 2 iterations)
+    if (familyMembers.length >= 3) return id
+
     const nextVersion = Math.max(...familyMembers.map((s) => s.version)) + 1
 
     const newId = `s${Date.now()}`

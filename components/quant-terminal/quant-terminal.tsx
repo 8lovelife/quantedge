@@ -12,7 +12,7 @@ import { useRef, useState, useCallback } from 'react'
 import { ChevronRight } from 'lucide-react'
 
 export function QuantTerminal() {
-  const { panelCollapsed, logCollapsed, toggleLog } = useQuantTerminalStore()
+  const { panelCollapsed, logCollapsed, toggleLog, unreadLogCount } = useQuantTerminalStore()
   const [panelWidth, setPanelWidth] = useState(55)
   const mainRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -109,7 +109,15 @@ export function QuantTerminal() {
             )}
           />
           {logCollapsed && (
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
+              {unreadLogCount > 0 && (
+                <div className="font-mono text-[8px] font-bold text-emerald-500 leading-none"
+                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+                  +{unreadLogCount > 99 ? '99' : unreadLogCount}
+                </div>
+              )}
+            </div>
           )}
         </button>
       </div>

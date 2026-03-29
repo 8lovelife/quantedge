@@ -220,6 +220,14 @@ function FamilyGroup({ family, activeStrategyId, strategyStates, isCollapsed, on
               />
             )
           })}
+          {/* At version limit — show hint */}
+          {family.members.length >= 3 && (
+            <div className="px-2 pt-1 pb-0.5 flex items-center gap-1.5">
+              <span className="font-mono text-[9px] text-muted-foreground/50">
+                已达最大版本数 · 如需继续迭代请重新创建
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -269,7 +277,7 @@ export function StrategyList({ onNewStrategy }: StrategyListProps) {
         </Button>
       </div>
 
-      <ScrollArea className="flex-1 px-2.5 pb-2.5">
+      <ScrollArea className="flex-1 min-h-0 px-2.5 pb-2.5">
         {families.map((family) => (
           <FamilyGroup
             key={family.familyId}

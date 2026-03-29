@@ -7,7 +7,10 @@ import { drawPaperChart } from '../chart-utils'
 
 interface PaperTabProps {
   onStartLive: () => void
+  viewOnly?: boolean
+  viewOnlyReason?: 'paper' | 'live'
   readOnly?: boolean
+  onClone?: () => void
 }
 
 interface PaperTrade {
@@ -22,15 +25,14 @@ interface PaperTrade {
   isPending: boolean
 }
 
-export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
+export function PaperTab({ onStartLive, viewOnly, viewOnlyReason, readOnly, onClone }: PaperTabProps) {
   const { activeStrategyId, strategyStates, setStrategyState, addLog } = useQuantTerminalStore()
   const state = strategyStates[activeStrategyId]
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Runtime stats derived from live data
   const [trades, setTrades] = useState<PaperTrade[]>([])
-  const [elapsed, setElapsed] = useState(0) // seconds running
+  const [elapsed, setElapsed] = useState(0)
   const elapsedRef = useRef(0)
 
   const isRunning = state?.stages.paper === 'running'
@@ -50,13 +52,10 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
     }
   }, [isRunning, activeStrategyId, state, setStrategyState])
 
-  // Real-time interval — mirrors live-tab exactly, just using paper state
+  // Real-time interval — identical architecture to live-tab
   useEffect(() => {
     if (!isRunning) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
       return
     }
 
@@ -71,27 +70,17 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
       pts.push(nv)
       if (pts.length > 120) pts.shift()
 
-      // Signal detection — same logic as live
       if (pts.length > 5) {
         const delta = pts[pts.length - 1] - pts[pts.length - 4]
         if (delta > 1.8 && (sigs.length === 0 || sigs[sigs.length - 1].type === 'sell')) {
           sigs.push({ i: pts.length - 1, type: 'buy' })
           const price = (83000 + Math.round(nv * 200)).toLocaleString()
           addLog('模拟', `<span class="buy">模拟买入</span> BTC <span class="mono">@ ${price}</span>`)
-          setTrades((prev) => [
-            {
-              time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-              dir: '买入',
-              price,
-              qty: '0.012',
-              pnl: '持仓中',
-              trigger: 'EMA金叉+量',
-              isBuy: true,
-              isUp: true,
-              isPending: true,
-            },
-            ...prev,
-          ].slice(0, 20))
+          setTrades((prev) => [{
+            time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            dir: '买入', price, qty: '0.012', pnl: '持仓中',
+            trigger: 'EMA金叉+量', isBuy: true, isUp: true, isPending: true,
+          }, ...prev].slice(0, 20))
         }
         if (delta < -1.3 && sigs.length > 0 && sigs[sigs.length - 1].type === 'buy') {
           sigs.push({ i: pts.length - 1, type: 'sell' })
@@ -101,49 +90,26 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
           addLog('模拟', `<span class="sell">模拟卖出</span> <span class="${isUp ? 'buy' : 'sell'}">${pnlPct}</span>`)
           setTrades((prev) => {
             const updated = [...prev]
-            // close the open position
             const openIdx = updated.findIndex((t) => t.isPending && t.isBuy)
-            if (openIdx !== -1) {
-              updated[openIdx] = { ...updated[openIdx], pnl: pnlPct, isPending: false, isUp }
-            }
-            return [
-              {
-                time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-                dir: '卖出',
-                price,
-                qty: '0.012',
-                pnl: pnlPct,
-                trigger: isUp ? '止盈 tp=6%' : '止损 sl=2%',
-                isBuy: false,
-                isUp,
-                isPending: false,
-              },
-              ...updated,
-            ].slice(0, 20)
+            if (openIdx !== -1) updated[openIdx] = { ...updated[openIdx], pnl: pnlPct, isPending: false, isUp }
+            return [{
+              time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+              dir: '卖出', price, qty: '0.012', pnl: pnlPct,
+              trigger: isUp ? '止盈 tp=6%' : '止损 sl=2%', isBuy: false, isUp, isPending: false,
+            }, ...updated].slice(0, 20)
           })
         }
       }
 
-      // Tick elapsed time
       elapsedRef.current += 1
       setElapsed(elapsedRef.current)
-
       setStrategyState(activeStrategyId, { paperPts: pts, paperSigs: sigs })
-
-      if (canvasRef.current) {
-        drawPaperChart(canvasRef.current, pts, sigs, [])
-      }
+      if (canvasRef.current) drawPaperChart(canvasRef.current, pts, sigs, [])
     }, 300)
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } }
   }, [isRunning, activeStrategyId, setStrategyState, addLog])
 
-  // Redraw on pause / done
   useEffect(() => {
     if (canvasRef.current && state?.paperPts.length) {
       drawPaperChart(canvasRef.current, state.paperPts, state.paperSigs, [])
@@ -154,11 +120,8 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
   const floatPnl = Math.round(latestPt * 80)
   const floatPnlStr = `${floatPnl >= 0 ? '+' : ''}${floatPnl}¥`
 
-  // Format elapsed time as hh:mm:ss
   const fmtElapsed = () => {
-    const h = Math.floor(elapsed / 3600)
-    const m = Math.floor((elapsed % 3600) / 60)
-    const s = elapsed % 60
+    const h = Math.floor(elapsed / 3600), m = Math.floor((elapsed % 3600) / 60), s = elapsed % 60
     if (h > 0) return `${h}h ${m}m`
     if (m > 0) return `${m}m ${s}s`
     return `${s}s`
@@ -168,19 +131,7 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
   const lossCount = trades.filter((t) => !t.isBuy && !t.isUp && !t.isPending).length
   const totalClosed = winCount + lossCount
   const winRate = totalClosed > 0 ? Math.round((winCount / totalClosed) * 100) : 0
-
-  // Holding label
-  const hasOpenPosition = trades.length > 0 && trades.some((t) => t.isPending && t.isBuy)
-  const holdingLabel = isPaused
-    ? (hasOpenPosition ? 'BTC 0.012' : '空仓')
-    : hasOpenPosition
-      ? 'BTC 0.012'
-      : '空仓'
-  const holdingSubLabel = isPaused
-    ? (hasOpenPosition ? `持仓保留 · 浮盈 ${floatPnlStr}` : '无持仓')
-    : hasOpenPosition
-      ? `成本 83,940 · 浮盈 ${floatPnlStr}`
-      : '等待信号'
+  const hasOpenPosition = trades.some((t) => t.isPending && t.isBuy)
 
   return (
     <div className="flex flex-col gap-4 flex-1">
@@ -190,6 +141,16 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
         <span className="text-foreground"> · 虚拟资金 ¥100,000 · 真实行情信号 · 零资金风险</span>
       </div>
 
+      {/* View-only banner — shown when live is running and user navigates here */}
+      {viewOnly && viewOnlyReason === 'live' && (
+        <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/25 flex items-center gap-2">
+          <span className="text-red-500 text-[11px]">&#9888;</span>
+          <span className="font-mono text-[10px] text-red-500">
+            实盘运行中 · 模拟数据仅供查看 · 需修改策略请先终止实盘，再点击「📊 调整参数再跑一次」
+          </span>
+        </div>
+      )}
+
       {/* Paused banner */}
       {isPaused && (
         <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 border-l-[3px] border-l-amber-500">
@@ -198,25 +159,25 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
         </div>
       )}
 
-      {/* Top stats — same structure as live-tab */}
+      {/* Top stats */}
       <div className="grid grid-cols-2 gap-2.5">
         <div className="bg-card border border-violet-500/30 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">模拟收益</div>
           <div className={`font-mono text-xl font-semibold ${latestPt >= 0 ? 'text-violet-500' : 'text-red-500'}`}>
             {latestPt >= 0 ? '+' : ''}{(latestPt * 0.4).toFixed(1)}%
           </div>
-          <div className="text-[10px] text-muted-foreground mt-1">
-            运行 {fmtElapsed()} · 虚拟资金
-          </div>
+          <div className="text-[10px] text-muted-foreground mt-1">运行 {fmtElapsed()} · 虚拟资金</div>
         </div>
         <div className={`bg-card border rounded-xl p-3 shadow-sm ${isPaused ? 'border-amber-500/20' : 'border-border/50'}`}>
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">当前持仓</div>
-          <div className="font-mono text-xl font-semibold text-foreground">{holdingLabel}</div>
-          <div className="text-[10px] text-muted-foreground mt-1">{holdingSubLabel}</div>
+          <div className="font-mono text-xl font-semibold text-foreground">{hasOpenPosition ? 'BTC 0.012' : '空仓'}</div>
+          <div className="text-[10px] text-muted-foreground mt-1">
+            {hasOpenPosition ? `成本 83,940 · 浮盈 ${floatPnlStr}` : '等待信号'}
+          </div>
         </div>
       </div>
 
-      {/* Chart — always visible, same as live-tab */}
+      {/* Chart */}
       <div className="relative">
         <div className="flex items-center justify-between mb-1.5">
           <span className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
@@ -229,7 +190,7 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
         <canvas ref={canvasRef} className="w-full h-[140px] rounded-lg bg-card" />
       </div>
 
-      {/* Secondary stats — mirrors live-tab grid */}
+      {/* Secondary stats */}
       <div className="grid grid-cols-4 gap-2.5">
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">最大回撤</div>
@@ -241,9 +202,7 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">已执行</div>
           <div className="font-mono text-xl font-semibold text-foreground">{trades.length}笔</div>
-          <div className="text-[10px] text-muted-foreground mt-1">
-            {totalClosed > 0 ? `胜率 ${winRate}%` : '等待成交'}
-          </div>
+          <div className="text-[10px] text-muted-foreground mt-1">{totalClosed > 0 ? `胜率 ${winRate}%` : '等待成交'}</div>
         </div>
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">滑点</div>
@@ -262,7 +221,7 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
         </div>
       </div>
 
-      {/* Real-time trades table */}
+      {/* Trades table */}
       <div>
         <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
           {isDone ? '模拟成交记录' : '模拟订单（实时）'}
@@ -271,12 +230,9 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
           <table className="w-full">
             <thead>
               <tr className="bg-muted/50">
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">时间</th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">方向</th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">价格</th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">数量</th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">盈亏</th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">触发条件</th>
+                {['时间', '方向', '价格', '数量', '盈亏', '触发条件'].map((h) => (
+                  <th key={h} className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -296,9 +252,7 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
                     <td className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? 'text-emerald-500' : 'text-red-500'}`}>{row.dir}</td>
                     <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">{row.price}</td>
                     <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">{row.qty}</td>
-                    <td className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isPending ? 'text-muted-foreground' : row.isUp ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {row.pnl}
-                    </td>
+                    <td className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isPending ? 'text-muted-foreground' : row.isUp ? 'text-emerald-500' : 'text-red-500'}`}>{row.pnl}</td>
                     <td className="px-2.5 py-2 font-mono text-[11px] text-muted-foreground">{row.trigger}</td>
                   </tr>
                 ))
@@ -309,38 +263,30 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
       </div>
 
       {/* Action buttons */}
-      {!readOnly && (
+      {!readOnly && !viewOnly && (
         <div className="flex gap-2.5">
           {isDone ? (
-            <Button
-              onClick={onStartLive}
-              className="flex-1 h-10 bg-red-500/10 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono text-[11px] font-medium"
-              variant="outline"
-            >
-              &#9888; 启动实盘 — 使用真实资金，请谨慎
-            </Button>
+            <>
+              {onClone && (
+                <Button onClick={onClone} className="h-10 px-4 bg-muted border border-border/60 text-muted-foreground hover:border-violet-500 hover:text-violet-500 font-mono text-[11px] font-medium" variant="outline">
+                  📊 调整参数再跑一次
+                </Button>
+              )}
+              <Button onClick={onStartLive} className="flex-1 h-10 bg-red-500/10 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono text-[11px] font-medium" variant="outline">
+                &#9888; 启动实盘 — 使用真实资金，请谨慎
+              </Button>
+            </>
           ) : isPaused ? (
             <>
               <Button
-                onClick={() => {
-                  setStrategyState(activeStrategyId, {
-                    stages: { ...state.stages, paper: 'running' },
-                  })
-                  addLog('模拟', '<span class="hi">已恢复</span>')
-                }}
+                onClick={() => { setStrategyState(activeStrategyId, { stages: { ...state.stages, paper: 'running' } }); addLog('模拟', '<span class="hi">已恢复</span>') }}
                 className="flex-1 h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
                 variant="outline"
               >
                 &#9654; 继续运行
               </Button>
               <Button
-                onClick={() => {
-                  setStrategyState(activeStrategyId, {
-                    stages: { ...state.stages, paper: 'done', live: 'ready' },
-                    paperDone: true,
-                  })
-                  addLog('模拟', `<span class="hi">已结束</span> · ${trades.length}笔 · ${totalClosed > 0 ? `胜率${winRate}%` : '无成交'}`)
-                }}
+                onClick={() => { setStrategyState(activeStrategyId, { stages: { ...state.stages, paper: 'done', live: 'ready' }, paperDone: true }); addLog('模拟', `<span class="hi">已结束</span> · ${trades.length}笔 · ${totalClosed > 0 ? `胜率${winRate}%` : '无成交'}`) }}
                 className="flex-1 h-10 bg-muted border border-muted-foreground/30 text-muted-foreground hover:border-violet-500 hover:text-violet-500 font-mono text-[11px] font-medium"
                 variant="outline"
               >
@@ -350,25 +296,14 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
           ) : (
             <>
               <Button
-                onClick={() => {
-                  setStrategyState(activeStrategyId, {
-                    stages: { ...state.stages, paper: 'paused' },
-                  })
-                  addLog('模拟', '<span class="warn">已暂停</span>，虚拟持仓保持')
-                }}
+                onClick={() => { setStrategyState(activeStrategyId, { stages: { ...state.stages, paper: 'paused' } }); addLog('模拟', '<span class="warn">已暂停</span>，虚拟持仓保持') }}
                 className="flex-1 h-10 bg-muted border border-muted-foreground/30 text-muted-foreground hover:border-amber-500 hover:text-amber-500 font-mono text-[11px] font-medium"
                 variant="outline"
               >
                 &#9208; 暂停模拟
               </Button>
               <Button
-                onClick={() => {
-                  setStrategyState(activeStrategyId, {
-                    stages: { ...state.stages, paper: 'done', live: 'ready' },
-                    paperDone: true,
-                  })
-                  addLog('模拟', `<span class="hi">已结束</span> · ${trades.length}笔 · ${totalClosed > 0 ? `胜率${winRate}%` : '无成交'}`)
-                }}
+                onClick={() => { setStrategyState(activeStrategyId, { stages: { ...state.stages, paper: 'done', live: 'ready' }, paperDone: true }); addLog('模拟', `<span class="hi">已结束</span> · ${trades.length}笔`) }}
                 className="flex-1 h-10 bg-violet-500/10 border border-violet-500/50 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
                 variant="outline"
               >
@@ -377,6 +312,13 @@ export function PaperTab({ onStartLive, readOnly }: PaperTabProps) {
             </>
           )}
         </div>
+      )}
+
+      {/* Clone button in view-only mode */}
+      {(viewOnly || readOnly) && onClone && (
+        <Button onClick={onClone} className="h-10 w-full bg-muted border border-border/60 text-muted-foreground hover:border-violet-500 hover:text-violet-500 font-mono text-[11px] font-medium" variant="outline">
+          📊 调整参数再跑一次 — 创建新版本重新配置
+        </Button>
       )}
     </div>
   )

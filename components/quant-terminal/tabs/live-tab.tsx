@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { drawLiveChart } from '../chart-utils'
 
 interface LiveTabProps {
+  onClone?: () => void
   onPause: () => void
   onResume: () => void
   onStop?: () => void
@@ -14,7 +15,7 @@ interface LiveTabProps {
   readOnly?: boolean
 }
 
-export function LiveTab({ onPause, onResume, onStop, onRestart, onArchive, readOnly }: LiveTabProps) {
+export function LiveTab({ onPause, onResume, onStop, onRestart, onArchive, readOnly, onClone }: LiveTabProps) {
   const { activeStrategyId, strategyStates, setStrategyState, addLog, setBtcPrice } = useQuantTerminalStore()
   const state = strategyStates[activeStrategyId]
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -219,6 +220,16 @@ export function LiveTab({ onPause, onResume, onStop, onRestart, onArchive, readO
       </div>
 
       {/* Action buttons — hidden when archived (read-only) */}
+      {readOnly && onClone && (
+        <div className="flex gap-2.5">
+          <button
+            onClick={onClone}
+            className="flex-1 h-10 rounded-lg border border-border/60 bg-muted text-muted-foreground hover:border-violet-500 hover:text-violet-500 font-mono text-[11px] font-medium transition-colors"
+          >
+            📊 调整参数再跑一次 — 保留当前数据，新建版本
+          </button>
+        </div>
+      )}
       {!readOnly && <div className="flex gap-2.5">
         {isStopped ? (
           <>

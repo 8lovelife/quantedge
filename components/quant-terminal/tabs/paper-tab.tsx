@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
-import { drawPaperChart } from "../chart-utils";
+import { drawPaperChart, generatePaperData } from "../chart-utils";
 
 interface PaperTabProps {
   onStartLive: () => void;
@@ -46,9 +46,19 @@ export function PaperTab({
   const isPaused = state?.stages.paper === "paused";
   const isDone = state?.stages.paper === "done";
 
-  // Initialize paper data on first run
+  // Initialize paper data — for running state (seed points) or done state with no data (generate full dataset)
   useEffect(() => {
-    if (isRunning && !state.paperPts.length) {
+    if (!state) return;
+    if (isDone && !state.paperPts.length) {
+      // Strategy already completed but no data (e.g. pre-seeded strategies) — generate a full dataset
+      const { pts, sigs, ref } = generatePaperData();
+      setStrategyState(activeStrategyId, {
+        paperPts: pts,
+        paperSigs: sigs,
+        paperRef: ref,
+      });
+    } else if (isRunning && !state.paperPts.length) {
+      // Fresh start — seed with initial points
       const pts: number[] = [];
       let v = 0;
       for (let i = 0; i < 20; i++) {
@@ -61,7 +71,7 @@ export function PaperTab({
         paperRef: [],
       });
     }
-  }, [isRunning, activeStrategyId, state, setStrategyState]);
+  }, [isDone, isRunning, activeStrategyId, state, setStrategyState]);
 
   // Real-time interval — identical architecture to live-tab
   useEffect(() => {

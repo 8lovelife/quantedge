@@ -42,16 +42,17 @@ export function LiveTab({
 
   // Initialize live data
   useEffect(() => {
-    if (isRunning && !state.livePts.length) {
+    if (!state?.livePts.length) {
+      // Generate seed data for any state that has no data yet (running, paused, stopped, archived)
       const pts: number[] = [];
       let v = 0;
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 40; i++) {
         v += (Math.random() - 0.44) * 1.2 + 0.2;
         pts.push(v);
       }
       setStrategyState(activeStrategyId, { livePts: pts, liveSigs: [] });
     }
-  }, [isRunning, activeStrategyId, state, setStrategyState]);
+  }, [activeStrategyId, state, setStrategyState]);
 
   // Live animation
   useEffect(() => {

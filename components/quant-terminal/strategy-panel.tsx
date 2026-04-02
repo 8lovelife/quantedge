@@ -204,7 +204,7 @@ export function StrategyPanel() {
         return;
       }
       if (tab === "paper" && status === "ready") {
-        handleStartPaper();
+        setActiveTab("paper");
         return;
       }
     }
@@ -223,14 +223,18 @@ export function StrategyPanel() {
   };
 
   const handleStartPaper = () => {
-    setStrategyState(activeStrategyId, {
-      stages: { ...state.stages, paper: "running" },
-      activeTab: "paper",
-      paperPts: [],
-      paperSigs: [],
-      paperRef: [],
-    });
-    addLog("模拟", '<span class="hi">引擎启动</span>，虚拟 ¥100,000');
+    // Ensure paper is in "ready" state so the plan selector shows
+    if (state.stages.paper !== "ready") {
+      setStrategyState(activeStrategyId, {
+        stages: { ...state.stages, paper: "ready" },
+        paperPts: [],
+        paperSigs: [],
+        paperRef: [],
+        paperStartTime: 0,
+        paperEndTime: 0,
+      });
+    }
+    setActiveTab("paper");
   };
 
   const handleConfirmLive = () => {

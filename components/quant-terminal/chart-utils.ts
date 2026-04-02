@@ -12,6 +12,51 @@ export interface ChartPadding {
   b: number;
 }
 
+// ── Shared X-axis time label generator ───────────────────────────────────────
+// Generates 4 evenly-spaced time labels for the chart's X axis.
+// startTime: unix ms of the first data point (0 = use current time as "now")
+// totalMs:   total time span covered by all pts (e.g. pts.length * tickMs)
+function drawXAxisTimeLabels(
+  ctx: CanvasRenderingContext2D,
+  PAD: ChartPadding,
+  cW: number,
+  H: number,
+  startTime: number,
+  totalMs: number,
+) {
+  const steps = 3; // we draw 4 labels at positions 0/3, 1/3, 2/3, 3/3
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "9px JetBrains Mono, monospace";
+
+  for (let i = 0; i <= steps; i++) {
+    const t = startTime + (totalMs * i) / steps;
+    const d = new Date(t);
+    // Format: "HH:MM" for intraday spans, "M/D" for multi-day spans
+    const label =
+      totalMs < 60_000 * 10
+        ? // < 10 minutes: show HH:MM:SS so seconds are visible
+          d.toLocaleTimeString("zh-CN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })
+        : totalMs < 3_600_000 * 4
+          ? // < 4 hours: HH:MM
+            d.toLocaleTimeString("zh-CN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : totalMs < 86_400_000 * 3
+            ? // < 3 days: M/D HH:00
+              `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:00`
+            : // multi-day: M/D
+              `${d.getMonth() + 1}/${d.getDate()}`;
+    ctx.textAlign = i === 0 ? "left" : i === steps ? "right" : "center";
+    const x = PAD.l + cW * (i / steps);
+    ctx.fillText(label, x, H - 6);
+  }
+}
+
 export function drawBacktestChart(
   canvas: HTMLCanvasElement,
   pts: number[],
@@ -19,6 +64,8 @@ export function drawBacktestChart(
   options: {
     showAnimation?: boolean;
     currentIndex?: number;
+    startTime?: number; // unix ms of first data point; defaults to 3 months ago
+    tickMs?: number; // ms per data point; defaults to 4h candles
   } = {},
 ) {
   if (pts.length < 2) return;
@@ -128,14 +175,11 @@ export function drawBacktestChart(
     ctx.fill();
   }
 
-  // X-axis labels
-  const labels = ["12月", "1月", "2月", "3月"];
-  labels.forEach((l, i) => {
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "9px JetBrains Mono, monospace";
-    ctx.textAlign = "left";
-    ctx.fillText(l, PAD.l + cW * (i / 3), H - 6);
-  });
+  // X-axis labels — dynamic based on actual time range
+  const btTickMs = options.tickMs ?? 4 * 3_600_000; // default: 4h candles
+  const btStart = options.startTime ?? Date.now() - pts.length * btTickMs;
+  const btTotalMs = pts.length * btTickMs;
+  drawXAxisTimeLabels(ctx, PAD, cW, H, btStart, btTotalMs);
 }
 
 export function drawPaperChart(
@@ -143,6 +187,9 @@ export function drawPaperChart(
   pts: number[],
   sigs: Signal[],
   ref: number[],
+  startTime?: number, // unix ms when paper trading started
+  endTime?: number, // unix ms of planned end; if set, X axis spans full plan window
+  tickMs = 300, // ms per data point
 ) {
   if (pts.length < 2) return;
 
@@ -168,7 +215,10 @@ export function drawPaperChart(
   ctx.clearRect(0, 0, W, H);
 
   const yM = (v: number) => PAD.t + cH - ((v - mn) / (mx - mn)) * cH;
-  const xM = (i: number) => PAD.l + (i / (pts.length - 1)) * cW;
+  // xM maps data point index -> canvas X, scaled to the elapsed portion of the plan window.
+  // curveRatio is computed below in the time window section; we use a late-bound closure.
+  let _curveW = cW; // will be updated after time window calculation
+  const xM = (i: number) => PAD.l + (i / Math.max(pts.length - 1, 1)) * _curveW;
 
   // Grid lines + Y-axis labels (same as backtest/live charts)
   const gridStops = [0, 0.25, 0.5, 0.75, 1];
@@ -241,20 +291,67 @@ export function drawPaperChart(
       ctx.fill();
     });
 
-  // X-axis labels
-  const labels = ["3/8", "3/12", "3/17", "3/22"];
-  labels.forEach((l, i) => {
-    ctx.fillStyle = "#94a3b8";
+  // ── Time window ─────────────────────────────────────────────────────────────
+  // If endTime is provided, the X axis spans the full planned window.
+  // The drawn curve only covers the elapsed portion; the rest is "future" (greyed).
+  const now = Date.now();
+  const paperStart = startTime ?? now - pts.length * tickMs;
+  const paperEnd = endTime ?? paperStart + pts.length * tickMs;
+  const totalPlanMs = paperEnd - paperStart;
+  const elapsedMs = Math.min(now - paperStart, totalPlanMs);
+  const progressRatio = Math.min(elapsedMs / totalPlanMs, 1); // 0-1
+
+  // The curve occupies [PAD.l .. PAD.l + cW * progressRatio]
+  // Re-map xM so the curve fills only the elapsed portion of the chart
+  const curveW = cW * progressRatio;
+  _curveW = curveW; // update xM closure
+
+  // Draw future zone (right of curve) as subtle grey fill
+  if (progressRatio < 1) {
+    const futureX = PAD.l + curveW;
+    ctx.fillStyle = "rgba(148, 163, 184, 0.04)";
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.15)";
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeRect(futureX, PAD.t, cW - curveW, cH);
+    ctx.fillRect(futureX, PAD.t, cW - curveW, cH);
+    ctx.setLineDash([]);
+
+    // "未来" label in future zone
+    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
     ctx.font = "9px JetBrains Mono, monospace";
-    ctx.textAlign = "left";
-    ctx.fillText(l, PAD.l + cW * (i / 3), H - 6);
-  });
+    ctx.textAlign = "center";
+    ctx.fillText("未来", futureX + (cW - curveW) / 2, PAD.t + cH / 2);
+  }
+
+  // Progress line (vertical dashed line at "now")
+  if (progressRatio > 0 && progressRatio < 1) {
+    const nowX = PAD.l + curveW;
+    ctx.strokeStyle = "rgba(139, 92, 246, 0.4)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(nowX, PAD.t);
+    ctx.lineTo(nowX, PAD.t + cH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // "NOW" label
+    ctx.fillStyle = "#8b5cf6";
+    ctx.font = "bold 8px JetBrains Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("NOW", nowX, PAD.t + 8);
+  }
+
+  // X-axis labels spanning full plan window
+  drawXAxisTimeLabels(ctx, PAD, cW, H, paperStart, totalPlanMs);
 }
 
 export function drawLiveChart(
   canvas: HTMLCanvasElement,
   pts: number[],
   sigs: Signal[],
+  startTime?: number, // unix ms of first data point
+  tickMs = 300, // ms per data point
 ) {
   if (pts.length < 2) return;
 
@@ -375,6 +472,11 @@ export function drawLiveChart(
   ctx.font = "bold 10px JetBrains Mono, monospace";
   ctx.textAlign = "left";
   ctx.fillText(price, Math.min(lx + 16, W - PAD.r - 60), ly + 4);
+
+  // X-axis labels — dynamic real-time timestamps
+  const liveStart = startTime ?? Date.now() - pts.length * tickMs;
+  const liveTotalMs = pts.length * tickMs;
+  drawXAxisTimeLabels(ctx, PAD, cW, H, liveStart, liveTotalMs);
 }
 
 export function generateBacktestData(): { pts: number[]; sigs: Signal[] } {

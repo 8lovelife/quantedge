@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
-import { drawPaperChart, generatePaperData } from "../chart-utils";
+import { cn } from "@/lib/utils";
+import { drawPaperChart } from "../chart-utils";
+import type { PaperPlanDays } from "../types";
+import {
+  fetchPaperSnapshot,
+  PaperMetrics,
+  PaperSignal,
+  PaperTick,
+  usePaperStream,
+} from "@/lib/api/quant-terminal";
 
 interface PaperTabProps {
   onStartLive: () => void;
@@ -25,6 +34,51 @@ interface PaperTrade {
   isPending: boolean;
 }
 
+const PLAN_PRESETS: {
+  days: number;
+  label: string;
+  desc: string;
+  recommended?: boolean;
+}[] = [
+  { days: 7, label: "7天", desc: "快速验证" },
+  { days: 14, label: "14天", desc: "推荐", recommended: true },
+  { days: 30, label: "30天", desc: "充分验证" },
+];
+
+function fmtDate(ms: number) {
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function fmtEndDate(ms: number) {
+  const d = new Date(ms);
+  const months = [
+    "1月",
+    "2月",
+    "3月",
+    "4月",
+    "5月",
+    "6月",
+    "7月",
+    "8月",
+    "9月",
+    "10月",
+    "11月",
+    "12月",
+  ];
+  return `${months[d.getMonth()]}${d.getDate()}日 ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function fmtRemaining(ms: number) {
+  if (ms <= 0) return "已到期";
+  const d = Math.floor(ms / 86_400_000);
+  const h = Math.floor((ms % 86_400_000) / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  if (d > 0) return `剩余 ${d}天 ${h}h`;
+  if (h > 0) return `剩余 ${h}h ${m}m`;
+  return `剩余 ${m}m`;
+}
+
 export function PaperTab({
   onStartLive,
   viewOnly,
@@ -32,201 +86,466 @@ export function PaperTab({
   readOnly,
   onClone,
 }: PaperTabProps) {
-  const { activeStrategyId, strategyStates, setStrategyState, addLog } =
-    useQuantTerminalStore();
+  const {
+    activeStrategyId,
+    strategyStates,
+    setStrategyState,
+    addLog,
+    setPaperPlan,
+    updateStrategyMetrics,
+  } = useQuantTerminalStore();
   const state = strategyStates[activeStrategyId];
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [trades, setTrades] = useState<PaperTrade[]>([]);
-  const [elapsed, setElapsed] = useState(0);
-  const elapsedRef = useRef(0);
+  const [metrics, setMetrics] = useState<PaperMetrics | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [streamOk, setStreamOk] = useState(false);
+  const [customDays, setCustomDays] = useState(21);
+  const [isCustom, setIsCustom] = useState(false);
 
   const isRunning = state?.stages.paper === "running";
   const isPaused = state?.stages.paper === "paused";
   const isDone = state?.stages.paper === "done";
+  const isReady = state?.stages.paper === "ready";
 
-  // Initialize paper data — for running state (seed points) or done state with no data (generate full dataset)
+  const planDays = state?.paperPlanDays ?? 14;
+  const startTime = state?.paperStartTime ?? 0;
+  const endTime = state?.paperEndTime ?? 0;
+
+  // ── Tick "now" every second for progress bar + remaining time ────────────────
   useEffect(() => {
-    if (!state) return;
-    if (isDone && !state.paperPts.length) {
-      // Strategy already completed but no data (e.g. pre-seeded strategies) — generate a full dataset
-      const { pts, sigs, ref } = generatePaperData();
-      setStrategyState(activeStrategyId, {
-        paperPts: pts,
-        paperSigs: sigs,
-        paperRef: ref,
-      });
-    } else if (isRunning && !state.paperPts.length) {
-      // Fresh start — seed with initial points
-      const pts: number[] = [];
-      let v = 0;
-      for (let i = 0; i < 20; i++) {
-        v += (Math.random() - 0.44) * 1.2 + 0.2;
-        pts.push(v);
-      }
-      setStrategyState(activeStrategyId, {
-        paperPts: pts,
-        paperSigs: [],
-        paperRef: [],
-      });
-    }
-  }, [isDone, isRunning, activeStrategyId, state, setStrategyState]);
+    if (!isRunning) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isRunning]);
 
-  // Real-time interval — identical architecture to live-tab
+  // ── Auto-end when plan expires ────────────────────────────────────────────────
   useEffect(() => {
-    if (!isRunning) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
+    if (isRunning && endTime > 0 && now >= endTime) {
+      setStrategyState(activeStrategyId, {
+        stages: { ...state.stages, paper: "done", live: "ready" },
+        paperDone: true,
+      });
+      addLog(
+        "模拟",
+        `<span class="hi">计划结束</span> · ${planDays}天模拟完成`,
+      );
     }
+  }, [now, isRunning, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    intervalRef.current = setInterval(() => {
-      const currentState =
-        useQuantTerminalStore.getState().strategyStates[activeStrategyId];
-      if (currentState.stages.paper !== "running") return;
-
-      const pts = [...currentState.paperPts];
-      const sigs = [...currentState.paperSigs];
-      const last = pts[pts.length - 1] ?? 0;
-      const nv = last + (Math.random() - 0.46) * 1.4 + 0.15;
-      pts.push(nv);
-      if (pts.length > 120) pts.shift();
-
-      if (pts.length > 5) {
-        const delta = pts[pts.length - 1] - pts[pts.length - 4];
-        if (
-          delta > 1.8 &&
-          (sigs.length === 0 || sigs[sigs.length - 1].type === "sell")
-        ) {
-          sigs.push({ i: pts.length - 1, type: "buy" });
-          const price = (83000 + Math.round(nv * 200)).toLocaleString();
-          addLog(
-            "模拟",
-            `<span class="buy">模拟买入</span> BTC <span class="mono">@ ${price}</span>`,
-          );
-          setTrades((prev) =>
-            [
-              {
-                time: new Date().toLocaleTimeString("zh-CN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                dir: "买入" as const,
-                price,
-                qty: "0.012",
-                pnl: "持仓中",
-                trigger: "EMA金叉+量",
-                isBuy: true,
-                isUp: true,
-                isPending: true,
-              },
-              ...prev,
-            ].slice(0, 20),
-          );
-        }
-        if (
-          delta < -1.3 &&
-          sigs.length > 0 &&
-          sigs[sigs.length - 1].type === "buy"
-        ) {
-          sigs.push({ i: pts.length - 1, type: "sell" });
-          const pnlPct = `${nv > last ? "+" : ""}${Math.round(Math.abs(delta) * 1.2 * 10) / 10}%`;
-          const isUp = nv > last;
-          const price = (83000 + Math.round(nv * 200)).toLocaleString();
-          addLog(
-            "模拟",
-            `<span class="sell">模拟卖出</span> <span class="${isUp ? "buy" : "sell"}">${pnlPct}</span>`,
-          );
-          setTrades((prev) => {
-            const updated = [...prev];
-            const openIdx = updated.findIndex((t) => t.isPending && t.isBuy);
-            if (openIdx !== -1)
-              updated[openIdx] = {
-                ...updated[openIdx],
-                pnl: pnlPct,
-                isPending: false,
-                isUp,
-              };
-            return [
-              {
-                time: new Date().toLocaleTimeString("zh-CN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                dir: "卖出" as const,
-                price,
-                qty: "0.012",
-                pnl: pnlPct,
-                trigger: isUp ? "止盈 tp=6%" : "止损 sl=2%",
-                isBuy: false,
-                isUp,
-                isPending: false,
-              },
-              ...updated,
-            ].slice(0, 20);
+  // ── Load snapshot on mount ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeStrategyId) return;
+    fetchPaperSnapshot(activeStrategyId)
+      .then((snap) => {
+        if (snap.equityHistory.length > 1) {
+          setStrategyState(activeStrategyId, {
+            paperPts: snap.equityHistory,
+            paperSigs: snap.signals,
+            paperRef: [],
           });
         }
+        setMetrics(snap.metrics);
+      })
+      .catch(() => {});
+  }, [activeStrategyId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Redraw helper ─────────────────────────────────────────────────────────────
+  const redraw = useCallback(
+    (pts: number[], sigs: typeof state.paperSigs) => {
+      if (!canvasRef.current || pts.length < 2) return;
+      drawPaperChart(
+        canvasRef.current,
+        pts,
+        sigs,
+        [],
+        startTime || undefined,
+        endTime || undefined,
+        300,
+      );
+    },
+    [startTime, endTime],
+  );
+
+  // ── Stream handlers ───────────────────────────────────────────────────────────
+  const handleTick = useCallback(
+    (tick: PaperTick) => {
+      const cur =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId];
+      if (!cur) return;
+      const pts = [...cur.paperPts, tick.equity];
+      if (pts.length > 200) pts.shift();
+      setStrategyState(activeStrategyId, {
+        paperPts: pts,
+        paperSigs: cur.paperSigs,
+      });
+      redraw(pts, cur.paperSigs);
+
+      // Sync real-time return to sidebar
+      const firstPt = pts[0];
+      const lastPt = pts[pts.length - 1];
+      const returnPct =
+        firstPt !== 0 ? ((lastPt - firstPt) / Math.abs(firstPt)) * 100 : 0;
+      const returnStr = `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(1)}%`;
+      updateStrategyMetrics(activeStrategyId, returnStr, "模拟中");
+    },
+    [activeStrategyId, setStrategyState, redraw, updateStrategyMetrics],
+  );
+
+  const handleSignal = useCallback(
+    (sig: PaperSignal) => {
+      const cur =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId];
+      if (!cur) return;
+      const idx = cur.paperPts.length - 1;
+      const sigs = [...cur.paperSigs, { i: idx, type: sig.side }];
+      setStrategyState(activeStrategyId, { paperSigs: sigs });
+
+      const timeStr = new Date(sig.ts).toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const priceStr = sig.price.toLocaleString();
+
+      if (sig.side === "buy") {
+        addLog(
+          "模拟",
+          `<span class="buy">模拟买入</span> BTC <span class="mono">@ ${priceStr}</span>`,
+        );
+        setTrades((prev) =>
+          [
+            {
+              time: timeStr,
+              dir: "买入" as const,
+              price: priceStr,
+              qty: sig.qty.toFixed(3),
+              pnl: "持仓中",
+              trigger: sig.trigger,
+              isBuy: true,
+              isUp: true,
+              isPending: true,
+            },
+            ...prev,
+          ].slice(0, 20),
+        );
+      } else {
+        const pnlPct = sig.pnlPct ?? 0;
+        const pnlStr = `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%`;
+        const isUp = pnlPct >= 0;
+        addLog(
+          "模拟",
+          `<span class="sell">模拟卖出</span> <span class="${isUp ? "buy" : "sell"}">${pnlStr}</span>`,
+        );
+        setTrades((prev) => {
+          const updated = [...prev];
+          const openIdx = updated.findIndex((t) => t.isPending && t.isBuy);
+          if (openIdx !== -1)
+            updated[openIdx] = {
+              ...updated[openIdx],
+              pnl: pnlStr,
+              isPending: false,
+              isUp,
+            };
+          return [
+            {
+              time: timeStr,
+              dir: "卖出" as const,
+              price: priceStr,
+              qty: sig.qty.toFixed(3),
+              pnl: pnlStr,
+              trigger: sig.trigger,
+              isBuy: false,
+              isUp,
+              isPending: false,
+            },
+            ...updated,
+          ].slice(0, 20);
+        });
       }
+    },
+    [activeStrategyId, setStrategyState, addLog],
+  );
 
-      elapsedRef.current += 1;
-      setElapsed(elapsedRef.current);
-      setStrategyState(activeStrategyId, { paperPts: pts, paperSigs: sigs });
-      if (canvasRef.current) drawPaperChart(canvasRef.current, pts, sigs, []);
-    }, 300);
+  const handleMetrics = useCallback((m: PaperMetrics) => setMetrics(m), []);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isRunning, activeStrategyId, setStrategyState, addLog]);
+  usePaperStream(activeStrategyId, isRunning, {
+    onOpen: () => setStreamOk(true),
+    onClose: () => setStreamOk(false),
+    onError: () => setStreamOk(false),
+    onTick: handleTick,
+    onSignal: handleSignal,
+    onMetrics: handleMetrics,
+  });
 
+  // Redraw on state change (pause/done/resume)
   useEffect(() => {
-    if (canvasRef.current && state?.paperPts.length) {
-      drawPaperChart(canvasRef.current, state.paperPts, state.paperSigs, []);
+    if (state?.paperPts && state.paperPts.length > 1) {
+      redraw(state.paperPts, state.paperSigs);
     }
-  }, [state, isPaused, isDone]);
+  }, [state, isPaused, isDone, redraw]);
 
-  const latestPt = state?.paperPts[state.paperPts.length - 1] ?? 0;
-  const floatPnl = Math.round(latestPt * 80);
-  const floatPnlStr = `${floatPnl >= 0 ? "+" : ""}${floatPnl}¥`;
+  // ── Derived values ────────────────────────────────────────────────────────────
+  const latestEquity = state?.paperPts?.[state.paperPts.length - 1] ?? 0;
+  const equityPct =
+    metrics?.equityPct ?? parseFloat((latestEquity * 0.4).toFixed(1));
+  const maxDrawdown = metrics?.maxDrawdownPct ?? 0;
+  const winRate = metrics?.winRate ?? 0;
+  const tradeCount =
+    metrics?.tradeCount ?? trades.filter((t) => !t.isPending).length;
+  const slippage = metrics?.slippage ?? 0.07;
+  const sharpe = metrics?.sharpe ?? 0;
+  const hasOpen = trades.some((t) => t.isPending && t.isBuy);
 
-  const fmtElapsed = () => {
-    const h = Math.floor(elapsed / 3600),
-      m = Math.floor((elapsed % 3600) / 60),
-      s = elapsed % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
+  const planMs = planDays * 86_400_000;
+  const elapsedMs = startTime > 0 ? Math.max(0, now - startTime) : 0;
+  const remainingMs = endTime > 0 ? Math.max(0, endTime - now) : 0;
+  const progressPct =
+    endTime > 0 && startTime > 0
+      ? Math.min(100, (elapsedMs / planMs) * 100)
+      : 0;
+
+  // ── Start handler (writes startTime/endTime to store) ────────────────────────
+  const handleStart = (days: PaperPlanDays) => {
+    const start = Date.now();
+    const end = start + days * 86_400_000;
+    setStrategyState(activeStrategyId, {
+      stages: { ...state.stages, paper: "running" },
+      paperPts: [],
+      paperSigs: [],
+      paperRef: [],
+      paperPlanDays: days,
+      paperStartTime: start,
+      paperEndTime: end,
+    });
+    addLog(
+      "模拟",
+      `<span class="hi">引擎启动</span> · 计划运行 ${days}天 · 结束于 ${fmtDate(end)}`,
+    );
   };
 
-  const winCount = trades.filter(
-    (t) => !t.isBuy && t.isUp && !t.isPending,
-  ).length;
-  const lossCount = trades.filter(
-    (t) => !t.isBuy && !t.isUp && !t.isPending,
-  ).length;
-  const totalClosed = winCount + lossCount;
-  const winRate =
-    totalClosed > 0 ? Math.round((winCount / totalClosed) * 100) : 0;
-  const hasOpenPosition = trades.some((t) => t.isPending && t.isBuy);
+  // ── Plan selector (shown before starting) ────────────────────────────────────
+  if (isReady) {
+    const effectiveDays = isCustom ? customDays : planDays;
+    const previewEnd = Date.now() + effectiveDays * 86_400_000;
+    // track fill width: map days to 0–88% so the end-dot never touches edge
+    const trackPct = Math.min(88, Math.max(12, (effectiveDays / 30) * 75 + 8));
 
+    return (
+      <div className="flex flex-col gap-4 flex-1">
+        {/* Account notice */}
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-violet-500/10 border border-violet-500/25">
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0 mt-1" />
+          <span className="text-[13px] text-foreground leading-relaxed">
+            <strong className="text-violet-500">模拟账户</strong>
+            {" · 虚拟资金 ¥100,000 · 接入真实行情信号 · 零资金风险"}
+          </span>
+        </div>
+
+        {/* Plan picker */}
+        <div className="bg-card border border-border/50 rounded-xl p-4 shadow-sm">
+          <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-3 font-medium uppercase">
+            选择模拟时长
+          </div>
+
+          {/* Preset buttons + custom */}
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {PLAN_PRESETS.map((opt) => (
+              <button
+                key={opt.days}
+                onClick={() => {
+                  setIsCustom(false);
+                  setPaperPlan(activeStrategyId, opt.days as PaperPlanDays);
+                }}
+                className={cn(
+                  "relative flex flex-col items-center py-3 px-1 rounded-lg border transition-all",
+                  !isCustom && planDays === opt.days
+                    ? "bg-violet-500/10 border-violet-500"
+                    : "bg-muted/40 border-border/50 text-muted-foreground hover:border-violet-500/40 hover:text-foreground",
+                )}
+              >
+                {opt.recommended && (
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] px-1.5 py-0.5 rounded-full bg-violet-500 text-white font-mono font-medium whitespace-nowrap">
+                    推荐
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    "font-mono text-base font-semibold",
+                    !isCustom && planDays === opt.days ? "text-violet-500" : "",
+                  )}
+                >
+                  {opt.label}
+                </span>
+                <span
+                  className={cn(
+                    "font-mono text-[9px] mt-0.5",
+                    !isCustom && planDays === opt.days
+                      ? "text-violet-400"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {opt.desc}
+                </span>
+              </button>
+            ))}
+
+            {/* Custom button */}
+            <button
+              onClick={() => setIsCustom(true)}
+              className={cn(
+                "flex flex-col items-center py-3 px-1 rounded-lg border transition-all",
+                isCustom
+                  ? "bg-violet-500/10 border-violet-500"
+                  : "bg-muted/40 border-border/50 text-muted-foreground hover:border-violet-500/40 hover:text-foreground",
+              )}
+            >
+              <span
+                className={cn(
+                  "font-mono text-base font-semibold",
+                  isCustom ? "text-violet-500" : "",
+                )}
+              >
+                自定义
+              </span>
+              <span
+                className={cn(
+                  "font-mono text-[9px] mt-0.5",
+                  isCustom ? "text-violet-400" : "text-muted-foreground",
+                )}
+              >
+                天数
+              </span>
+            </button>
+          </div>
+
+          {/* Custom slider — shown only when custom is active */}
+          {isCustom && (
+            <div className="flex items-center gap-3 px-1 py-2.5 mb-3 bg-muted/40 rounded-lg border border-violet-500/30">
+              <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                自定义：
+                <span className="text-violet-500 font-semibold ml-0.5">
+                  {customDays} 天
+                </span>
+              </span>
+              <input
+                type="range"
+                min={3}
+                max={90}
+                step={1}
+                value={customDays}
+                onChange={(e) => setCustomDays(parseInt(e.target.value))}
+                className="flex-1 accent-violet-500 h-1 cursor-pointer"
+              />
+              <span className="font-mono text-[9px] text-muted-foreground whitespace-nowrap">
+                3–90天
+              </span>
+            </div>
+          )}
+
+          {/* Timeline preview */}
+          <div className="bg-muted/30 rounded-lg px-3 pt-3 pb-3 mb-4">
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
+                  开始
+                </span>
+                <span className="font-mono text-[11px] text-violet-500 font-semibold">
+                  现在
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="font-mono text-[9px] text-muted-foreground">
+                  {effectiveDays} 天
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
+                  计划结束
+                </span>
+                <span className="font-mono text-[11px] text-foreground font-semibold">
+                  {fmtEndDate(previewEnd)}
+                </span>
+              </div>
+            </div>
+
+            {/* Track */}
+            <div className="relative h-5 flex items-center mb-1">
+              {/* Background rail */}
+              <div className="absolute inset-x-0 h-[3px] bg-muted rounded-full" />
+              {/* Filled portion */}
+              <div
+                className="absolute left-0 h-[3px] bg-violet-500 rounded-full transition-all duration-300"
+                style={{ width: `${trackPct}%` }}
+              />
+              {/* Now dot */}
+              <div
+                className="absolute left-0 w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-card shadow-sm"
+                style={{ transform: "translateX(-50%)" }}
+              />
+              {/* End dot */}
+              <div
+                className="absolute w-2.5 h-2.5 rounded-full bg-card border-2 border-violet-500 shadow-sm transition-all duration-300"
+                style={{ left: `${trackPct}%`, transform: "translateX(-50%)" }}
+              />
+            </div>
+
+            <div className="flex justify-between font-mono text-[9px] text-muted-foreground/60">
+              <span>现在</span>
+              <span className="text-violet-500">{fmtDate(previewEnd)}</span>
+            </div>
+          </div>
+
+          {/* Info chips */}
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="flex items-start gap-2 p-2.5 bg-muted/40 rounded-lg border border-border/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0 mt-[3px]" />
+              <span className="font-mono text-[10px] text-muted-foreground leading-relaxed">
+                策略 <strong className="text-foreground">24h 自动运行</strong>
+                ，接入真实行情
+              </span>
+            </div>
+            <div className="flex items-start gap-2 p-2.5 bg-muted/40 rounded-lg border border-border/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 mt-[3px]" />
+              <span className="font-mono text-[10px] text-muted-foreground leading-relaxed">
+                到期前 <strong className="text-foreground">24小时</strong>{" "}
+                提醒，到期自动结束
+              </span>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => handleStart(effectiveDays as PaperPlanDays)}
+            className="w-full h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
+            variant="outline"
+          >
+            &#9654; 开始 {effectiveDays} 天模拟交易
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Running / Paused / Done ───────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 flex-1">
-      {/* Notice banner */}
+      {/* Notice */}
       <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/25 text-sm">
         <strong className="text-violet-500">&#128203; 模拟账户</strong>
         <span className="text-foreground">
           {" "}
           · 虚拟资金 ¥100,000 · 真实行情信号 · 零资金风险
         </span>
+        {isRunning && (
+          <span
+            className={`ml-2 font-mono text-[10px] ${streamOk ? "text-emerald-500" : "text-amber-500"}`}
+          >
+            {streamOk ? "● 数据流已连接" : "○ 连接中..."}
+          </span>
+        )}
       </div>
 
-      {/* View-only banner — shown when live is running and user navigates here */}
+      {/* View-only banner */}
       {viewOnly && viewOnlyReason === "live" && (
         <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/25 flex items-center gap-2">
           <span className="text-red-500 text-[11px]">&#9888;</span>
@@ -244,7 +563,37 @@ export function PaperTab({
             &#9208; 模拟已暂停
           </div>
           <div className="text-[11px] text-amber-500/80">
-            信号检测已暂停，<strong>虚拟持仓保持不动</strong>，可随时继续运行。
+            信号检测已暂停，<strong>虚拟持仓保持不动</strong>
+            ，数据流已断开，可随时继续。
+          </div>
+        </div>
+      )}
+
+      {/* Plan progress bar */}
+      {(isRunning || isPaused || isDone) && startTime > 0 && (
+        <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-mono text-[9px] text-muted-foreground font-medium">
+              模拟计划 · {planDays}天
+            </div>
+            <div
+              className={`font-mono text-[9px] font-medium ${isDone ? "text-muted-foreground" : remainingMs < 86_400_000 ? "text-amber-500" : "text-violet-500"}`}
+            >
+              {isDone ? "已结束" : fmtRemaining(remainingMs)}
+            </div>
+          </div>
+          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ${isDone ? "bg-emerald-500" : "bg-gradient-to-r from-violet-500 to-violet-400"}`}
+              style={{ width: `${isDone ? 100 : progressPct}%` }}
+            />
+          </div>
+          <div className="flex justify-between font-mono text-[9px] text-muted-foreground mt-1.5">
+            <span>{fmtDate(startTime)}</span>
+            <span className="text-[9px] text-muted-foreground/60">
+              {Math.round(progressPct)}%
+            </span>
+            <span>{fmtDate(endTime)}</span>
           </div>
         </div>
       )}
@@ -256,13 +605,13 @@ export function PaperTab({
             模拟收益
           </div>
           <div
-            className={`font-mono text-xl font-semibold ${latestPt >= 0 ? "text-violet-500" : "text-red-500"}`}
+            className={`font-mono text-xl font-semibold ${equityPct >= 0 ? "text-violet-500" : "text-red-500"}`}
           >
-            {latestPt >= 0 ? "+" : ""}
-            {(latestPt * 0.4).toFixed(1)}%
+            {equityPct >= 0 ? "+" : ""}
+            {equityPct.toFixed(1)}%
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            运行 {fmtElapsed()} · 虚拟资金
+            虚拟资金 · {isDone ? "已结束" : `${planDays}天计划`}
           </div>
         </div>
         <div
@@ -272,10 +621,12 @@ export function PaperTab({
             当前持仓
           </div>
           <div className="font-mono text-xl font-semibold text-foreground">
-            {hasOpenPosition ? "BTC 0.012" : "空仓"}
+            {hasOpen ? "BTC 0.012" : "空仓"}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {hasOpenPosition ? `成本 83,940 · 浮盈 ${floatPnlStr}` : "等待信号"}
+            {hasOpen
+              ? `成本 83,940 · 浮盈 ${equityPct >= 0 ? "+" : ""}${Math.round(equityPct * 100)}¥`
+              : "等待信号"}
           </div>
         </div>
       </div>
@@ -284,7 +635,10 @@ export function PaperTab({
       <div className="relative">
         <div className="flex items-center justify-between mb-1.5">
           <span className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
-            模拟净值 — {isDone ? "归档快照" : "实时行情（虚拟资金）"}
+            模拟净值 —{" "}
+            {startTime > 0
+              ? `${fmtDate(startTime)} → ${fmtDate(endTime)}`
+              : "实时行情（虚拟资金）"}
           </span>
           <span
             className={`font-mono text-[10px] font-medium ${isDone ? "text-muted-foreground" : isPaused ? "text-amber-500" : "text-violet-500"}`}
@@ -309,12 +663,7 @@ export function PaperTab({
             最大回撤
           </div>
           <div className="font-mono text-xl font-semibold text-red-500">
-            -
-            {Math.max(
-              0,
-              Math.round(Math.abs(Math.min(0, latestPt)) * 0.3 + 0.5),
-            ).toFixed(1)}
-            %
+            -{maxDrawdown.toFixed(1)}%
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">模拟期间</div>
         </div>
@@ -323,10 +672,10 @@ export function PaperTab({
             已执行
           </div>
           <div className="font-mono text-xl font-semibold text-foreground">
-            {trades.length}笔
+            {tradeCount}笔
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {totalClosed > 0 ? `胜率 ${winRate}%` : "等待成交"}
+            {tradeCount > 0 ? `胜率 ${winRate}%` : "等待成交"}
           </div>
         </div>
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
@@ -334,26 +683,19 @@ export function PaperTab({
             滑点
           </div>
           <div className="font-mono text-xl font-semibold text-cyan-500">
-            0.07%
+            {slippage.toFixed(2)}%
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">正常范围</div>
         </div>
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">
-            引擎
+            夏普比率
           </div>
-          <div
-            className={`font-mono text-xs font-semibold ${isDone ? "text-muted-foreground" : isPaused ? "text-amber-500" : "text-violet-500"}`}
-            dangerouslySetInnerHTML={{
-              __html: isDone
-                ? "&#128193; 已结束"
-                : isPaused
-                  ? "&#9208; 暂停"
-                  : "● 运行中",
-            }}
-          />
+          <div className="font-mono text-xl font-semibold text-cyan-500">
+            {sharpe.toFixed(2)}
+          </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {isDone ? "模拟完成" : isPaused ? "持仓保留中" : "4h 信号检测"}
+            {isDone ? "模拟完成" : isPaused ? "持仓保留中" : "实时更新"}
           </div>
         </div>
       </div>
@@ -428,8 +770,7 @@ export function PaperTab({
         </div>
       </div>
 
-      {/* Action buttons */}
-      {/* 优化此策略 — always visible in a fixed row when available */}
+      {/* 优化此策略 */}
       {onClone && (
         <div className="flex">
           <Button
@@ -441,18 +782,18 @@ export function PaperTab({
           </Button>
         </div>
       )}
+
+      {/* Operational buttons */}
       {!readOnly && !viewOnly && (
         <div className="flex gap-2.5">
           {isDone ? (
-            <>
-              <Button
-                onClick={onStartLive}
-                className="flex-1 h-10 bg-red-500/10 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono text-[11px] font-medium"
-                variant="outline"
-              >
-                &#9888; 启动实盘 — 使用真实资金，请谨慎
-              </Button>
-            </>
+            <Button
+              onClick={onStartLive}
+              className="flex-1 h-10 bg-red-500/10 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono text-[11px] font-medium"
+              variant="outline"
+            >
+              &#9888; 启动实盘 — 使用真实资金，请谨慎
+            </Button>
           ) : isPaused ? (
             <>
               <Button
@@ -475,7 +816,7 @@ export function PaperTab({
                   });
                   addLog(
                     "模拟",
-                    `<span class="hi">已结束</span> · ${trades.length}笔 · ${totalClosed > 0 ? `胜率${winRate}%` : "无成交"}`,
+                    `<span class="hi">已结束</span> · ${tradeCount}笔`,
                   );
                 }}
                 className="flex-1 h-10 bg-muted border border-muted-foreground/30 text-muted-foreground hover:border-violet-500 hover:text-violet-500 font-mono text-[11px] font-medium"
@@ -509,7 +850,7 @@ export function PaperTab({
                   });
                   addLog(
                     "模拟",
-                    `<span class="hi">已结束</span> · ${trades.length}笔`,
+                    `<span class="hi">已结束</span> · ${tradeCount}笔`,
                   );
                 }}
                 className="flex-1 h-10 bg-violet-500/10 border border-violet-500/50 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"

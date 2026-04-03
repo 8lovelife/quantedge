@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { drawLiveChart } from "../chart-utils";
@@ -30,10 +30,15 @@ export function LiveTab({
     setStrategyState,
     addLog,
     setBtcPrice,
+    updateLiveResult,
   } = useQuantTerminalStore();
   const state = strategyStates[activeStrategyId];
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
+  const tradeCountRef = useRef<number>(0);
+  const winCountRef = useRef<number>(0);
+  const [streamOk, setStreamOk] = useState(false);
 
   const isRunning = state?.stages.live === "running";
   const isPaused = state?.stages.live === "paused";
@@ -64,6 +69,8 @@ export function LiveTab({
       return;
     }
 
+    startTimeRef.current = Date.now();
+    setStreamOk(true);
     intervalRef.current = setInterval(() => {
       const currentState =
         useQuantTerminalStore.getState().strategyStates[activeStrategyId];
@@ -102,29 +109,56 @@ export function LiveTab({
       }
 
       setBtcPrice(84231 + Math.round(nv * 80));
+
+      // Compute cumulative return and push to sidebar
+      const firstPt = pts[0];
+      const returnPct =
+        firstPt !== 0 ? ((nv - firstPt) / Math.abs(firstPt)) * 100 : 0;
+      const returnStr = `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(1)}%`;
+      updateLiveResult(activeStrategyId, returnStr);
+
       setStrategyState(activeStrategyId, { livePts: pts, liveSigs: sigs });
 
       if (canvasRef.current) {
-        drawLiveChart(canvasRef.current, pts, sigs);
+        drawLiveChart(canvasRef.current, pts, sigs, startTimeRef.current, 300);
       }
     }, 300);
 
     return () => {
+      setStreamOk(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [isRunning, activeStrategyId, setStrategyState, addLog, setBtcPrice]);
+  }, [
+    isRunning,
+    activeStrategyId,
+    setStrategyState,
+    addLog,
+    setBtcPrice,
+    updateLiveResult,
+  ]);
 
   useEffect(() => {
     if (canvasRef.current && state?.livePts.length) {
-      drawLiveChart(canvasRef.current, state.livePts, state.liveSigs);
+      drawLiveChart(
+        canvasRef.current,
+        state.livePts,
+        state.liveSigs,
+        startTimeRef.current,
+        300,
+      );
     }
   }, [state, isPaused, isArchived, isStopped]);
 
   const latestPt = state?.livePts[state.livePts.length - 1] || 0;
   const floatPnl = Math.round(latestPt * 80);
+  // Pull live return from Strategy record (updated every tick by updateLiveResult)
+  const liveStrategy = useQuantTerminalStore
+    .getState()
+    .strategies.find((s) => s.id === activeStrategyId);
+  const liveReturnDisplay = liveStrategy?.liveResult || "+0.0%";
 
   // Derive display values based on state
   const holdingLabel = isStopped ? "已清仓" : "BTC 0.012";
@@ -136,6 +170,25 @@ export function LiveTab({
 
   return (
     <div className="flex flex-col gap-4 flex-1">
+      {/* Stream connection banner — shown only when running */}
+      {isRunning && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+          <span
+            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${streamOk ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse"}`}
+          />
+          <span
+            className={`font-mono text-[10px] font-medium ${streamOk ? "text-emerald-500" : "text-amber-500"}`}
+          >
+            {streamOk ? "数据流已连接 · 实时报价接入中" : "连接中..."}
+          </span>
+          {streamOk && (
+            <span className="ml-auto font-mono text-[9px] text-emerald-500/60">
+              300ms tick
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Status banners */}
       {isPaused && (
         <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 border-l-[3px] border-l-amber-500">
@@ -163,13 +216,15 @@ export function LiveTab({
       <div className="grid grid-cols-2 gap-2.5">
         <div className="bg-card border border-emerald-500/30 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">
-            本月实盘收益
+            实盘累计收益
           </div>
-          <div className="font-mono text-xl font-semibold text-emerald-500">
-            +12.4%
+          <div
+            className={`font-mono text-xl font-semibold ${liveReturnDisplay.startsWith("+") ? "text-emerald-500" : "text-red-500"}`}
+          >
+            {liveReturnDisplay}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            ¥5,952 实际盈利
+            {isStopped ? "终止时快照" : isPaused ? "暂停时快照" : "实时更新"}
           </div>
         </div>
         <div

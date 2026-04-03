@@ -18,6 +18,10 @@ export interface Strategy {
   type: string;
   returnRate: string;
   returnHint: string;
+  // Per-stage result fields — updated in real-time by live/paper tabs
+  btResult?: string; // e.g. "+34.2%"  set when backtest completes
+  paperResult?: string; // e.g. "+2.1%"   updated every paper tick
+  liveResult?: string; // e.g. "+12.4%"  updated every live tick
   familyId: string; // groups original + all clones together
   version: number; // 1 = original, 2 = first iteration, etc.
 }

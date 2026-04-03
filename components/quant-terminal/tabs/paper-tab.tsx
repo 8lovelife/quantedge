@@ -92,7 +92,7 @@ export function PaperTab({
     setStrategyState,
     addLog,
     setPaperPlan,
-    updateStrategyMetrics,
+    updatePaperResult,
   } = useQuantTerminalStore();
   const state = strategyStates[activeStrategyId];
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -188,9 +188,9 @@ export function PaperTab({
       const returnPct =
         firstPt !== 0 ? ((lastPt - firstPt) / Math.abs(firstPt)) * 100 : 0;
       const returnStr = `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(1)}%`;
-      updateStrategyMetrics(activeStrategyId, returnStr, "模拟中");
+      updatePaperResult(activeStrategyId, returnStr);
     },
-    [activeStrategyId, setStrategyState, redraw, updateStrategyMetrics],
+    [activeStrategyId, setStrategyState, redraw, updatePaperResult],
   );
 
   const handleSignal = useCallback(
@@ -328,192 +328,88 @@ export function PaperTab({
   if (isReady) {
     const effectiveDays = isCustom ? customDays : planDays;
     const previewEnd = Date.now() + effectiveDays * 86_400_000;
-    // track fill width: map days to 0–88% so the end-dot never touches edge
-    const trackPct = Math.min(88, Math.max(12, (effectiveDays / 30) * 75 + 8));
 
     return (
-      <div className="flex flex-col gap-4 flex-1">
-        {/* Account notice */}
-        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-violet-500/10 border border-violet-500/25">
-          <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0 mt-1" />
-          <span className="text-[13px] text-foreground leading-relaxed">
-            <strong className="text-violet-500">模拟账户</strong>
-            {" · 虚拟资金 ¥100,000 · 接入真实行情信号 · 零资金风险"}
+      <div className="flex flex-col gap-3 flex-1">
+        {/* Account notice — single quiet line */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/8 border border-violet-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" />
+          <span className="font-mono text-[10px] text-violet-400">
+            模拟账户 · 虚拟资金 ¥100,000 · 真实行情 · 零风险
           </span>
         </div>
 
-        {/* Plan picker */}
-        <div className="bg-card border border-border/50 rounded-xl p-4 shadow-sm">
-          <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-3 font-medium uppercase">
-            选择模拟时长
-          </div>
-
-          {/* Preset buttons + custom */}
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            {PLAN_PRESETS.map((opt) => (
+        {/* Main card */}
+        <div className="bg-card border border-border/50 rounded-xl p-4 shadow-sm flex flex-col gap-4">
+          {/* Duration label + pill selector in one row */}
+          <div>
+            <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2.5 font-medium uppercase">
+              模拟时长
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {PLAN_PRESETS.map((opt) => {
+                const active = !isCustom && planDays === opt.days;
+                return (
+                  <button
+                    key={opt.days}
+                    onClick={() => {
+                      setIsCustom(false);
+                      setPaperPlan(activeStrategyId, opt.days as PaperPlanDays);
+                    }}
+                    className={cn(
+                      "relative h-8 px-3.5 rounded-full border font-mono text-[11px] font-medium transition-all",
+                      active
+                        ? "bg-violet-500 border-violet-500 text-white"
+                        : "bg-muted/40 border-border/60 text-muted-foreground hover:border-violet-500/50 hover:text-foreground",
+                    )}
+                  >
+                    {opt.label}
+                    {opt.recommended && !active && (
+                      <span className="absolute -top-1.5 -right-1 text-[7px] px-1 rounded-full bg-violet-500 text-white leading-tight">
+                        荐
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
               <button
-                key={opt.days}
-                onClick={() => {
-                  setIsCustom(false);
-                  setPaperPlan(activeStrategyId, opt.days as PaperPlanDays);
-                }}
+                onClick={() => setIsCustom(true)}
                 className={cn(
-                  "relative flex flex-col items-center py-3 px-1 rounded-lg border transition-all",
-                  !isCustom && planDays === opt.days
-                    ? "bg-violet-500/10 border-violet-500"
-                    : "bg-muted/40 border-border/50 text-muted-foreground hover:border-violet-500/40 hover:text-foreground",
-                )}
-              >
-                {opt.recommended && (
-                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] px-1.5 py-0.5 rounded-full bg-violet-500 text-white font-mono font-medium whitespace-nowrap">
-                    推荐
-                  </span>
-                )}
-                <span
-                  className={cn(
-                    "font-mono text-base font-semibold",
-                    !isCustom && planDays === opt.days ? "text-violet-500" : "",
-                  )}
-                >
-                  {opt.label}
-                </span>
-                <span
-                  className={cn(
-                    "font-mono text-[9px] mt-0.5",
-                    !isCustom && planDays === opt.days
-                      ? "text-violet-400"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {opt.desc}
-                </span>
-              </button>
-            ))}
-
-            {/* Custom button */}
-            <button
-              onClick={() => setIsCustom(true)}
-              className={cn(
-                "flex flex-col items-center py-3 px-1 rounded-lg border transition-all",
-                isCustom
-                  ? "bg-violet-500/10 border-violet-500"
-                  : "bg-muted/40 border-border/50 text-muted-foreground hover:border-violet-500/40 hover:text-foreground",
-              )}
-            >
-              <span
-                className={cn(
-                  "font-mono text-base font-semibold",
-                  isCustom ? "text-violet-500" : "",
+                  "h-8 px-3.5 rounded-full border font-mono text-[11px] font-medium transition-all",
+                  isCustom
+                    ? "bg-violet-500 border-violet-500 text-white"
+                    : "bg-muted/40 border-border/60 text-muted-foreground hover:border-violet-500/50 hover:text-foreground",
                 )}
               >
                 自定义
-              </span>
-              <span
-                className={cn(
-                  "font-mono text-[9px] mt-0.5",
-                  isCustom ? "text-violet-400" : "text-muted-foreground",
-                )}
-              >
-                天数
-              </span>
-            </button>
-          </div>
-
-          {/* Custom slider — shown only when custom is active */}
-          {isCustom && (
-            <div className="flex items-center gap-3 px-1 py-2.5 mb-3 bg-muted/40 rounded-lg border border-violet-500/30">
-              <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">
-                自定义：
-                <span className="text-violet-500 font-semibold ml-0.5">
-                  {customDays} 天
-                </span>
-              </span>
-              <input
-                type="range"
-                min={3}
-                max={90}
-                step={1}
-                value={customDays}
-                onChange={(e) => setCustomDays(parseInt(e.target.value))}
-                className="flex-1 accent-violet-500 h-1 cursor-pointer"
-              />
-              <span className="font-mono text-[9px] text-muted-foreground whitespace-nowrap">
-                3–90天
-              </span>
-            </div>
-          )}
-
-          {/* Timeline preview */}
-          <div className="bg-muted/30 rounded-lg px-3 pt-3 pb-3 mb-4">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
-                  开始
-                </span>
-                <span className="font-mono text-[11px] text-violet-500 font-semibold">
-                  现在
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="font-mono text-[9px] text-muted-foreground">
-                  {effectiveDays} 天
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
-                  计划结束
-                </span>
-                <span className="font-mono text-[11px] text-foreground font-semibold">
-                  {fmtEndDate(previewEnd)}
-                </span>
-              </div>
-            </div>
-
-            {/* Track */}
-            <div className="relative h-5 flex items-center mb-1">
-              {/* Background rail */}
-              <div className="absolute inset-x-0 h-[3px] bg-muted rounded-full" />
-              {/* Filled portion */}
-              <div
-                className="absolute left-0 h-[3px] bg-violet-500 rounded-full transition-all duration-300"
-                style={{ width: `${trackPct}%` }}
-              />
-              {/* Now dot */}
-              <div
-                className="absolute left-0 w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-card shadow-sm"
-                style={{ transform: "translateX(-50%)" }}
-              />
-              {/* End dot */}
-              <div
-                className="absolute w-2.5 h-2.5 rounded-full bg-card border-2 border-violet-500 shadow-sm transition-all duration-300"
-                style={{ left: `${trackPct}%`, transform: "translateX(-50%)" }}
-              />
-            </div>
-
-            <div className="flex justify-between font-mono text-[9px] text-muted-foreground/60">
-              <span>现在</span>
-              <span className="text-violet-500">{fmtDate(previewEnd)}</span>
+              </button>
             </div>
           </div>
 
-          {/* Info chips */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="flex items-start gap-2 p-2.5 bg-muted/40 rounded-lg border border-border/50">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0 mt-[3px]" />
-              <span className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-                策略 <strong className="text-foreground">24h 自动运行</strong>
-                ，接入真实行情
-              </span>
-            </div>
-            <div className="flex items-start gap-2 p-2.5 bg-muted/40 rounded-lg border border-border/50">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 mt-[3px]" />
-              <span className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-                到期前 <strong className="text-foreground">24小时</strong>{" "}
-                提醒，到期自动结束
+          {/* Single slider — always visible, drives both preset and custom */}
+          <div className="flex flex-col gap-2">
+            <input
+              type="range"
+              min={3}
+              max={90}
+              step={1}
+              value={effectiveDays}
+              onChange={(e) => {
+                const v = parseInt(e.target.value);
+                setIsCustom(true);
+                setCustomDays(v);
+              }}
+              className="w-full accent-violet-500 cursor-pointer"
+            />
+            <div className="flex justify-between font-mono text-[10px]">
+              <span className="text-violet-500 font-medium">现在</span>
+              <span className="text-muted-foreground/70">
+                {effectiveDays} 天 · 结束于 {fmtEndDate(previewEnd)}
               </span>
             </div>
           </div>
 
+          {/* Start button */}
           <Button
             onClick={() => handleStart(effectiveDays as PaperPlanDays)}
             className="w-full h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"

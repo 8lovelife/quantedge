@@ -62,13 +62,20 @@ function getReturnDisplay(
   strategy: Strategy,
   state: StrategyState,
 ): { bt?: string; paper?: string; live?: string } {
+  const liveActive =
+    state.stages.live === "running" ||
+    state.stages.live === "paused" ||
+    state.stages.live === "stopped" ||
+    state.stages.live === "done";
+  const paperActive =
+    state.stages.paper === "running" ||
+    state.stages.paper === "paused" ||
+    state.stages.paper === "done";
+
   return {
-    bt: state.btDone ? "+34.2%" : undefined,
-    paper: state.paperDone ? "+5.2%" : undefined,
-    live:
-      strategy.returnRate && strategy.returnRate !== ""
-        ? strategy.returnRate
-        : undefined,
+    bt: state.btDone ? strategy.btResult || "+34.2%" : undefined,
+    paper: paperActive ? strategy.paperResult : undefined,
+    live: liveActive ? strategy.liveResult : undefined,
   };
 }
 

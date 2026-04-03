@@ -38,8 +38,13 @@ export function BacktestTab({
   readOnly,
   onClone,
 }: BacktestTabProps) {
-  const { activeStrategyId, strategyStates, setStrategyState, addLog } =
-    useQuantTerminalStore();
+  const {
+    activeStrategyId,
+    strategyStates,
+    setStrategyState,
+    addLog,
+    updateBtResult,
+  } = useQuantTerminalStore();
   const state = strategyStates[activeStrategyId];
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [progress, setProgress] = useState(0);
@@ -94,6 +99,7 @@ export function BacktestTab({
           stages: { ...state.stages, bt: "done", paper: "ready" },
           btDone: true,
         });
+        updateBtResult(activeStrategyId, "+34.2%");
         addLog(
           "回测",
           `<span class="hi">完成</span> · ${RANGE_LABEL[btRange]} · 胜率 61.3%`,

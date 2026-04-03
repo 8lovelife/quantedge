@@ -21,6 +21,9 @@ export const initialStrategies: Strategy[] = [
     type: "趋势",
     returnRate: "+12.4%",
     returnHint: "本月实盘",
+    btResult: "+34.2%",
+    paperResult: "+5.2%",
+    liveResult: "+12.4%",
     familyId: "f1",
     version: 1,
   },
@@ -32,6 +35,7 @@ export const initialStrategies: Strategy[] = [
     type: "震荡",
     returnRate: "",
     returnHint: "待模拟",
+    btResult: "+34.2%",
     familyId: "f2",
     version: 1,
   },
@@ -207,11 +211,9 @@ interface QuantTerminalStore {
     pts: number[],
     sigs: { i: number; type: "buy" | "sell" }[],
   ) => void;
-  updateStrategyMetrics: (
-    id: string,
-    returnRate: string,
-    returnHint: string,
-  ) => void;
+  updateBtResult: (id: string, result: string) => void;
+  updatePaperResult: (id: string, result: string) => void;
+  updateLiveResult: (id: string, result: string) => void;
   addStrategy: (strategy: Omit<Strategy, "id">, dslCode?: string) => string;
   updateStrategy: (id: string, patch: Partial<Omit<Strategy, "id">>) => void;
   // The ONE improve action — always clones, always goes forward
@@ -351,10 +353,38 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
     });
   },
 
-  updateStrategyMetrics: (id, returnRate, returnHint) =>
+  updateBtResult: (id, result) =>
     set((prev) => ({
       strategies: prev.strategies.map((s) =>
-        s.id === id ? { ...s, returnRate, returnHint } : s,
+        s.id === id ? { ...s, btResult: result } : s,
+      ),
+    })),
+
+  updatePaperResult: (id, result) =>
+    set((prev) => ({
+      strategies: prev.strategies.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              paperResult: result,
+              returnRate: result,
+              returnHint: "模拟中",
+            }
+          : s,
+      ),
+    })),
+
+  updateLiveResult: (id, result) =>
+    set((prev) => ({
+      strategies: prev.strategies.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              liveResult: result,
+              returnRate: result,
+              returnHint: "实盘中",
+            }
+          : s,
       ),
     })),
 

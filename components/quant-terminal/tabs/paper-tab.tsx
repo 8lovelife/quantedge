@@ -40,9 +40,9 @@ const PLAN_PRESETS: {
   desc: string;
   recommended?: boolean;
 }[] = [
-  { days: 7, label: "7天", desc: "快速验证" },
-  { days: 14, label: "14天", desc: "推荐", recommended: true },
-  { days: 30, label: "30天", desc: "充分验证" },
+  { days: 30, label: "30秒", desc: "快速看图" },
+  { days: 60, label: "1分钟", desc: "推荐测试", recommended: true },
+  { days: 120, label: "2分钟", desc: "完整观察" },
 ];
 
 function fmtDate(ms: number) {
@@ -129,7 +129,7 @@ export function PaperTab({
       });
       addLog(
         "模拟",
-        `<span class="hi">计划结束</span> · ${planDays}天模拟完成`,
+        `<span class="hi">计划结束</span> · ${planDays}秒模拟完成`,
       );
     }
   }, [now, isRunning, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -297,7 +297,7 @@ export function PaperTab({
   const sharpe = metrics?.sharpe ?? 0;
   const hasOpen = trades.some((t) => t.isPending && t.isBuy);
 
-  const planMs = planDays * 86_400_000;
+  const planMs = planDays * 1_000; // planDays now stores seconds
   const elapsedMs = startTime > 0 ? Math.max(0, now - startTime) : 0;
   const remainingMs = endTime > 0 ? Math.max(0, endTime - now) : 0;
   const progressPct =
@@ -305,46 +305,50 @@ export function PaperTab({
       ? Math.min(100, (elapsedMs / planMs) * 100)
       : 0;
 
-  // ── Start handler (writes startTime/endTime to store) ────────────────────────
-  const handleStart = (days: PaperPlanDays) => {
+  // ── Start handler — planDays field now stores seconds for test mode ──────────
+  const handleStart = (secs: PaperPlanDays) => {
     const start = Date.now();
-    const end = start + days * 86_400_000;
+    const end = start + secs * 1_000; // secs → ms
+    const planMs = secs * 1_000;
     setStrategyState(activeStrategyId, {
       stages: { ...state.stages, paper: "running" },
       paperPts: [],
       paperSigs: [],
       paperRef: [],
-      paperPlanDays: days,
+      paperPlanDays: secs,
       paperStartTime: start,
       paperEndTime: end,
     });
     addLog(
       "模拟",
-      `<span class="hi">引擎启动</span> · 计划运行 ${days}天 · 结束于 ${fmtDate(end)}`,
+      `<span class="hi">引擎启动</span> · 测试模式 ${secs}秒 · 结束于 ${fmtDate(end)}`,
     );
   };
 
   // ── Plan selector (shown before starting) ────────────────────────────────────
   if (isReady) {
-    const effectiveDays = isCustom ? customDays : planDays;
-    const previewEnd = Date.now() + effectiveDays * 86_400_000;
+    const effectiveSecs = isCustom ? customDays : planDays;
+    const previewEnd = Date.now() + effectiveSecs * 1_000;
 
     return (
       <div className="flex flex-col gap-3 flex-1">
-        {/* Account notice — single quiet line */}
+        {/* Account notice */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/8 border border-violet-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" />
           <span className="font-mono text-[10px] text-violet-400">
             模拟账户 · 虚拟资金 ¥100,000 · 真实行情 · 零风险
           </span>
+          <span className="ml-auto font-mono text-[9px] text-amber-500 border border-amber-500/30 px-1.5 py-0.5 rounded">
+            测试模式
+          </span>
         </div>
 
         {/* Main card */}
         <div className="bg-card border border-border/50 rounded-xl p-4 shadow-sm flex flex-col gap-4">
-          {/* Duration label + pill selector in one row */}
+          {/* Duration label + pill selector */}
           <div>
             <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2.5 font-medium uppercase">
-              模拟时长
+              模拟时长（秒级测试）
             </div>
             <div className="flex gap-1.5 flex-wrap">
               {PLAN_PRESETS.map((opt) => {
@@ -386,36 +390,35 @@ export function PaperTab({
             </div>
           </div>
 
-          {/* Single slider — always visible, drives both preset and custom */}
+          {/* Single slider — range in seconds */}
           <div className="flex flex-col gap-2">
             <input
               type="range"
-              min={3}
-              max={90}
-              step={1}
-              value={effectiveDays}
+              min={10}
+              max={300}
+              step={5}
+              value={effectiveSecs}
               onChange={(e) => {
-                const v = parseInt(e.target.value);
                 setIsCustom(true);
-                setCustomDays(v);
+                setCustomDays(parseInt(e.target.value));
               }}
               className="w-full accent-violet-500 cursor-pointer"
             />
             <div className="flex justify-between font-mono text-[10px]">
               <span className="text-violet-500 font-medium">现在</span>
               <span className="text-muted-foreground/70">
-                {effectiveDays} 天 · 结束于 {fmtEndDate(previewEnd)}
+                {effectiveSecs}秒 · 结束于 {fmtDate(previewEnd)}
               </span>
             </div>
           </div>
 
           {/* Start button */}
           <Button
-            onClick={() => handleStart(effectiveDays as PaperPlanDays)}
+            onClick={() => handleStart(effectiveSecs as PaperPlanDays)}
             className="w-full h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
             variant="outline"
           >
-            &#9654; 开始 {effectiveDays} 天模拟交易
+            &#9654; 开始 {effectiveSecs} 秒模拟测试
           </Button>
         </div>
       </div>
@@ -470,10 +473,10 @@ export function PaperTab({
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <div className="font-mono text-[9px] text-muted-foreground font-medium">
-              模拟计划 · {planDays}天
+              模拟计划 · {planDays}秒
             </div>
             <div
-              className={`font-mono text-[9px] font-medium ${isDone ? "text-muted-foreground" : remainingMs < 86_400_000 ? "text-amber-500" : "text-violet-500"}`}
+              className={`font-mono text-[9px] font-medium ${isDone ? "text-muted-foreground" : remainingMs < 60_000 ? "text-amber-500" : "text-violet-500"}`}
             >
               {isDone ? "已结束" : fmtRemaining(remainingMs)}
             </div>
@@ -507,7 +510,7 @@ export function PaperTab({
             {equityPct.toFixed(1)}%
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            虚拟资金 · {isDone ? "已结束" : `${planDays}天计划`}
+            虚拟资金 · {isDone ? "已结束" : `${planDays}秒测试`}
           </div>
         </div>
         <div

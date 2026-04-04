@@ -187,9 +187,9 @@ export function drawPaperChart(
   pts: number[],
   sigs: Signal[],
   ref: number[],
-  startTime?: number, // unix ms when paper trading started
-  endTime?: number, // unix ms of planned end; if set, X axis spans full plan window
-  tickMs = 300, // ms per data point
+  startTime?: number,
+  endTime?: number,
+  tickMs = 300,
 ) {
   if (pts.length < 2) return;
 
@@ -210,27 +210,44 @@ export function drawPaperChart(
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
-  const yM = (v: number) => PAD.t + cH - ((v - mn) / (mx - mn)) * cH;
-  // xM maps data point index -> canvas X, scaled to the elapsed portion of the plan window.
-  // curveRatio is computed below in the time window section; we use a late-bound closure.
-  let _curveW = cW; // will be updated after time window calculation
-  const xM = (i: number) => PAD.l + (i / Math.max(pts.length - 1, 1)) * _curveW;
+  // ── Time window (computed FIRST so xM is correct from the start) ────────────
+  const now = Date.now();
+  const paperStart = startTime ?? now - pts.length * tickMs;
+  const paperEnd = endTime ?? paperStart + pts.length * tickMs;
+  const totalPlanMs = paperEnd - paperStart;
+  const elapsedMs = Math.min(Math.max(now - paperStart, 0), totalPlanMs);
+  const progressRatio = totalPlanMs > 0 ? elapsedMs / totalPlanMs : 1;
 
-  // Grid lines + Y-axis labels (same as backtest/live charts)
+  // curveW = how many canvas px the drawn curve occupies (left portion)
+  const curveW = cW * progressRatio;
+
+  // xM: maps data index → canvas X within the elapsed (curve) portion
+  const xM = (i: number) => PAD.l + (i / Math.max(pts.length - 1, 1)) * curveW;
+  const yM = (v: number) => PAD.t + cH - ((v - mn) / (mx - mn || 1)) * cH;
+
+  // ── Grid lines (Y) ───────────────────────────────────────────────────────────
   const gridStops = [0, 0.25, 0.5, 0.75, 1];
   gridStops.forEach((t) => {
     const y = PAD.t + cH * (1 - t);
-    ctx.strokeStyle = "#e2e8f0";
+    // Past zone grid
+    ctx.strokeStyle = "rgba(226,232,240,0.7)";
     ctx.lineWidth = 0.5;
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(PAD.l, y);
+    ctx.lineTo(PAD.l + curveW, y);
+    ctx.stroke();
+    // Future zone grid (dimmer)
+    ctx.strokeStyle = "rgba(226,232,240,0.25)";
+    ctx.beginPath();
+    ctx.moveTo(PAD.l + curveW, y);
     ctx.lineTo(W - PAD.r, y);
     ctx.stroke();
 
+    // Y-axis label
     ctx.fillStyle = "#94a3b8";
     ctx.font = "9px JetBrains Mono, monospace";
     ctx.textAlign = "right";
@@ -240,9 +257,24 @@ export function drawPaperChart(
     ctx.fillText(label, PAD.l - 4, y + 3);
   });
 
-  // Reference line (dashed)
-  if (ref && pts.length > 1) {
-    ctx.strokeStyle = "#3b82f6";
+  // ── Future zone fill ─────────────────────────────────────────────────────────
+  if (progressRatio < 1) {
+    const futureX = PAD.l + curveW;
+    ctx.fillStyle = "rgba(148,163,184,0.035)";
+    ctx.fillRect(futureX, PAD.t, cW - curveW, cH);
+
+    // "未来" label — only if wide enough
+    if (cW - curveW > 32) {
+      ctx.fillStyle = "rgba(148,163,184,0.35)";
+      ctx.font = "9px JetBrains Mono, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("未来", futureX + (cW - curveW) / 2, PAD.t + cH / 2);
+    }
+  }
+
+  // ── Reference line (dashed) ──────────────────────────────────────────────────
+  if (ref && ref.length > 1) {
+    ctx.strokeStyle = "rgba(59,130,246,0.5)";
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
@@ -254,11 +286,10 @@ export function drawPaperChart(
     ctx.setLineDash([]);
   }
 
-  // Area fill
+  // ── Area fill ────────────────────────────────────────────────────────────────
   const gradient = ctx.createLinearGradient(0, PAD.t, 0, PAD.t + cH);
-  gradient.addColorStop(0, "rgba(139, 92, 246, 0.1)");
-  gradient.addColorStop(1, "rgba(139, 92, 246, 0)");
-
+  gradient.addColorStop(0, "rgba(139,92,246,0.12)");
+  gradient.addColorStop(1, "rgba(139,92,246,0)");
   ctx.beginPath();
   ctx.moveTo(xM(0), yM(pts[0]));
   pts.forEach((v, i) => {
@@ -270,10 +301,11 @@ export function drawPaperChart(
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  // Line
+  // ── Curve line ───────────────────────────────────────────────────────────────
   ctx.strokeStyle = "#8b5cf6";
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
+  ctx.setLineDash([]);
   ctx.beginPath();
   pts.forEach((v, i) => {
     if (i === 0) ctx.moveTo(xM(i), yM(v));
@@ -281,7 +313,7 @@ export function drawPaperChart(
   });
   ctx.stroke();
 
-  // Signals
+  // ── Signal dots ──────────────────────────────────────────────────────────────
   sigs
     .filter((s) => s.i < pts.length)
     .forEach((s) => {
@@ -291,59 +323,65 @@ export function drawPaperChart(
       ctx.fill();
     });
 
-  // ── Time window ─────────────────────────────────────────────────────────────
-  // If endTime is provided, the X axis spans the full planned window.
-  // The drawn curve only covers the elapsed portion; the rest is "future" (greyed).
-  const now = Date.now();
-  const paperStart = startTime ?? now - pts.length * tickMs;
-  const paperEnd = endTime ?? paperStart + pts.length * tickMs;
-  const totalPlanMs = paperEnd - paperStart;
-  const elapsedMs = Math.min(now - paperStart, totalPlanMs);
-  const progressRatio = Math.min(elapsedMs / totalPlanMs, 1); // 0-1
-
-  // The curve occupies [PAD.l .. PAD.l + cW * progressRatio]
-  // Re-map xM so the curve fills only the elapsed portion of the chart
-  const curveW = cW * progressRatio;
-  _curveW = curveW; // update xM closure
-
-  // Draw future zone (right of curve) as subtle grey fill
-  if (progressRatio < 1) {
-    const futureX = PAD.l + curveW;
-    ctx.fillStyle = "rgba(148, 163, 184, 0.04)";
-    ctx.strokeStyle = "rgba(148, 163, 184, 0.15)";
-    ctx.lineWidth = 0.5;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(futureX, PAD.t, cW - curveW, cH);
-    ctx.fillRect(futureX, PAD.t, cW - curveW, cH);
-    ctx.setLineDash([]);
-
-    // "未来" label in future zone
-    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
-    ctx.font = "9px JetBrains Mono, monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("未来", futureX + (cW - curveW) / 2, PAD.t + cH / 2);
-  }
-
-  // Progress line (vertical dashed line at "now")
-  if (progressRatio > 0 && progressRatio < 1) {
+  // ── "今" vertical line at NOW ────────────────────────────────────────────────
+  if (progressRatio > 0.03 && progressRatio < 0.97) {
     const nowX = PAD.l + curveW;
-    ctx.strokeStyle = "rgba(139, 92, 246, 0.4)";
+    ctx.strokeStyle = "rgba(139,92,246,0.45)";
     ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
+    ctx.setLineDash([3, 3]);
     ctx.beginPath();
     ctx.moveTo(nowX, PAD.t);
     ctx.lineTo(nowX, PAD.t + cH);
     ctx.stroke();
     ctx.setLineDash([]);
-    // "NOW" label
     ctx.fillStyle = "#8b5cf6";
     ctx.font = "bold 8px JetBrains Mono, monospace";
     ctx.textAlign = "center";
-    ctx.fillText("NOW", nowX, PAD.t + 8);
+    ctx.fillText("今", nowX, PAD.t + 8);
   }
 
-  // X-axis labels spanning full plan window
-  drawXAxisTimeLabels(ctx, PAD, cW, H, paperStart, totalPlanMs);
+  // ── X-axis time labels ───────────────────────────────────────────────────────
+  // Label format chosen by totalPlanMs (the full plan span, not just elapsed)
+  const fmtTick = (ms: number): string => {
+    const d = new Date(ms);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (totalPlanMs < 60_000 * 10) {
+      // < 10 min: HH:MM:SS
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    if (totalPlanMs < 3_600_000 * 4) {
+      // < 4 h: HH:MM
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    if (totalPlanMs < 86_400_000 * 2) {
+      // < 2 days: M/D HH:00
+      return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:00`;
+    }
+    // ≥ 2 days: M/D
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
+  ctx.font = "9px JetBrains Mono, monospace";
+  const labelY = H - 5;
+
+  // Always draw 4 evenly-spaced labels across the full plan window
+  // but visually dim the future ones
+  const steps = 3;
+  for (let i = 0; i <= steps; i++) {
+    const ratio = i / steps;
+    const tMs = paperStart + totalPlanMs * ratio;
+    const x = PAD.l + cW * ratio;
+    const isFuture = ratio > progressRatio + 0.01;
+
+    ctx.fillStyle = isFuture ? "rgba(148,163,184,0.35)" : "#94a3b8";
+    ctx.textAlign = i === 0 ? "left" : i === steps ? "right" : "center";
+
+    let label = fmtTick(tMs);
+    // Mark the end label clearly as the planned end
+    if (i === steps && progressRatio < 0.97) label = `⊙ ${label}`;
+
+    ctx.fillText(label, x, labelY);
+  }
 }
 
 export function drawLiveChart(

@@ -57,18 +57,36 @@ function drawXAxisTimeLabels(
   }
 }
 
+// ── BacktestChartViewport — same pattern as PaperChartViewport ───────────────
+export interface BacktestChartViewport {
+  viewStart: number; // index into allPts
+  viewEnd: number;
+}
+
 export function drawBacktestChart(
   canvas: HTMLCanvasElement,
-  pts: number[],
-  sigs: Signal[],
+  // Always pass the FULL pts/sigs arrays; viewport controls what's displayed
+  allPts: number[],
+  allSigs: Signal[],
   options: {
     showAnimation?: boolean;
     currentIndex?: number;
-    startTime?: number; // unix ms of first data point; defaults to 3 months ago
-    tickMs?: number; // ms per data point; defaults to 4h candles
+    startTime?: number;
+    tickMs?: number;
+    viewport?: BacktestChartViewport;
   } = {},
 ) {
-  if (pts.length < 2) return;
+  if (allPts.length < 2) return;
+
+  // Resolve viewport
+  const vStart = Math.max(0, options.viewport?.viewStart ?? 0);
+  const vEnd = Math.min(
+    allPts.length - 1,
+    options.viewport?.viewEnd ?? allPts.length - 1,
+  );
+  if (vEnd <= vStart) return;
+
+  const pts = allPts.slice(vStart, vEnd + 1);
 
   const W = canvas.parentElement?.getBoundingClientRect().width || 500;
   const H = 140;
@@ -92,8 +110,11 @@ export function drawBacktestChart(
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
+  // Coordinate mappers scoped to viewport
+  const xM = (globalIdx: number) =>
+    PAD.l + ((globalIdx - vStart) / Math.max(vEnd - vStart, 1)) * cW;
+  const xML = (localIdx: number) => xM(vStart + localIdx);
   const yM = (v: number) => PAD.t + cH - ((v - mn) / range) * cH;
-  const xM = (i: number) => PAD.l + (i / (pts.length - 1)) * cW;
 
   // Grid lines
   const gridStops = [0, 0.25, 0.5, 0.75, 1];
@@ -116,13 +137,13 @@ export function drawBacktestChart(
     ctx.fillText(label, PAD.l - 4, y + 3);
   });
 
-  // Benchmark line (dashed)
+  // Benchmark line (dashed) — across visible viewport
   ctx.strokeStyle = "#94a3b8";
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(xM(0), yM(0));
-  ctx.lineTo(xM(pts.length - 1), yM(pts[pts.length - 1] * 0.35));
+  ctx.moveTo(xML(0), yM(pts[0]));
+  ctx.lineTo(xML(pts.length - 1), yM(pts[pts.length - 1] * 0.35));
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -130,14 +151,13 @@ export function drawBacktestChart(
   const gradient = ctx.createLinearGradient(0, PAD.t, 0, PAD.t + cH);
   gradient.addColorStop(0, "rgba(59, 130, 246, 0.12)");
   gradient.addColorStop(1, "rgba(59, 130, 246, 0)");
-
   ctx.beginPath();
-  ctx.moveTo(xM(0), yM(pts[0]));
+  ctx.moveTo(xML(0), yM(pts[0]));
   pts.forEach((v, i) => {
-    if (i > 0) ctx.lineTo(xM(i), yM(v));
+    if (i > 0) ctx.lineTo(xML(i), yM(v));
   });
-  ctx.lineTo(xM(pts.length - 1), PAD.t + cH);
-  ctx.lineTo(xM(0), PAD.t + cH);
+  ctx.lineTo(xML(pts.length - 1), PAD.t + cH);
+  ctx.lineTo(xML(0), PAD.t + cH);
   ctx.closePath();
   ctx.fillStyle = gradient;
   ctx.fill();
@@ -148,17 +168,30 @@ export function drawBacktestChart(
   ctx.lineJoin = "round";
   ctx.beginPath();
   pts.forEach((v, i) => {
-    if (i === 0) ctx.moveTo(xM(i), yM(v));
-    else ctx.lineTo(xM(i), yM(v));
+    if (i === 0) ctx.moveTo(xML(i), yM(v));
+    else ctx.lineTo(xML(i), yM(v));
   });
   ctx.stroke();
 
-  // Signals
-  sigs
-    .filter((s) => s.i < pts.length)
+  // Signal dots — filtered to viewport, deduplicated by canvas X distance
+  const MIN_SIG_PX = 12;
+  let lastSigX = -MIN_SIG_PX * 2;
+  allSigs
+    .filter((s) => s.i >= vStart && s.i <= vEnd && s.i < allPts.length)
+    .sort((a, b) => a.i - b.i)
     .forEach((s) => {
+      const x = xM(s.i);
+      if (x - lastSigX < MIN_SIG_PX) return;
+      lastSigX = x;
+      // Glow ring
       ctx.beginPath();
-      ctx.arc(xM(s.i), yM(pts[s.i]), 5, 0, Math.PI * 2);
+      ctx.arc(x, yM(allPts[s.i]), 8, 0, Math.PI * 2);
+      ctx.fillStyle =
+        s.type === "buy" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)";
+      ctx.fill();
+      // Dot
+      ctx.beginPath();
+      ctx.arc(x, yM(allPts[s.i]), 5, 0, Math.PI * 2);
       ctx.fillStyle = s.type === "buy" ? "#10b981" : "#ef4444";
       ctx.fill();
     });
@@ -167,31 +200,58 @@ export function drawBacktestChart(
   if (
     options.showAnimation &&
     options.currentIndex !== undefined &&
-    options.currentIndex < pts.length - 1
+    options.currentIndex < allPts.length - 1
   ) {
-    ctx.beginPath();
-    ctx.arc(xM(pts.length - 1), yM(pts[pts.length - 1]), 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#3b82f6";
-    ctx.fill();
+    const animIdx = Math.min(options.currentIndex, vEnd);
+    if (animIdx >= vStart) {
+      ctx.beginPath();
+      ctx.arc(xM(animIdx), yM(allPts[animIdx]), 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#3b82f6";
+      ctx.fill();
+    }
   }
 
-  // X-axis labels — dynamic based on actual time range
-  const btTickMs = options.tickMs ?? 4 * 3_600_000; // default: 4h candles
-  const btStart = options.startTime ?? Date.now() - pts.length * btTickMs;
-  const btTotalMs = pts.length * btTickMs;
-  drawXAxisTimeLabels(ctx, PAD, cW, H, btStart, btTotalMs);
+  // X-axis labels scoped to the visible viewport
+  const btTickMs = options.tickMs ?? 4 * 3_600_000;
+  const btStart = options.startTime ?? Date.now() - allPts.length * btTickMs;
+  const viewStartMs = btStart + vStart * btTickMs;
+  const viewSpanMs = (vEnd - vStart) * btTickMs;
+  drawXAxisTimeLabels(ctx, PAD, cW, H, viewStartMs, viewSpanMs);
+}
+
+// ── PaperChartViewport — passed by paper-tab to control zoom/pan ────────────
+export interface PaperChartViewport {
+  // Indices into the ALL-pts array (not window-relative).
+  // viewStart=0, viewEnd=pts.length-1 shows everything.
+  viewStart: number;
+  viewEnd: number;
 }
 
 export function drawPaperChart(
   canvas: HTMLCanvasElement,
-  pts: number[],
-  sigs: Signal[],
-  ref: number[],
+  // ALL accumulated pts — never sliced; caller always passes the full array
+  allPts: number[],
+  // ALL accumulated signals — absolute indices into allPts
+  allSigs: Signal[],
+  _ref: number[], // kept for API compat, unused
   startTime?: number,
   endTime?: number,
   tickMs = 300,
+  // viewport — which slice of allPts to display; defaults to full array
+  viewport?: PaperChartViewport,
 ) {
-  if (pts.length < 2) return;
+  if (allPts.length < 2) return;
+
+  // Resolve viewport bounds, clamped to valid range
+  const vStart = Math.max(0, viewport?.viewStart ?? 0);
+  const vEnd = Math.min(
+    allPts.length - 1,
+    viewport?.viewEnd ?? allPts.length - 1,
+  );
+  if (vEnd <= vStart) return;
+
+  // pts visible in the current viewport
+  const pts = allPts.slice(vStart, vEnd + 1);
 
   const W = canvas.parentElement?.getBoundingClientRect().width || 500;
   const H = 140;
@@ -213,41 +273,53 @@ export function drawPaperChart(
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
-  // ── Time window (computed FIRST so xM is correct from the start) ────────────
+  // ── Time window — must come FIRST; progressRatio is needed by drawW ─────────
   const now = Date.now();
-  const paperStart = startTime ?? now - pts.length * tickMs;
-  const paperEnd = endTime ?? paperStart + pts.length * tickMs;
+  const paperStart = startTime ?? now - allPts.length * tickMs;
+  const paperEnd = endTime ?? paperStart + allPts.length * tickMs;
   const totalPlanMs = paperEnd - paperStart;
   const elapsedMs = Math.min(Math.max(now - paperStart, 0), totalPlanMs);
   const progressRatio = totalPlanMs > 0 ? elapsedMs / totalPlanMs : 1;
 
-  // curveW = how many canvas px the drawn curve occupies (left portion)
-  const curveW = cW * progressRatio;
+  // ── Coordinate mappers ───────────────────────────────────────────────────────
+  // The curve should never occupy less than 35% of canvas width, even when
+  // progressRatio ≈ 0 (session just started). This recreates the drawW behaviour
+  // from before while keeping viewport zoom/pan working correctly.
+  //
+  // drawW = canvas px allocated to the drawn curve (≥ 35% of cW)
+  // futureW = remaining canvas px shown as the "未来" zone
+  const MIN_DRAW_RATIO = 0.35;
+  const drawW = cW * Math.max(progressRatio, MIN_DRAW_RATIO);
+  const futureW = cW - drawW;
 
-  // xM: maps data index → canvas X within the elapsed (curve) portion
-  const xM = (i: number) => PAD.l + (i / Math.max(pts.length - 1, 1)) * curveW;
+  // xM maps a GLOBAL index → canvas X, stretching the viewport span across drawW
+  const xM = (globalIdx: number) =>
+    PAD.l + ((globalIdx - vStart) / Math.max(vEnd - vStart, 1)) * drawW;
+  // xMLocal maps a local index within pts[]
+  const xML = (localIdx: number) => xM(vStart + localIdx);
   const yM = (v: number) => PAD.t + cH - ((v - mn) / (mx - mn || 1)) * cH;
 
-  // ── Grid lines (Y) ───────────────────────────────────────────────────────────
+  // ── Grid lines (Y) — past zone uses drawW, future zone uses futureW ────────
   const gridStops = [0, 0.25, 0.5, 0.75, 1];
   gridStops.forEach((t) => {
     const y = PAD.t + cH * (1 - t);
-    // Past zone grid
+    // Past zone
     ctx.strokeStyle = "rgba(226,232,240,0.7)";
     ctx.lineWidth = 0.5;
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(PAD.l, y);
-    ctx.lineTo(PAD.l + curveW, y);
+    ctx.lineTo(PAD.l + drawW, y);
     ctx.stroke();
-    // Future zone grid (dimmer)
-    ctx.strokeStyle = "rgba(226,232,240,0.25)";
-    ctx.beginPath();
-    ctx.moveTo(PAD.l + curveW, y);
-    ctx.lineTo(W - PAD.r, y);
-    ctx.stroke();
+    // Future zone (dimmer)
+    if (futureW > 0) {
+      ctx.strokeStyle = "rgba(226,232,240,0.25)";
+      ctx.beginPath();
+      ctx.moveTo(PAD.l + drawW, y);
+      ctx.lineTo(W - PAD.r, y);
+      ctx.stroke();
+    }
 
-    // Y-axis label
     ctx.fillStyle = "#94a3b8";
     ctx.font = "9px JetBrains Mono, monospace";
     ctx.textAlign = "right";
@@ -257,33 +329,41 @@ export function drawPaperChart(
     ctx.fillText(label, PAD.l - 4, y + 3);
   });
 
-  // ── Future zone fill ─────────────────────────────────────────────────────────
-  if (progressRatio < 1) {
-    const futureX = PAD.l + curveW;
-    ctx.fillStyle = "rgba(148,163,184,0.035)";
-    ctx.fillRect(futureX, PAD.t, cW - curveW, cH);
+  // ── X-axis formatter — needed both for future zone label and axis ticks ───────
+  const viewSpanMs = (vEnd - vStart) * tickMs;
+  const viewLeftMs = paperStart + vStart * tickMs;
+  // Latest tick time = time of the rightmost point currently drawn (vEnd)
+  const latestTickMs = paperStart + vEnd * tickMs;
 
-    // "未来" label — only if wide enough
-    if (cW - curveW > 32) {
+  const fmtTick = (ms: number): string => {
+    const d = new Date(ms);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (totalPlanMs < 60_000 * 10)
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    if (totalPlanMs < 3_600_000 * 4)
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (totalPlanMs < 86_400_000 * 2)
+      return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:00`;
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
+  // ── Future zone fill ─────────────────────────────────────────────────────────
+  if (futureW > 1) {
+    ctx.fillStyle = "rgba(148,163,184,0.035)";
+    ctx.fillRect(PAD.l + drawW, PAD.t, futureW, cH);
+    if (futureW > 32) {
       ctx.fillStyle = "rgba(148,163,184,0.35)";
       ctx.font = "9px JetBrains Mono, monospace";
       ctx.textAlign = "center";
-      ctx.fillText("未来", futureX + (cW - curveW) / 2, PAD.t + cH / 2);
+      ctx.fillText("未来", PAD.l + drawW + futureW / 2, PAD.t + cH / 2);
     }
-  }
-
-  // ── Reference line (dashed) ──────────────────────────────────────────────────
-  if (ref && ref.length > 1) {
-    ctx.strokeStyle = "rgba(59,130,246,0.5)";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 4]);
-    ctx.beginPath();
-    ref.slice(0, pts.length).forEach((v, i) => {
-      if (i === 0) ctx.moveTo(xM(i), yM(v));
-      else ctx.lineTo(xM(i), yM(v));
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Plan-end date — shown in bottom-right of future zone (small, dimmed)
+    if (futureW > 48) {
+      ctx.fillStyle = "rgba(148,163,184,0.4)";
+      ctx.font = "9px JetBrains Mono, monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(`⊙ ${fmtTick(paperEnd)}`, PAD.l + cW, H - 5);
+    }
   }
 
   // ── Area fill ────────────────────────────────────────────────────────────────
@@ -291,12 +371,12 @@ export function drawPaperChart(
   gradient.addColorStop(0, "rgba(139,92,246,0.12)");
   gradient.addColorStop(1, "rgba(139,92,246,0)");
   ctx.beginPath();
-  ctx.moveTo(xM(0), yM(pts[0]));
+  ctx.moveTo(xML(0), yM(pts[0]));
   pts.forEach((v, i) => {
-    if (i > 0) ctx.lineTo(xM(i), yM(v));
+    if (i > 0) ctx.lineTo(xML(i), yM(v));
   });
-  ctx.lineTo(xM(pts.length - 1), PAD.t + cH);
-  ctx.lineTo(xM(0), PAD.t + cH);
+  ctx.lineTo(xML(pts.length - 1), PAD.t + cH);
+  ctx.lineTo(xML(0), PAD.t + cH);
   ctx.closePath();
   ctx.fillStyle = gradient;
   ctx.fill();
@@ -308,24 +388,41 @@ export function drawPaperChart(
   ctx.setLineDash([]);
   ctx.beginPath();
   pts.forEach((v, i) => {
-    if (i === 0) ctx.moveTo(xM(i), yM(v));
-    else ctx.lineTo(xM(i), yM(v));
+    if (i === 0) ctx.moveTo(xML(i), yM(v));
+    else ctx.lineTo(xML(i), yM(v));
   });
   ctx.stroke();
 
   // ── Signal dots ──────────────────────────────────────────────────────────────
-  sigs
-    .filter((s) => s.i < pts.length)
+  // Filter to signals whose global index falls within the current viewport.
+  // Deduplicate by canvas X distance so zoomed-out views don't pile circles.
+  const MIN_SIG_PX = 12;
+  let lastSigX = -MIN_SIG_PX * 2;
+
+  allSigs
+    .filter((s) => s.i >= vStart && s.i <= vEnd && s.i < allPts.length)
+    .sort((a, b) => a.i - b.i)
     .forEach((s) => {
+      const x = xM(s.i);
+      if (x - lastSigX < MIN_SIG_PX) return;
+      lastSigX = x;
+      // glow ring
       ctx.beginPath();
-      ctx.arc(xM(s.i), yM(pts[s.i]), 5, 0, Math.PI * 2);
+      ctx.arc(x, yM(allPts[s.i]), 8, 0, Math.PI * 2);
+      ctx.fillStyle =
+        s.type === "buy" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)";
+      ctx.fill();
+      // dot
+      ctx.beginPath();
+      ctx.arc(x, yM(allPts[s.i]), 5, 0, Math.PI * 2);
       ctx.fillStyle = s.type === "buy" ? "#10b981" : "#ef4444";
       ctx.fill();
     });
 
-  // ── "今" vertical line at NOW ────────────────────────────────────────────────
-  if (progressRatio > 0.03 && progressRatio < 0.97) {
-    const nowX = PAD.l + curveW;
+  // ── "今" vertical line — sits at the past/future boundary (PAD.l + drawW) ────
+  // Only show when there's a meaningful future zone and we're not fully done.
+  if (progressRatio > 0.02 && progressRatio < 0.98 && futureW > 4) {
+    const nowX = PAD.l + drawW;
     ctx.strokeStyle = "rgba(139,92,246,0.45)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
@@ -341,46 +438,40 @@ export function drawPaperChart(
   }
 
   // ── X-axis time labels ───────────────────────────────────────────────────────
-  // Label format chosen by totalPlanMs (the full plan span, not just elapsed)
-  const fmtTick = (ms: number): string => {
-    const d = new Date(ms);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    if (totalPlanMs < 60_000 * 10) {
-      // < 10 min: HH:MM:SS
-      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    }
-    if (totalPlanMs < 3_600_000 * 4) {
-      // < 4 h: HH:MM
-      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    if (totalPlanMs < 86_400_000 * 2) {
-      // < 2 days: M/D HH:00
-      return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:00`;
-    }
-    // ≥ 2 days: M/D
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  };
-
+  // Left anchor  = time of vStart (viewport left edge)
+  // Right anchor = latest tick time (vEnd) — real-time, updates every tick
+  // Plan end     = shown inside future zone (see above)
+  // Inner ticks  = evenly spaced within drawW (past zone only)
   ctx.font = "9px JetBrains Mono, monospace";
   const labelY = H - 5;
+  const MIN_TICK_PX = 56;
 
-  // Always draw 4 evenly-spaced labels across the full plan window
-  // but visually dim the future ones
-  const steps = 3;
-  for (let i = 0; i <= steps; i++) {
-    const ratio = i / steps;
-    const tMs = paperStart + totalPlanMs * ratio;
-    const x = PAD.l + cW * ratio;
-    const isFuture = ratio > progressRatio + 0.01;
+  // Left anchor — viewport start time
+  ctx.fillStyle = "#94a3b8";
+  ctx.textAlign = "left";
+  ctx.fillText(fmtTick(viewLeftMs), PAD.l, labelY);
 
-    ctx.fillStyle = isFuture ? "rgba(148,163,184,0.35)" : "#94a3b8";
-    ctx.textAlign = i === 0 ? "left" : i === steps ? "right" : "center";
+  // Right anchor — latest tick timestamp, updates in real time
+  // Only draw if it won't collide with the left anchor
+  const rightLabel = fmtTick(latestTickMs);
+  const rightLabelX = PAD.l + drawW;
+  if (rightLabelX - PAD.l > MIN_TICK_PX) {
+    ctx.fillStyle = "#8b5cf6";
+    ctx.textAlign = "right";
+    ctx.fillText(rightLabel, rightLabelX, labelY);
+  }
 
-    let label = fmtTick(tMs);
-    // Mark the end label clearly as the planned end
-    if (i === steps && progressRatio < 0.97) label = `⊙ ${label}`;
-
-    ctx.fillText(label, x, labelY);
+  // Inner ticks — within the past (drawn) zone only, skip if too close to anchors
+  const innerCount = Math.max(0, Math.floor(drawW / MIN_TICK_PX) - 1);
+  if (innerCount > 0) {
+    for (let i = 1; i <= innerCount; i++) {
+      const ratio = i / (innerCount + 1);
+      const x = PAD.l + drawW * ratio;
+      const tMs = viewLeftMs + viewSpanMs * ratio;
+      ctx.fillStyle = "#94a3b8";
+      ctx.textAlign = "center";
+      ctx.fillText(fmtTick(tMs), x, labelY);
+    }
   }
 }
 

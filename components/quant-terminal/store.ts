@@ -176,6 +176,21 @@ function createInitialStrategyStates(): Record<string, StrategyState> {
   };
 }
 
+// ── Global background ticker registry ──────────────────────────────────────
+// Tracks setInterval IDs keyed by strategyId so we can start/stop independently
+// of which strategy panel is currently visible.
+const _liveIntervals = new Map<string, ReturnType<typeof setInterval>>();
+const _paperIntervals = new Map<string, ReturnType<typeof setInterval>>();
+
+/** Compute a return-percent string from a pts array */
+function computeReturnStr(pts: number[]): string {
+  if (pts.length < 2) return "+0.0%";
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  const pct = first !== 0 ? ((last - first) / Math.abs(first)) * 100 : 0;
+  return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+}
+
 interface QuantTerminalStore {
   strategies: Strategy[];
   activeStrategyId: string;
@@ -198,7 +213,7 @@ interface QuantTerminalStore {
   ) => void;
   setBtRange: (id: string, range: BtRange) => void;
   toggleFamilyCollapse: (familyId: string) => void;
-  unreadLogCount: number; // logs added while sidebar is collapsed
+  unreadLogCount: number;
   resetUnreadLogCount: () => void;
   addLog: (tag: string, message: string) => void;
   addMessage: (message: Omit<ChatMessage, "id" | "timestamp">) => void;
@@ -216,286 +231,538 @@ interface QuantTerminalStore {
   updateLiveResult: (id: string, result: string) => void;
   addStrategy: (strategy: Omit<Strategy, "id">, dslCode?: string) => string;
   updateStrategy: (id: string, patch: Partial<Omit<Strategy, "id">>) => void;
-  // The ONE improve action — always clones, always goes forward
   setPaperPlan: (id: string, days: PaperPlanDays) => void;
   cloneStrategy: (id: string) => string;
+
+  // ── Background ticker control ─────────────────────────────────────────────
+  /** Start the global live ticker for a strategy (idempotent) */
+  startLiveTicker: (id: string) => void;
+  /** Stop the global live ticker for a strategy */
+  stopLiveTicker: (id: string) => void;
+  /** Start the global paper ticker for a strategy (idempotent) */
+  startPaperTicker: (id: string) => void;
+  /** Stop the global paper ticker for a strategy */
+  stopPaperTicker: (id: string) => void;
+  /** Reconcile all tickers to match current stage states */
+  syncTickers: () => void;
 }
 
-export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => ({
-  strategies: [...initialStrategies],
-  activeStrategyId: "s1",
-  strategyStates: createInitialStrategyStates(),
-  collapsedFamilies: {},
-  unreadLogCount: 0,
-  logs: [
-    { time: "14:32", tag: "系统", message: "引擎已连接" },
-    {
-      time: "14:30",
-      tag: "实盘",
-      message: '<span class="hi">买入</span> BTC @ 83,940',
-    },
-    { time: "14:15", tag: "监控", message: "EMA 金叉信号触发" },
-  ],
-  messages: [],
-  panelCollapsed: false,
-  logCollapsed: false,
-  panelWidth: 55,
-  btcPrice: 84231,
+export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => {
+  // ── Internal ticker helpers (close over set/get) ──────────────────────────
 
-  setActiveStrategy: (id) => set({ activeStrategyId: id }),
+  const startLiveTicker = (id: string) => {
+    if (_liveIntervals.has(id)) return; // already running
 
-  setStrategyState: (id, state) =>
-    set((prev) => ({
-      strategyStates: {
-        ...prev.strategyStates,
-        [id]: { ...prev.strategyStates[id], ...state },
-      },
-    })),
+    // Seed data if empty
+    const cur = get().strategyStates[id];
+    if (cur && !cur.livePts.length) {
+      const pts: number[] = [];
+      let v = 0;
+      for (let i = 0; i < 40; i++) {
+        v += (Math.random() - 0.44) * 1.2 + 0.2;
+        pts.push(v);
+      }
+      get().setStrategyState(id, { livePts: pts, liveSigs: [] });
+    }
 
-  setActiveTab: (tab) => {
-    const { activeStrategyId, strategyStates } = get();
-    set({
-      strategyStates: {
-        ...strategyStates,
-        [activeStrategyId]: {
-          ...strategyStates[activeStrategyId],
-          activeTab: tab,
+    const interval = setInterval(() => {
+      const state = get();
+      const stratState = state.strategyStates[id];
+      if (!stratState || stratState.stages.live !== "running") {
+        // Stage changed externally — clean up
+        clearInterval(interval);
+        _liveIntervals.delete(id);
+        return;
+      }
+
+      const pts = [...stratState.livePts];
+      const sigs = [...stratState.liveSigs];
+      const last = pts[pts.length - 1];
+      const nv = last + (Math.random() - 0.46) * 1.4 + 0.15;
+      pts.push(nv);
+      if (pts.length > 120) pts.shift();
+
+      // Signal detection
+      if (pts.length > 5) {
+        const delta = pts[pts.length - 1] - pts[pts.length - 4];
+        if (
+          delta > 1.8 &&
+          (sigs.length === 0 || sigs[sigs.length - 1].type === "sell")
+        ) {
+          sigs.push({ i: pts.length - 1, type: "buy" });
+          state.addLog(
+            "实盘",
+            `<span class="buy">买入</span> BTC <span class="mono">@ ${(83000 + Math.round(nv * 200)).toLocaleString()}</span>`,
+          );
+        }
+        if (
+          delta < -1.3 &&
+          sigs.length > 0 &&
+          sigs[sigs.length - 1].type === "buy"
+        ) {
+          sigs.push({ i: pts.length - 1, type: "sell" });
+          state.addLog(
+            "实盘",
+            `<span class="sell">卖出</span> <span class="${nv > last ? "buy" : "sell"}">${nv > last ? "+" : ""}${Math.round(Math.abs(delta) * 1.2)}%</span>`,
+          );
+        }
+      }
+
+      // Update BTC price only for the currently-active strategy to avoid flicker
+      if (id === get().activeStrategyId) {
+        get().setBtcPrice(84231 + Math.round(nv * 80));
+      }
+
+      // Compute return and update both strategyState AND strategies list atomically
+      const returnStr = computeReturnStr(pts);
+
+      set((prev) => ({
+        strategyStates: {
+          ...prev.strategyStates,
+          [id]: { ...prev.strategyStates[id], livePts: pts, liveSigs: sigs },
         },
-      },
-    });
-  },
+        strategies: prev.strategies.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                liveResult: returnStr,
+                returnRate: returnStr,
+                returnHint: "实盘中",
+              }
+            : s,
+        ),
+      }));
+    }, 300);
 
-  setStageStatus: (stage, status) => {
-    const { activeStrategyId, strategyStates } = get();
-    const cur = strategyStates[activeStrategyId];
-    set({
-      strategyStates: {
-        ...strategyStates,
-        [activeStrategyId]: {
-          ...cur,
-          stages: { ...cur.stages, [stage]: status },
+    _liveIntervals.set(id, interval);
+  };
+
+  const stopLiveTicker = (id: string) => {
+    const interval = _liveIntervals.get(id);
+    if (interval) {
+      clearInterval(interval);
+      _liveIntervals.delete(id);
+    }
+  };
+
+  const startPaperTicker = (id: string) => {
+    if (_paperIntervals.has(id)) return;
+
+    // Seed data if empty
+    const cur = get().strategyStates[id];
+    if (cur && !cur.paperPts.length) {
+      const pts: number[] = [];
+      let v = 0;
+      for (let i = 0; i < 20; i++) {
+        v += (Math.random() - 0.45) * 1.0 + 0.12;
+        pts.push(v);
+      }
+      get().setStrategyState(id, { paperPts: pts, paperSigs: [] });
+    }
+
+    const interval = setInterval(() => {
+      const state = get();
+      const stratState = state.strategyStates[id];
+      if (!stratState || stratState.stages.paper !== "running") {
+        clearInterval(interval);
+        _paperIntervals.delete(id);
+        return;
+      }
+
+      const pts = [...stratState.paperPts];
+      const sigs = [...stratState.paperSigs];
+      const last = pts[pts.length - 1];
+      const nv = last + (Math.random() - 0.45) * 1.0 + 0.12;
+      pts.push(nv);
+
+      // Simple signal detection
+      if (pts.length > 5) {
+        const delta = pts[pts.length - 1] - pts[pts.length - 4];
+        if (
+          delta > 1.5 &&
+          (sigs.length === 0 || sigs[sigs.length - 1].type === "sell")
+        ) {
+          sigs.push({ i: pts.length - 1, type: "buy" });
+          state.addLog(
+            "模拟",
+            `<span class="buy">模拟买入</span> BTC <span class="mono">@ ${(83000 + Math.round(nv * 200)).toLocaleString()}</span>`,
+          );
+        }
+        if (
+          delta < -1.2 &&
+          sigs.length > 0 &&
+          sigs[sigs.length - 1].type === "buy"
+        ) {
+          sigs.push({ i: pts.length - 1, type: "sell" });
+          const pnl = (Math.random() * 8 - 2).toFixed(1);
+          state.addLog(
+            "模拟",
+            `<span class="sell">模拟卖出</span> <span class="${Number(pnl) >= 0 ? "buy" : "sell"}">${Number(pnl) >= 0 ? "+" : ""}${pnl}%</span>`,
+          );
+        }
+      }
+
+      // Check plan expiry
+      const endTime = stratState.paperEndTime;
+      if (endTime > 0 && Date.now() >= endTime) {
+        set((prev) => ({
+          strategyStates: {
+            ...prev.strategyStates,
+            [id]: {
+              ...prev.strategyStates[id],
+              stages: {
+                ...prev.strategyStates[id].stages,
+                paper: "done",
+                live: "ready",
+              },
+              paperDone: true,
+              paperPts: pts,
+              paperSigs: sigs,
+            },
+          },
+        }));
+        clearInterval(interval);
+        _paperIntervals.delete(id);
+        return;
+      }
+
+      const returnStr = computeReturnStr(pts);
+
+      set((prev) => ({
+        strategyStates: {
+          ...prev.strategyStates,
+          [id]: { ...prev.strategyStates[id], paperPts: pts, paperSigs: sigs },
         },
-      },
-    });
-  },
+        strategies: prev.strategies.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                paperResult: returnStr,
+                returnRate: returnStr,
+                returnHint: "模拟中",
+              }
+            : s,
+        ),
+      }));
+    }, 300);
 
-  setBtRange: (id, range) =>
-    set((prev) => ({
-      strategyStates: {
-        ...prev.strategyStates,
-        [id]: { ...prev.strategyStates[id], btRange: range },
-      },
-    })),
+    _paperIntervals.set(id, interval);
+  };
 
-  toggleFamilyCollapse: (familyId) =>
-    set((prev) => ({
-      collapsedFamilies: {
-        ...prev.collapsedFamilies,
-        [familyId]: !prev.collapsedFamilies[familyId],
-      },
-    })),
+  const stopPaperTicker = (id: string) => {
+    const interval = _paperIntervals.get(id);
+    if (interval) {
+      clearInterval(interval);
+      _paperIntervals.delete(id);
+    }
+  };
 
-  addLog: (tag, message) =>
-    set((prev) => ({
-      logs: [
-        {
-          time: new Date().toLocaleTimeString("zh-CN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          tag,
-          message,
-        },
-        ...prev.logs,
-      ].slice(0, 100),
-      // increment unread count only when log panel is collapsed
-      unreadLogCount: prev.logCollapsed ? prev.unreadLogCount + 1 : 0,
-    })),
-
-  addMessage: (message) =>
-    set((prev) => ({
-      messages: [
-        ...prev.messages,
-        { ...message, id: crypto.randomUUID(), timestamp: new Date() },
-      ],
-    })),
-
-  togglePanel: () => set((prev) => ({ panelCollapsed: !prev.panelCollapsed })),
-  resetUnreadLogCount: () => set({ unreadLogCount: 0 }),
-  toggleLog: () =>
-    set((prev) => ({
-      logCollapsed: !prev.logCollapsed,
-      // clear unread count when expanding
-      unreadLogCount: prev.logCollapsed ? 0 : prev.unreadLogCount,
-    })),
-  setPanelWidth: (width) => set({ panelWidth: width }),
-  setBtcPrice: (price) => set({ btcPrice: price }),
-
-  togglePro: () => {
-    const { activeStrategyId, strategyStates } = get();
-    const cur = strategyStates[activeStrategyId];
-    set({
-      strategyStates: {
-        ...strategyStates,
-        [activeStrategyId]: { ...cur, showPro: !cur.showPro },
-      },
-    });
-  },
-
-  updateLiveData: (pts, sigs) => {
-    const { activeStrategyId, strategyStates } = get();
-    const cur = strategyStates[activeStrategyId];
-    set({
-      strategyStates: {
-        ...strategyStates,
-        [activeStrategyId]: { ...cur, livePts: pts, liveSigs: sigs },
-      },
-    });
-  },
-
-  updateBtResult: (id, result) =>
-    set((prev) => ({
-      strategies: prev.strategies.map((s) =>
-        s.id === id ? { ...s, btResult: result } : s,
-      ),
-    })),
-
-  updatePaperResult: (id, result) =>
-    set((prev) => ({
-      strategies: prev.strategies.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              paperResult: result,
-              returnRate: result,
-              returnHint: "模拟中",
-            }
-          : s,
-      ),
-    })),
-
-  updateLiveResult: (id, result) =>
-    set((prev) => ({
-      strategies: prev.strategies.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              liveResult: result,
-              returnRate: result,
-              returnHint: "实盘中",
-            }
-          : s,
-      ),
-    })),
-
-  addStrategy: (strategyData, dslCode) => {
-    const newId = `s${Date.now()}`;
-    const newStrategy: Strategy = {
-      id: newId,
-      familyId: `f${Date.now()}`,
-      version: 1,
-      ...strategyData,
-    };
-    const newState: StrategyState = {
-      stages: { draft: "done", bt: "ready", paper: "locked", live: "locked" },
-      activeTab: "draft",
-      btRange: "3m",
-      btPts: [],
-      btSigs: [],
-      btDone: false,
-      paperPts: [],
-      paperSigs: [],
-      paperRef: [],
-      paperDone: false,
-      paperPlanDays: 14,
-      paperStartTime: 0,
-      paperEndTime: 0,
-      paperTickMs: 300,
-      livePts: [],
-      liveSigs: [],
-      showPro: false,
-      dslCode,
-    };
-    set((prev) => ({
-      strategies: [newStrategy, ...prev.strategies],
-      strategyStates: { ...prev.strategyStates, [newId]: newState },
-      activeStrategyId: newId,
-      panelCollapsed: false,
-    }));
-    return newId;
-  },
-
-  updateStrategy: (id, patch) =>
-    set((prev) => ({
-      strategies: prev.strategies.map((s) =>
-        s.id === id ? { ...s, ...patch } : s,
-      ),
-    })),
-
-  setPaperPlan: (id, days) =>
-    set((prev) => ({
-      strategyStates: {
-        ...prev.strategyStates,
-        [id]: { ...prev.strategyStates[id], paperPlanDays: days },
-      },
-    })),
-
-  // The ONE AND ONLY improve action — always creates a new strategy in the same family
-  cloneStrategy: (id) => {
+  const syncTickers = () => {
     const { strategies, strategyStates } = get();
-    const src = strategies.find((s) => s.id === id);
-    const srcState = strategyStates[id];
-    if (!src || !srcState) return id;
+    for (const s of strategies) {
+      const st = strategyStates[s.id];
+      if (!st) continue;
 
-    // Find the highest version in this family to increment
-    const familyMembers = strategies.filter((s) => s.familyId === src.familyId);
+      // Live
+      if (st.stages.live === "running") {
+        startLiveTicker(s.id);
+      } else {
+        stopLiveTicker(s.id);
+      }
 
-    // Hard limit: max 3 versions per family (original + 2 iterations)
-    if (familyMembers.length >= 3) return id;
+      // Paper
+      if (st.stages.paper === "running") {
+        startPaperTicker(s.id);
+      } else {
+        stopPaperTicker(s.id);
+      }
+    }
+  };
 
-    const nextVersion = Math.max(...familyMembers.map((s) => s.version)) + 1;
+  return {
+    strategies: [...initialStrategies],
+    activeStrategyId: "s1",
+    strategyStates: createInitialStrategyStates(),
+    collapsedFamilies: {},
+    unreadLogCount: 0,
+    logs: [
+      { time: "14:32", tag: "系统", message: "引擎已连接" },
+      {
+        time: "14:30",
+        tag: "实盘",
+        message: '<span class="hi">买入</span> BTC @ 83,940',
+      },
+      { time: "14:15", tag: "监控", message: "EMA 金叉信号触发" },
+    ],
+    messages: [],
+    panelCollapsed: false,
+    logCollapsed: false,
+    panelWidth: 55,
+    btcPrice: 84231,
 
-    const newId = `s${Date.now()}`;
-    const newStrategy: Strategy = {
-      id: newId,
-      name: src.name, // keep base name, version shown separately in UI
-      asset: src.asset,
-      timeframe: src.timeframe,
-      type: src.type,
-      returnRate: "",
-      returnHint: "待回测",
-      familyId: src.familyId, // same family
-      version: nextVersion,
-    };
-    const newState: StrategyState = {
-      stages: { draft: "done", bt: "ready", paper: "locked", live: "locked" },
-      activeTab: "draft",
-      btRange: srcState.btRange ?? "3m",
-      btPts: [],
-      btSigs: [],
-      btDone: false,
-      paperPts: [],
-      paperSigs: [],
-      paperRef: [],
-      paperDone: false,
-      paperPlanDays: 14,
-      paperStartTime: 0,
-      paperEndTime: 0,
-      paperTickMs: 300,
-      livePts: [],
-      liveSigs: [],
-      showPro: false,
-      dslCode: srcState.dslCode,
-      parsedParams: srcState.parsedParams,
-    };
-    set((prev) => ({
-      strategies: [...prev.strategies, newStrategy], // append, not prepend — family order matters
-      strategyStates: { ...prev.strategyStates, [newId]: newState },
-      activeStrategyId: newId,
-      panelCollapsed: false,
-      // Auto-expand this family so user sees the new entry
-      collapsedFamilies: { ...prev.collapsedFamilies, [src.familyId]: false },
-    }));
-    return newId;
-  },
-}));
+    startLiveTicker,
+    stopLiveTicker,
+    startPaperTicker,
+    stopPaperTicker,
+    syncTickers,
+
+    setActiveStrategy: (id) => set({ activeStrategyId: id }),
+
+    setStrategyState: (id, state) =>
+      set((prev) => ({
+        strategyStates: {
+          ...prev.strategyStates,
+          [id]: { ...prev.strategyStates[id], ...state },
+        },
+      })),
+
+    setActiveTab: (tab) => {
+      const { activeStrategyId, strategyStates } = get();
+      set({
+        strategyStates: {
+          ...strategyStates,
+          [activeStrategyId]: {
+            ...strategyStates[activeStrategyId],
+            activeTab: tab,
+          },
+        },
+      });
+    },
+
+    setStageStatus: (stage, status) => {
+      const { activeStrategyId, strategyStates } = get();
+      const cur = strategyStates[activeStrategyId];
+      const newStages = { ...cur.stages, [stage]: status };
+      set({
+        strategyStates: {
+          ...strategyStates,
+          [activeStrategyId]: { ...cur, stages: newStages },
+        },
+      });
+      // Reconcile tickers whenever stage changes
+      syncTickers();
+    },
+
+    setBtRange: (id, range) =>
+      set((prev) => ({
+        strategyStates: {
+          ...prev.strategyStates,
+          [id]: { ...prev.strategyStates[id], btRange: range },
+        },
+      })),
+
+    toggleFamilyCollapse: (familyId) =>
+      set((prev) => ({
+        collapsedFamilies: {
+          ...prev.collapsedFamilies,
+          [familyId]: !prev.collapsedFamilies[familyId],
+        },
+      })),
+
+    addLog: (tag, message) =>
+      set((prev) => ({
+        logs: [
+          {
+            time: new Date().toLocaleTimeString("zh-CN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            tag,
+            message,
+          },
+          ...prev.logs,
+        ].slice(0, 100),
+        unreadLogCount: prev.logCollapsed ? prev.unreadLogCount + 1 : 0,
+      })),
+
+    addMessage: (message) =>
+      set((prev) => ({
+        messages: [
+          ...prev.messages,
+          { ...message, id: crypto.randomUUID(), timestamp: new Date() },
+        ],
+      })),
+
+    togglePanel: () =>
+      set((prev) => ({ panelCollapsed: !prev.panelCollapsed })),
+    resetUnreadLogCount: () => set({ unreadLogCount: 0 }),
+    toggleLog: () =>
+      set((prev) => ({
+        logCollapsed: !prev.logCollapsed,
+        unreadLogCount: prev.logCollapsed ? 0 : prev.unreadLogCount,
+      })),
+    setPanelWidth: (width) => set({ panelWidth: width }),
+    setBtcPrice: (price) => set({ btcPrice: price }),
+
+    togglePro: () => {
+      const { activeStrategyId, strategyStates } = get();
+      const cur = strategyStates[activeStrategyId];
+      set({
+        strategyStates: {
+          ...strategyStates,
+          [activeStrategyId]: { ...cur, showPro: !cur.showPro },
+        },
+      });
+    },
+
+    updateLiveData: (pts, sigs) => {
+      const { activeStrategyId, strategyStates } = get();
+      const cur = strategyStates[activeStrategyId];
+      set({
+        strategyStates: {
+          ...strategyStates,
+          [activeStrategyId]: { ...cur, livePts: pts, liveSigs: sigs },
+        },
+      });
+    },
+
+    updateBtResult: (id, result) =>
+      set((prev) => ({
+        strategies: prev.strategies.map((s) =>
+          s.id === id ? { ...s, btResult: result } : s,
+        ),
+      })),
+
+    updatePaperResult: (id, result) =>
+      set((prev) => ({
+        strategies: prev.strategies.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                paperResult: result,
+                returnRate: result,
+                returnHint: "模拟中",
+              }
+            : s,
+        ),
+      })),
+
+    updateLiveResult: (id, result) =>
+      set((prev) => ({
+        strategies: prev.strategies.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                liveResult: result,
+                returnRate: result,
+                returnHint: "实盘中",
+              }
+            : s,
+        ),
+      })),
+
+    addStrategy: (strategyData, dslCode) => {
+      const newId = `s${Date.now()}`;
+      const newStrategy: Strategy = {
+        id: newId,
+        familyId: `f${Date.now()}`,
+        version: 1,
+        ...strategyData,
+      };
+      const newState: StrategyState = {
+        stages: { draft: "done", bt: "ready", paper: "locked", live: "locked" },
+        activeTab: "draft",
+        btRange: "3m",
+        btPts: [],
+        btSigs: [],
+        btDone: false,
+        paperPts: [],
+        paperSigs: [],
+        paperRef: [],
+        paperDone: false,
+        paperPlanDays: 14,
+        paperStartTime: 0,
+        paperEndTime: 0,
+        paperTickMs: 300,
+        livePts: [],
+        liveSigs: [],
+        showPro: false,
+        dslCode,
+      };
+      set((prev) => ({
+        strategies: [newStrategy, ...prev.strategies],
+        strategyStates: { ...prev.strategyStates, [newId]: newState },
+        activeStrategyId: newId,
+        panelCollapsed: false,
+      }));
+      return newId;
+    },
+
+    updateStrategy: (id, patch) =>
+      set((prev) => ({
+        strategies: prev.strategies.map((s) =>
+          s.id === id ? { ...s, ...patch } : s,
+        ),
+      })),
+
+    setPaperPlan: (id, days) =>
+      set((prev) => ({
+        strategyStates: {
+          ...prev.strategyStates,
+          [id]: { ...prev.strategyStates[id], paperPlanDays: days },
+        },
+      })),
+
+    cloneStrategy: (id) => {
+      const { strategies, strategyStates } = get();
+      const src = strategies.find((s) => s.id === id);
+      const srcState = strategyStates[id];
+      if (!src || !srcState) return id;
+
+      const familyMembers = strategies.filter(
+        (s) => s.familyId === src.familyId,
+      );
+      if (familyMembers.length >= 3) return id;
+
+      const nextVersion = Math.max(...familyMembers.map((s) => s.version)) + 1;
+      const newId = `s${Date.now()}`;
+      const newStrategy: Strategy = {
+        id: newId,
+        name: src.name,
+        asset: src.asset,
+        timeframe: src.timeframe,
+        type: src.type,
+        returnRate: "",
+        returnHint: "待回测",
+        familyId: src.familyId,
+        version: nextVersion,
+      };
+      const newState: StrategyState = {
+        stages: { draft: "done", bt: "ready", paper: "locked", live: "locked" },
+        activeTab: "draft",
+        btRange: srcState.btRange ?? "3m",
+        btPts: [],
+        btSigs: [],
+        btDone: false,
+        paperPts: [],
+        paperSigs: [],
+        paperRef: [],
+        paperDone: false,
+        paperPlanDays: 14,
+        paperStartTime: 0,
+        paperEndTime: 0,
+        paperTickMs: 300,
+        livePts: [],
+        liveSigs: [],
+        showPro: false,
+        dslCode: srcState.dslCode,
+        parsedParams: srcState.parsedParams,
+      };
+      set((prev) => ({
+        strategies: [...prev.strategies, newStrategy],
+        strategyStates: { ...prev.strategyStates, [newId]: newState },
+        activeStrategyId: newId,
+        panelCollapsed: false,
+        collapsedFamilies: { ...prev.collapsedFamilies, [src.familyId]: false },
+      }));
+      return newId;
+    },
+  };
+});
+
+// ── Auto-start tickers on store init ─────────────────────────────────────────
+// Run once after module load so that strategies already in "running" state
+// (like s1 which starts as live: "running") get their tickers immediately.
+setTimeout(() => {
+  useQuantTerminalStore.getState().syncTickers();
+}, 0);

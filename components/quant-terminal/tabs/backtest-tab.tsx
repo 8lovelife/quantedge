@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { drawBacktestChart, generateBacktestData } from "../chart-utils";
+import type { BacktestChartViewport } from "../chart-utils";
 
 // Maps btRange to human label
 const RANGE_LABEL: Record<string, string> = {
@@ -20,6 +21,33 @@ const RANGE_DATES: Record<string, string> = {
   "6m": "2024-09 ~ 2025-03",
   "1y": "2024-03 ~ 2025-03",
 };
+
+// Seed price for generating realistic prices from pts values
+const BASE_PRICE = 80000;
+const PRICE_SCALE = 200;
+
+/** Convert a pts value → a realistic BTC price string */
+function ptToPrice(v: number): string {
+  return Math.round(BASE_PRICE + v * PRICE_SCALE).toLocaleString();
+}
+
+/** Convert a global pt index → a date string within the btRange */
+function ptToDate(i: number, total: number, btRange: string): string {
+  const now = new Date();
+  // Map range to total days
+  const days: Record<string, number> = {
+    "1m": 30,
+    "3m": 90,
+    "6m": 180,
+    "1y": 365,
+  };
+  const totalDays = days[btRange] ?? 90;
+  const msPerPt = (totalDays * 86_400_000) / total;
+  const d = new Date(now.getTime() - (total - i) * msPerPt);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${mm}-${dd}`;
+}
 
 interface BacktestTabProps {
   onStartPaper: () => void;
@@ -50,6 +78,18 @@ export function BacktestTab({
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState("加载历史数据...");
 
+  // Viewport state (refs — don't drive React re-render)
+  const DEFAULT_WINDOW = 90; // show all by default for backtest
+  const viewStartRef = useRef(0);
+  const viewEndRef = useRef(0);
+  const isDefaultViewRef = useRef(true);
+  const [isDefaultView, setIsDefaultView] = useState(true);
+  const dragRef = useRef<{
+    startX: number;
+    startVS: number;
+    startVE: number;
+  } | null>(null);
+
   const isDone = state?.stages.bt === "done";
   const isRunning = state?.stages.bt === "running";
   const btRange = state?.btRange ?? "3m";
@@ -65,6 +105,130 @@ export function BacktestTab({
       setStrategyState(activeStrategyId, { btPts: pts, btSigs: sigs });
     }
   }, [activeStrategyId, state, isDone, isRunning, setStrategyState]);
+
+  // Reset viewport when strategy changes or data first loads
+  useEffect(() => {
+    if (isDone && state?.btPts.length) {
+      viewStartRef.current = 0;
+      viewEndRef.current = state.btPts.length - 1;
+      isDefaultViewRef.current = true;
+      setIsDefaultView(true);
+    }
+  }, [activeStrategyId, isDone, state?.btPts.length]);
+
+  // ── Redraw helper ────────────────────────────────────────────────────────────
+  const redraw = useCallback(
+    (allPts: number[], allSigs: typeof state.btSigs) => {
+      if (!canvasRef.current || allPts.length < 2) return;
+      drawBacktestChart(canvasRef.current, allPts, allSigs, {
+        viewport: {
+          viewStart: viewStartRef.current,
+          viewEnd: viewEndRef.current,
+        },
+      });
+    },
+    [],
+  );
+
+  // ── Canvas wheel / drag interaction (same pattern as paper-tab) ──────────────
+  useEffect(() => {
+    if (!isDone) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const PAD_L = 40;
+    const PAD_R = 12;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const allPts =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.btPts;
+      const allSigs =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.btSigs;
+      if (!allPts || allPts.length < 2) return;
+
+      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+      const span = viewEndRef.current - viewStartRef.current;
+      const factor = e.deltaY < 0 ? 1.3 : 0.77;
+      const newSpan = Math.min(
+        allPts.length - 1,
+        Math.max(5, Math.round(span / factor)),
+      );
+      const mouseRatio = Math.max(0, Math.min(1, (e.offsetX - PAD_L) / cW));
+      const anchor = viewStartRef.current + Math.round(span * mouseRatio);
+      viewStartRef.current = Math.max(
+        0,
+        anchor - Math.round(newSpan * mouseRatio),
+      );
+      viewEndRef.current = Math.min(
+        allPts.length - 1,
+        viewStartRef.current + newSpan,
+      );
+
+      const atDefault =
+        viewStartRef.current === 0 && viewEndRef.current === allPts.length - 1;
+      isDefaultViewRef.current = atDefault;
+      setIsDefaultView(atDefault);
+
+      redraw(allPts, allSigs ?? []);
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      dragRef.current = {
+        startX: e.clientX,
+        startVS: viewStartRef.current,
+        startVE: viewEndRef.current,
+      };
+      canvas.style.cursor = "grabbing";
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      const allPts =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.btPts;
+      const allSigs =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.btSigs;
+      if (!allPts || allPts.length < 2) return;
+
+      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+      const span = dragRef.current.startVE - dragRef.current.startVS;
+      const pxPerPt = cW / Math.max(span, 1);
+      const delta = Math.round((dragRef.current.startX - e.clientX) / pxPerPt);
+
+      viewStartRef.current = Math.max(0, dragRef.current.startVS + delta);
+      viewEndRef.current = Math.min(
+        allPts.length - 1,
+        dragRef.current.startVE + delta,
+      );
+
+      isDefaultViewRef.current = false;
+      setIsDefaultView(false);
+
+      redraw(allPts, allSigs ?? []);
+    };
+
+    const onMouseUp = () => {
+      dragRef.current = null;
+      canvas.style.cursor = "grab";
+    };
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.style.cursor = "grab";
+
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isDone, activeStrategyId, redraw]);
 
   // Animation for running state
   useEffect(() => {
@@ -111,12 +275,78 @@ export function BacktestTab({
     return () => cancelAnimationFrame(animFrame);
   }, [isRunning, activeStrategyId, state, setStrategyState, addLog, btRange]);
 
-  // Draw static chart for done state
+  // Draw static chart for done state (reacts to pts changes)
   useEffect(() => {
-    if (isDone && canvasRef.current && state?.btPts.length) {
-      drawBacktestChart(canvasRef.current, state.btPts, state.btSigs);
+    if (isDone && state?.btPts.length) {
+      redraw(state.btPts, state.btSigs);
     }
-  }, [isDone, state]);
+  }, [isDone, state?.btPts, state?.btSigs, redraw]);
+
+  // ── Derive real trade table from btSigs + btPts ──────────────────────────────
+  const tradeRows = (() => {
+    if (!isDone || !state?.btPts.length || !state?.btSigs.length) return [];
+    const pts = state.btPts;
+    const sigs = [...state.btSigs].sort((a, b) => a.i - b.i);
+    const rows: {
+      time: string;
+      dir: string;
+      price: string;
+      qty: string;
+      pnl: string;
+      trigger: string;
+      isBuy: boolean;
+      isUp: boolean;
+    }[] = [];
+
+    for (let k = 0; k < sigs.length; k++) {
+      const s = sigs[k];
+      const price = ptToPrice(pts[s.i]);
+      const time = ptToDate(s.i, pts.length, btRange);
+
+      if (s.type === "buy") {
+        rows.push({
+          time,
+          dir: "买入",
+          price,
+          qty: "0.012",
+          pnl: "—",
+          trigger: "EMA金叉+量",
+          isBuy: true,
+          isUp: true,
+        });
+      } else {
+        // Find the matching buy
+        const prevBuy = sigs
+          .slice(0, k)
+          .reverse()
+          .find((x) => x.type === "buy");
+        let pnl = "—";
+        let isUp = true;
+        if (prevBuy) {
+          const buyPt = pts[prevBuy.i];
+          const sellPt = pts[s.i];
+          const pct =
+            buyPt !== 0 ? ((sellPt - buyPt) / Math.abs(buyPt)) * 100 : 0;
+          isUp = pct >= 0;
+          pnl = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+        }
+        const trigger = pnl.startsWith("+") ? `止盈 tp=6%` : `止损 sl=2%`;
+        rows.push({
+          time,
+          dir: "卖出",
+          price,
+          qty: "0.012",
+          pnl,
+          trigger,
+          isBuy: false,
+          isUp,
+        });
+      }
+    }
+
+    // Show most recent first, cap at 8
+    return rows.reverse().slice(0, 8);
+  })();
 
   if (isRunning) {
     return (
@@ -201,7 +431,7 @@ export function BacktestTab({
             {
               label: "胜率",
               value: "61.3%",
-              sub: "57笔",
+              sub: `${state.btSigs.length}笔`,
               color: "text-foreground",
             },
           ].map((s, i) => (
@@ -224,9 +454,26 @@ export function BacktestTab({
 
         {/* Chart */}
         <div>
-          <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
-            回测净值曲线 — {strategy_asset_display(state)} ·{" "}
-            {RANGE_DATES[btRange]}
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
+              回测净值曲线 — {strategy_asset_display(state)} ·{" "}
+              {RANGE_DATES[btRange]}
+            </div>
+            {!isDefaultView && (
+              <button
+                onClick={() => {
+                  if (!state?.btPts.length) return;
+                  viewStartRef.current = 0;
+                  viewEndRef.current = state.btPts.length - 1;
+                  isDefaultViewRef.current = true;
+                  setIsDefaultView(true);
+                  redraw(state.btPts, state.btSigs);
+                }}
+                className="font-mono text-[10px] font-medium text-amber-500 hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-0"
+              >
+                ↩ 还原全览
+              </button>
+            )}
           </div>
           <div className="flex gap-3.5 mb-2 text-[10px] font-mono text-muted-foreground">
             <span>
@@ -246,9 +493,27 @@ export function BacktestTab({
             ref={canvasRef}
             className="w-full h-[140px] rounded-lg bg-card"
           />
+          {/* Interaction hint — centered */}
+          <div className="flex items-center justify-center gap-1.5 mt-1.5">
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              滚轮缩放
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/30">
+              ·
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              拖拽平移
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/30">
+              ·
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              缩小可找回历史信号点
+            </span>
+          </div>
         </div>
 
-        {/* Trade table */}
+        {/* Trade table — derived from real btSigs/btPts */}
         <div>
           <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
             回测交易记录
@@ -270,76 +535,46 @@ export function BacktestTab({
                 </tr>
               </thead>
               <tbody>
-                {[
-                  {
-                    time: "03-19",
-                    dir: "卖出",
-                    price: "85,210",
-                    qty: "0.012",
-                    pnl: "+6.0%",
-                    trigger: "止盈 tp=6%",
-                    isUp: true,
-                    isBuy: false,
-                  },
-                  {
-                    time: "03-14",
-                    dir: "买入",
-                    price: "80,380",
-                    qty: "0.012",
-                    pnl: "+6.0%",
-                    trigger: "EMA金叉+量",
-                    isUp: true,
-                    isBuy: true,
-                  },
-                  {
-                    time: "03-10",
-                    dir: "卖出",
-                    price: "79,200",
-                    qty: "0.010",
-                    pnl: "-2.1%",
-                    trigger: "止损 sl=2%",
-                    isUp: false,
-                    isBuy: false,
-                  },
-                  {
-                    time: "02-28",
-                    dir: "卖出",
-                    price: "84,100",
-                    qty: "0.011",
-                    pnl: "+4.8%",
-                    trigger: "close<ema(7)",
-                    isUp: true,
-                    isBuy: false,
-                  },
-                ].map((row, i) => (
-                  <tr
-                    key={i}
-                    className="border-t border-muted/30 hover:bg-muted/30"
-                  >
-                    <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                      {row.time}
-                    </td>
+                {tradeRows.length === 0 ? (
+                  <tr>
                     <td
-                      className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? "text-emerald-500" : "text-red-500"}`}
+                      colSpan={6}
+                      className="px-2.5 py-3 font-mono text-[11px] text-muted-foreground"
                     >
-                      {row.dir}
-                    </td>
-                    <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                      {row.price}
-                    </td>
-                    <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                      {row.qty}
-                    </td>
-                    <td
-                      className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isUp ? "text-emerald-500" : "text-red-500"}`}
-                    >
-                      {row.pnl}
-                    </td>
-                    <td className="px-2.5 py-2 font-mono text-[11px] text-muted-foreground">
-                      {row.trigger}
+                      暂无交易记录
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  tradeRows.map((row, i) => (
+                    <tr
+                      key={i}
+                      className="border-t border-muted/30 hover:bg-muted/30"
+                    >
+                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                        {row.time}
+                      </td>
+                      <td
+                        className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? "text-emerald-500" : "text-red-500"}`}
+                      >
+                        {row.dir}
+                      </td>
+                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                        {row.price}
+                      </td>
+                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                        {row.qty}
+                      </td>
+                      <td
+                        className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.pnl === "—" ? "text-muted-foreground" : row.isUp ? "text-emerald-500" : "text-red-500"}`}
+                      >
+                        {row.pnl}
+                      </td>
+                      <td className="px-2.5 py-2 font-mono text-[11px] text-muted-foreground">
+                        {row.trigger}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -347,7 +582,6 @@ export function BacktestTab({
 
         {/* Action buttons */}
         <div className="flex gap-2.5">
-          {/* 优化此策略 — always visible when available */}
           {onClone && (
             <Button
               onClick={onClone}
@@ -357,7 +591,6 @@ export function BacktestTab({
               🔧 优化此策略
             </Button>
           )}
-          {/* Start paper — only when bt done and not yet in paper/live */}
           {!viewOnly && !readOnly && (
             <Button
               onClick={onStartPaper}
@@ -388,7 +621,6 @@ export function BacktestTab({
   );
 }
 
-// Helper — pull asset string from state context via strategy info
 function strategy_asset_display(state: any): string {
   return state?.parsedParams?.asset ?? "BTC/USDT 4h";
 }

@@ -40,11 +40,10 @@ const PLAN_PRESETS: {
   desc: string;
   recommended?: boolean;
 }[] = [
-  { days: 30, label: "30秒", desc: "快速看图" },
-  { days: 60, label: "1分钟", desc: "推荐测试", recommended: true },
-  { days: 120, label: "2分钟", desc: "完整观察" },
+  { days: 7, label: "7天", desc: "快速验证" },
+  { days: 14, label: "14天", desc: "推荐", recommended: true },
+  { days: 30, label: "30天", desc: "充分验证" },
 ];
-
 function fmtDate(ms: number) {
   const d = new Date(ms);
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
@@ -88,20 +87,26 @@ export function PaperTab({
 }: PaperTabProps) {
   const {
     activeStrategyId,
+    strategies,
     strategyStates,
     setStrategyState,
     addLog,
     setPaperPlan,
     updatePaperResult,
+    syncTickers,
   } = useQuantTerminalStore();
   const state = strategyStates[activeStrategyId];
+  // Single source of truth for paper return — written atomically by store ticker
+  // and by the local handleTick below; both paths call updatePaperResult.
+  const paperStrategy = strategies.find((s) => s.id === activeStrategyId);
+  const paperResultStr = paperStrategy?.paperResult ?? "+0.0%";
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [metrics, setMetrics] = useState<PaperMetrics | null>(null);
   const [now, setNow] = useState(Date.now());
   const [streamOk, setStreamOk] = useState(false);
-  const [customDays, setCustomDays] = useState(21);
+  const [customDays, setCustomDays] = useState(14);
   const [isCustom, setIsCustom] = useState(false);
 
   const isRunning = state?.stages.paper === "running";
@@ -129,7 +134,7 @@ export function PaperTab({
       });
       addLog(
         "模拟",
-        `<span class="hi">计划结束</span> · ${planDays}秒模拟完成`,
+        `<span class="hi">计划结束</span> · ${planDays}${sessionUnitLabel}模拟完成`,
       );
     }
   }, [now, isRunning, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -140,33 +145,185 @@ export function PaperTab({
     fetchPaperSnapshot(activeStrategyId)
       .then((snap) => {
         if (snap.equityHistory.length > 1) {
+          const allPts = snap.equityHistory;
           setStrategyState(activeStrategyId, {
-            paperPts: snap.equityHistory,
+            paperPts: allPts,
             paperSigs: snap.signals,
             paperRef: [],
           });
+          advanceLiveViewport(allPts.length);
+          redraw(allPts, snap.signals);
         }
         setMetrics(snap.metrics);
       })
       .catch(() => {});
   }, [activeStrategyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Redraw helper ─────────────────────────────────────────────────────────────
+  // ── Viewport state (refs — don't drive React re-render) ──────────────────────
+  // viewStart/viewEnd are global indices into state.paperPts (the full array).
+  // In live mode they auto-track the latest 60 pts.
+  // In history mode (user dragged/zoomed) they stay fixed until "回到实时".
+  const DEFAULT_WINDOW = 60;
+  const viewStartRef = useRef(0);
+  const viewEndRef = useRef(0);
+  const isLiveViewRef = useRef(true); // true = auto-follow latest pts
+  const [isLiveView, setIsLiveView] = useState(true); // only for badge render
+
+  // ── Redraw helper — always passes full pts + sigs, viewport controls display ─
   const redraw = useCallback(
-    (pts: number[], sigs: typeof state.paperSigs) => {
-      if (!canvasRef.current || pts.length < 2) return;
+    (allPts: number[], allSigs: typeof state.paperSigs) => {
+      if (!canvasRef.current || allPts.length < 2) return;
       drawPaperChart(
         canvasRef.current,
-        pts,
-        sigs,
+        allPts,
+        allSigs,
         [],
         startTime || undefined,
         endTime || undefined,
         300,
+        { viewStart: viewStartRef.current, viewEnd: viewEndRef.current },
       );
     },
     [startTime, endTime],
   );
+
+  // Push viewport so the drawn curve occupies at least 35% of canvas width.
+  // This mirrors the old drawW MIN_DRAW_RATIO=0.35 behaviour:
+  //   - When pts are few (session start), they spread across 35% of the canvas
+  //     and the remaining 65% stays as "未来" — identical to the screenshot.
+  //   - As data accumulates the curve grows naturally; once it exceeds 35% the
+  //     viewport is capped at DEFAULT_WINDOW pts so density stays comfortable.
+  //   - After a user zoom/pan (isLiveViewRef=false) we preserve their span.
+  const advanceLiveViewport = useCallback((totalPts: number) => {
+    // How many pts fit in 35% of the canvas at the minimum comfortable spacing?
+    // Canvas width isn't available here, so we use a fixed pt-count floor that
+    // corresponds to ~35% occupation at default spacing (≈ 400px canvas / 7px/pt).
+    // The exact pixel math is done inside drawPaperChart via the viewport ratio;
+    // here we only need to ensure vEnd - vStart >= totalPts when pts are few.
+    const MIN_VISIBLE_PTS = 5; // never show fewer than 5 pts
+    const userSpan =
+      viewEndRef.current > 0
+        ? viewEndRef.current - viewStartRef.current
+        : DEFAULT_WINDOW;
+    // If we have fewer pts than DEFAULT_WINDOW, show ALL of them so they spread
+    // across the full drawW (drawPaperChart will handle the 35% floor internally).
+    const span =
+      totalPts <= DEFAULT_WINDOW
+        ? totalPts - 1 // show everything — future zone fills the rest
+        : Math.max(DEFAULT_WINDOW, userSpan);
+
+    viewEndRef.current = totalPts - 1;
+    viewStartRef.current = Math.max(
+      0,
+      Math.min(totalPts - 1 - MIN_VISIBLE_PTS, totalPts - 1 - span),
+    );
+  }, []);
+
+  // ── Canvas wheel / drag interaction ──────────────────────────────────────────
+  const dragRef = useRef<{
+    startX: number;
+    startVS: number;
+    startVE: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const PAD_L = 40;
+    const PAD_R = 12;
+
+    const enterHistory = () => {
+      if (isLiveViewRef.current) {
+        isLiveViewRef.current = false;
+        setIsLiveView(false);
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const allPts =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.paperPts;
+      if (!allPts || allPts.length < 2) return;
+
+      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+      const span = viewEndRef.current - viewStartRef.current;
+      const factor = e.deltaY < 0 ? 1.3 : 0.77;
+      const newSpan = Math.min(
+        allPts.length - 1,
+        Math.max(5, Math.round(span / factor)),
+      );
+      const mouseRatio = Math.max(0, Math.min(1, (e.offsetX - PAD_L) / cW));
+      const anchor = viewStartRef.current + Math.round(span * mouseRatio);
+      viewStartRef.current = Math.max(
+        0,
+        anchor - Math.round(newSpan * mouseRatio),
+      );
+      viewEndRef.current = Math.min(
+        allPts.length - 1,
+        viewStartRef.current + newSpan,
+      );
+
+      enterHistory();
+      const sigs =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.paperSigs ?? [];
+      redraw(allPts, sigs);
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      dragRef.current = {
+        startX: e.clientX,
+        startVS: viewStartRef.current,
+        startVE: viewEndRef.current,
+      };
+      canvas.style.cursor = "grabbing";
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      const allPts =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.paperPts;
+      if (!allPts || allPts.length < 2) return;
+
+      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+      const span = dragRef.current.startVE - dragRef.current.startVS;
+      const pxPerPt = cW / Math.max(span, 1);
+      const delta = Math.round((dragRef.current.startX - e.clientX) / pxPerPt);
+
+      viewStartRef.current = Math.max(0, dragRef.current.startVS + delta);
+      viewEndRef.current = Math.min(
+        allPts.length - 1,
+        dragRef.current.startVE + delta,
+      );
+
+      enterHistory();
+      const sigs =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.paperSigs ?? [];
+      redraw(allPts, sigs);
+    };
+
+    const onMouseUp = () => {
+      dragRef.current = null;
+      canvas.style.cursor = "grab";
+    };
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.style.cursor = "grab";
+
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [activeStrategyId, redraw]); // re-bind when strategy switches
 
   // ── Stream handlers ───────────────────────────────────────────────────────────
   const handleTick = useCallback(
@@ -174,23 +331,36 @@ export function PaperTab({
       const cur =
         useQuantTerminalStore.getState().strategyStates[activeStrategyId];
       if (!cur) return;
-      const pts = [...cur.paperPts, tick.equity];
-      if (pts.length > 200) pts.shift();
+
+      // Append new point; keep full history (no cap — viewport controls display)
+      const allPts = [...cur.paperPts, tick.equity];
+
       setStrategyState(activeStrategyId, {
-        paperPts: pts,
+        paperPts: allPts,
         paperSigs: cur.paperSigs,
       });
-      redraw(pts, cur.paperSigs);
 
-      // Sync real-time return to sidebar
-      const firstPt = pts[0];
-      const lastPt = pts[pts.length - 1];
+      // In live mode, auto-advance viewport to show latest window
+      if (isLiveViewRef.current) {
+        advanceLiveViewport(allPts.length);
+      }
+      redraw(allPts, cur.paperSigs);
+
+      // Sync real-time return to sidebar — same formula as store ticker
+      const firstPt = allPts[0];
+      const lastPt = allPts[allPts.length - 1];
       const returnPct =
         firstPt !== 0 ? ((lastPt - firstPt) / Math.abs(firstPt)) * 100 : 0;
       const returnStr = `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(1)}%`;
       updatePaperResult(activeStrategyId, returnStr);
     },
-    [activeStrategyId, setStrategyState, redraw, updatePaperResult],
+    [
+      activeStrategyId,
+      setStrategyState,
+      redraw,
+      advanceLiveViewport,
+      updatePaperResult,
+    ],
   );
 
   const handleSignal = useCallback(
@@ -281,14 +451,15 @@ export function PaperTab({
   // Redraw on state change (pause/done/resume)
   useEffect(() => {
     if (state?.paperPts && state.paperPts.length > 1) {
+      if (isLiveViewRef.current) advanceLiveViewport(state.paperPts.length);
       redraw(state.paperPts, state.paperSigs);
     }
-  }, [state, isPaused, isDone, redraw]);
+  }, [state, isPaused, isDone, redraw, advanceLiveViewport]);
 
   // ── Derived values ────────────────────────────────────────────────────────────
-  const latestEquity = state?.paperPts?.[state.paperPts.length - 1] ?? 0;
-  const equityPct =
-    metrics?.equityPct ?? parseFloat((latestEquity * 0.4).toFixed(1));
+  // equityPct is parsed from the unified paperResult string stored in `strategies`.
+  // This guarantees the panel and the sidebar list always show the same number.
+  const equityPct = parseFloat(paperResultStr) || 0;
   const maxDrawdown = metrics?.maxDrawdownPct ?? 0;
   const winRate = metrics?.winRate ?? 0;
   const tradeCount =
@@ -297,7 +468,15 @@ export function PaperTab({
   const sharpe = metrics?.sharpe ?? 0;
   const hasOpen = trades.some((t) => t.isPending && t.isBuy);
 
-  const planMs = planDays * 1_000; // planDays now stores seconds
+  // Infer whether this session was started in dev (seconds) mode by checking
+  // if planDays * 1000 ≈ endTime - startTime (seconds mode) vs * 86400000 (days mode)
+  const isDevSession =
+    startTime > 0 && endTime > 0
+      ? endTime - startTime <= planDays * 2_000 // within 2x of seconds interpretation
+      : false;
+  const sessionUnitMs = isDevSession ? 1_000 : 86_400_000;
+  const planMs = planDays * sessionUnitMs;
+  const sessionUnitLabel = isDevSession ? "秒" : "天";
   const elapsedMs = startTime > 0 ? Math.max(0, now - startTime) : 0;
   const remainingMs = endTime > 0 ? Math.max(0, endTime - now) : 0;
   const progressPct =
@@ -323,12 +502,13 @@ export function PaperTab({
       "模拟",
       `<span class="hi">引擎启动</span> · 测试模式 ${secs}秒 · 结束于 ${fmtDate(end)}`,
     );
+    syncTickers();
   };
 
   // ── Plan selector (shown before starting) ────────────────────────────────────
   if (isReady) {
-    const effectiveSecs = isCustom ? customDays : planDays;
-    const previewEnd = Date.now() + effectiveSecs * 1_000;
+    const effectiveDays = isCustom ? customDays : planDays || 14;
+    const previewEnd = Date.now() + effectiveDays * 86_400_000;
 
     return (
       <div className="flex flex-col gap-3 flex-1">
@@ -338,21 +518,17 @@ export function PaperTab({
           <span className="font-mono text-[10px] text-violet-400">
             模拟账户 · 虚拟资金 ¥100,000 · 真实行情 · 零风险
           </span>
-          <span className="ml-auto font-mono text-[9px] text-amber-500 border border-amber-500/30 px-1.5 py-0.5 rounded">
-            测试模式
-          </span>
         </div>
 
-        {/* Main card */}
         <div className="bg-card border border-border/50 rounded-xl p-4 shadow-sm flex flex-col gap-4">
-          {/* Duration label + pill selector */}
+          {/* Duration label + pills */}
           <div>
             <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2.5 font-medium uppercase">
-              模拟时长（秒级测试）
+              模拟时长
             </div>
             <div className="flex gap-1.5 flex-wrap">
               {PLAN_PRESETS.map((opt) => {
-                const active = !isCustom && planDays === opt.days;
+                const active = !isCustom && (planDays || 14) === opt.days;
                 return (
                   <button
                     key={opt.days}
@@ -390,14 +566,14 @@ export function PaperTab({
             </div>
           </div>
 
-          {/* Single slider — range in seconds */}
+          {/* Slider */}
           <div className="flex flex-col gap-2">
             <input
               type="range"
-              min={10}
-              max={300}
-              step={5}
-              value={effectiveSecs}
+              min={3}
+              max={90}
+              step={1}
+              value={effectiveDays}
               onChange={(e) => {
                 setIsCustom(true);
                 setCustomDays(parseInt(e.target.value));
@@ -407,18 +583,35 @@ export function PaperTab({
             <div className="flex justify-between font-mono text-[10px]">
               <span className="text-violet-500 font-medium">现在</span>
               <span className="text-muted-foreground/70">
-                {effectiveSecs}秒 · 结束于 {fmtDate(previewEnd)}
+                {effectiveDays} 天 · 结束于 {fmtDate(previewEnd)}
               </span>
             </div>
           </div>
 
           {/* Start button */}
           <Button
-            onClick={() => handleStart(effectiveSecs as PaperPlanDays)}
+            onClick={() => {
+              const start = Date.now();
+              const end = start + effectiveDays * 86_400_000;
+              setStrategyState(activeStrategyId, {
+                stages: { ...state.stages, paper: "running" },
+                paperPts: [],
+                paperSigs: [],
+                paperRef: [],
+                paperPlanDays: effectiveDays,
+                paperStartTime: start,
+                paperEndTime: end,
+              });
+              addLog(
+                "模拟",
+                `<span class="hi">引擎启动</span> · ${effectiveDays}天 · 结束于 ${fmtDate(end)}`,
+              );
+              syncTickers();
+            }}
             className="w-full h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
             variant="outline"
           >
-            &#9654; 开始 {effectiveSecs} 秒模拟测试
+            &#9654; 开始 {effectiveDays} 天模拟交易
           </Button>
         </div>
       </div>
@@ -473,7 +666,8 @@ export function PaperTab({
         <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <div className="font-mono text-[9px] text-muted-foreground font-medium">
-              模拟计划 · {planDays}秒
+              模拟计划 · {planDays}
+              {sessionUnitLabel}
             </div>
             <div
               className={`font-mono text-[9px] font-medium ${isDone ? "text-muted-foreground" : remainingMs < 60_000 ? "text-amber-500" : "text-violet-500"}`}
@@ -506,11 +700,11 @@ export function PaperTab({
           <div
             className={`font-mono text-xl font-semibold ${equityPct >= 0 ? "text-violet-500" : "text-red-500"}`}
           >
-            {equityPct >= 0 ? "+" : ""}
-            {equityPct.toFixed(1)}%
+            {paperResultStr}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            虚拟资金 · {isDone ? "已结束" : `${planDays}秒测试`}
+            虚拟资金 ·{" "}
+            {isDone ? "已结束" : `${planDays}${sessionUnitLabel}计划`}
           </div>
         </div>
         <div
@@ -542,17 +736,52 @@ export function PaperTab({
           <span
             className={`font-mono text-[10px] font-medium ${isDone ? "text-muted-foreground" : isPaused ? "text-amber-500" : "text-violet-500"}`}
           >
-            {isDone
-              ? "&#128193; 已结束"
-              : isPaused
-                ? "&#9208; 暂停中"
-                : "● PAPER"}
+            {isDone ? (
+              "&#128193; 已结束"
+            ) : isPaused ? (
+              "&#9208; 暂停中"
+            ) : isLiveView ? (
+              "● PAPER"
+            ) : (
+              <button
+                onClick={() => {
+                  isLiveViewRef.current = true;
+                  setIsLiveView(true);
+                  if (state?.paperPts?.length) {
+                    advanceLiveViewport(state.paperPts.length);
+                    redraw(state.paperPts, state.paperSigs);
+                  }
+                }}
+                className="font-mono text-[10px] font-medium text-amber-500 hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-0"
+              >
+                ↩ 回到实时
+              </button>
+            )}
           </span>
         </div>
         <canvas
           ref={canvasRef}
           className="w-full h-[140px] rounded-lg bg-card"
         />
+        {(isRunning || isPaused) && (
+          <div className="flex items-center justify-center gap-1.5 mt-1.5">
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              滚轮缩放
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/30">
+              ·
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              拖拽平移
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/30">
+              ·
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              缩小可找回历史信号点
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Secondary stats */}
@@ -701,6 +930,7 @@ export function PaperTab({
                     stages: { ...state.stages, paper: "running" },
                   });
                   addLog("模拟", '<span class="hi">已恢复</span>');
+                  syncTickers();
                 }}
                 className="flex-1 h-10 bg-violet-500/10 border border-violet-500 text-violet-500 hover:bg-violet-500 hover:text-white font-mono text-[11px] font-medium"
                 variant="outline"

@@ -24,20 +24,12 @@ export function LiveTab({
   readOnly,
   onClone,
 }: LiveTabProps) {
-  const {
-    activeStrategyId,
-    strategyStates,
-    setStrategyState,
-    addLog,
-    setBtcPrice,
-    updateLiveResult,
-  } = useQuantTerminalStore();
+  const { activeStrategyId, strategyStates, strategies, syncTickers } =
+    useQuantTerminalStore();
+
   const state = strategyStates[activeStrategyId];
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(Date.now());
-  const tradeCountRef = useRef<number>(0);
-  const winCountRef = useRef<number>(0);
   const [streamOk, setStreamOk] = useState(false);
 
   const isRunning = state?.stages.live === "running";
@@ -45,101 +37,18 @@ export function LiveTab({
   const isStopped = state?.stages.live === "stopped";
   const isArchived = state?.stages.live === "done";
 
-  // Initialize live data
+  // Ensure the global ticker is running whenever this strategy is in "running" state.
+  // syncTickers() is idempotent — safe to call on every render cycle.
   useEffect(() => {
-    if (!state?.livePts.length) {
-      // Generate seed data for any state that has no data yet (running, paused, stopped, archived)
-      const pts: number[] = [];
-      let v = 0;
-      for (let i = 0; i < 40; i++) {
-        v += (Math.random() - 0.44) * 1.2 + 0.2;
-        pts.push(v);
-      }
-      setStrategyState(activeStrategyId, { livePts: pts, liveSigs: [] });
-    }
-  }, [activeStrategyId, state, setStrategyState]);
-
-  // Live animation
-  useEffect(() => {
-    if (!isRunning) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-
-    startTimeRef.current = Date.now();
-    setStreamOk(true);
-    intervalRef.current = setInterval(() => {
-      const currentState =
-        useQuantTerminalStore.getState().strategyStates[activeStrategyId];
-      if (currentState.stages.live !== "running") return;
-
-      const pts = [...currentState.livePts];
-      const sigs = [...currentState.liveSigs];
-      const last = pts[pts.length - 1];
-      const nv = last + (Math.random() - 0.46) * 1.4 + 0.15;
-      pts.push(nv);
-      if (pts.length > 120) pts.shift();
-
-      if (pts.length > 5) {
-        const delta = pts[pts.length - 1] - pts[pts.length - 4];
-        if (
-          delta > 1.8 &&
-          (sigs.length === 0 || sigs[sigs.length - 1].type === "sell")
-        ) {
-          sigs.push({ i: pts.length - 1, type: "buy" });
-          addLog(
-            "实盘",
-            `<span class="buy">买入</span> BTC <span class="mono">@ ${(83000 + Math.round(nv * 200)).toLocaleString()}</span>`,
-          );
-        }
-        if (
-          delta < -1.3 &&
-          sigs.length > 0 &&
-          sigs[sigs.length - 1].type === "buy"
-        ) {
-          sigs.push({ i: pts.length - 1, type: "sell" });
-          addLog(
-            "实盘",
-            `<span class="sell">卖出</span> <span class="${nv > last ? "buy" : "sell"}">${nv > last ? "+" : ""}${Math.round(Math.abs(delta) * 1.2)}%</span>`,
-          );
-        }
-      }
-
-      setBtcPrice(84231 + Math.round(nv * 80));
-
-      // Compute cumulative return and push to sidebar
-      const firstPt = pts[0];
-      const returnPct =
-        firstPt !== 0 ? ((nv - firstPt) / Math.abs(firstPt)) * 100 : 0;
-      const returnStr = `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(1)}%`;
-      updateLiveResult(activeStrategyId, returnStr);
-
-      setStrategyState(activeStrategyId, { livePts: pts, liveSigs: sigs });
-
-      if (canvasRef.current) {
-        drawLiveChart(canvasRef.current, pts, sigs, startTimeRef.current, 300);
-      }
-    }, 300);
-
-    return () => {
+    syncTickers();
+    if (isRunning) {
+      setStreamOk(true);
+    } else {
       setStreamOk(false);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [
-    isRunning,
-    activeStrategyId,
-    setStrategyState,
-    addLog,
-    setBtcPrice,
-    updateLiveResult,
-  ]);
+    }
+  }, [isRunning, activeStrategyId, syncTickers]);
 
+  // Redraw canvas whenever pts change (driven by the global ticker writing to store)
   useEffect(() => {
     if (canvasRef.current && state?.livePts.length) {
       drawLiveChart(
@@ -150,17 +59,15 @@ export function LiveTab({
         300,
       );
     }
-  }, [state, isPaused, isArchived, isStopped]);
+  }, [state?.livePts, state?.liveSigs, isPaused, isArchived, isStopped]);
 
   const latestPt = state?.livePts[state.livePts.length - 1] || 0;
   const floatPnl = Math.round(latestPt * 80);
-  // Pull live return from Strategy record (updated every tick by updateLiveResult)
-  const liveStrategy = useQuantTerminalStore
-    .getState()
-    .strategies.find((s) => s.id === activeStrategyId);
+
+  // Pull live return directly from strategies list (updated atomically by store ticker)
+  const liveStrategy = strategies.find((s) => s.id === activeStrategyId);
   const liveReturnDisplay = liveStrategy?.liveResult || "+0.0%";
 
-  // Derive display values based on state
   const holdingLabel = isStopped ? "已清仓" : "BTC 0.012";
   const holdingSubLabel = isStopped
     ? "所有持仓已于终止时平仓"
@@ -170,7 +77,7 @@ export function LiveTab({
 
   return (
     <div className="flex flex-col gap-4 flex-1">
-      {/* Stream connection banner — shown only when running */}
+      {/* Stream connection banner */}
       {isRunning && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
           <span
@@ -224,18 +131,14 @@ export function LiveTab({
             {liveReturnDisplay}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {isStopped ? "终止时快照" : isPaused ? "暂停时快照" : "实时更新"}
+            {isStopped ? "终止时收益" : isPaused ? "暂停时收益" : "实时更新"}
           </div>
         </div>
-        <div
-          className={`bg-card border rounded-xl p-3 shadow-sm ${isStopped ? "border-red-500/20" : isPaused ? "border-amber-500/20" : "border-border/50"}`}
-        >
+        <div className="bg-card border border-border/50 rounded-xl p-3 shadow-sm">
           <div className="font-mono text-[9px] text-muted-foreground mb-1.5 tracking-wider font-medium">
             当前持仓
           </div>
-          <div
-            className={`font-mono text-xl font-semibold ${isStopped ? "text-red-500" : "text-foreground"}`}
-          >
+          <div className="font-mono text-sm font-semibold text-foreground">
             {holdingLabel}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
@@ -244,38 +147,32 @@ export function LiveTab({
         </div>
       </div>
 
-      {/* Chart — always show (freeze when stopped/archived) */}
+      {/* Chart */}
       <div className="relative">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
-            实盘净值 —{" "}
-            {isStopped ? "终止时快照" : isArchived ? "归档快照" : "实时账户"}
-          </span>
-          <span
-            className={`font-mono text-[10px] font-medium ${
-              isStopped
-                ? "text-red-500"
-                : isArchived
-                  ? "text-muted-foreground"
-                  : isPaused
-                    ? "text-amber-500"
-                    : "text-emerald-500"
-            }`}
-          >
-            {isStopped
-              ? "&#9632; 已终止"
-              : isArchived
-                ? "&#128193; 已归档"
-                : isPaused
-                  ? "&#9208; 暂停中"
-                  : "● LIVE"}
-          </span>
-        </div>
+        <span
+          className={`absolute top-2 right-2 z-10 font-mono text-[9px] px-2 py-0.5 rounded-full border ${
+            isArchived
+              ? "bg-muted text-muted-foreground border-border/40"
+              : isPaused
+                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                : isStopped
+                  ? "bg-red-500/10 text-red-500 border-red-500/30"
+                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+          }`}
+          dangerouslySetInnerHTML={{
+            __html: isArchived
+              ? "&#128193; 已归档"
+              : isPaused
+                ? "&#9208; 暂停中"
+                : isStopped
+                  ? "&#9632; 已终止"
+                  : "● LIVE",
+          }}
+        />
         <canvas
           ref={canvasRef}
           className="w-full h-[140px] rounded-lg bg-card"
         />
-        {/* Frozen overlay for stopped state */}
         {isStopped && (
           <div className="absolute inset-0 top-6 rounded-lg bg-red-500/5 border border-red-500/10 flex items-center justify-center pointer-events-none">
             <span className="font-mono text-[10px] text-red-500/50 tracking-widest uppercase">
@@ -347,18 +244,14 @@ export function LiveTab({
           <table className="w-full">
             <thead>
               <tr className="bg-muted/50">
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">
-                  时间
-                </th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">
-                  方向
-                </th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">
-                  价格
-                </th>
-                <th className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium">
-                  盈亏
-                </th>
+                {["时间", "方向", "价格", "盈亏"].map((h) => (
+                  <th
+                    key={h}
+                    className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -427,7 +320,7 @@ export function LiveTab({
         </div>
       </div>
 
-      {/* 优化此策略 — always visible in a fixed row when available */}
+      {/* 优化此策略 */}
       {onClone && (
         <div className="flex">
           <Button
@@ -439,7 +332,8 @@ export function LiveTab({
           </Button>
         </div>
       )}
-      {/* Operational buttons — hidden when archived (read-only) */}
+
+      {/* Operational buttons */}
       {!readOnly && (
         <div className="flex gap-2.5">
           {isStopped ? (

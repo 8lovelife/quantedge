@@ -114,7 +114,6 @@ function StageTab({
   );
 }
 
-// Determines clickability and view-only status for each tab based on current stage states
 function getTabAccess(stages: StrategyStages) {
   const paperActive = stages.paper === "running" || stages.paper === "paused";
   const liveActive =
@@ -166,6 +165,7 @@ export function StrategyPanel() {
     addLog,
     updateStrategy,
     cloneStrategy,
+    syncTickers,
   } = useQuantTerminalStore();
 
   const [showLiveModal, setShowLiveModal] = useState(false);
@@ -175,7 +175,6 @@ export function StrategyPanel() {
 
   if (!state || !strategy) return null;
 
-  // Max 3 versions per family — disable improve button when at limit
   const familySize = strategies.filter(
     (s) => s.familyId === strategy.familyId,
   ).length;
@@ -193,7 +192,6 @@ export function StrategyPanel() {
 
     const status = state.stages[tab];
 
-    // Only trigger start if the tab is NOT in view-only mode
     if (!access[tab].viewOnly) {
       if (tab === "live" && status === "ready") {
         setShowLiveModal(true);
@@ -223,7 +221,6 @@ export function StrategyPanel() {
   };
 
   const handleStartPaper = () => {
-    // Ensure paper is in "ready" state so the plan selector shows
     if (state.stages.paper !== "ready") {
       setStrategyState(activeStrategyId, {
         stages: { ...state.stages, paper: "ready" },
@@ -244,6 +241,8 @@ export function StrategyPanel() {
       activeTab: "live",
     });
     addLog("实盘", '<span class="hi">引擎启动</span>，连接交易所');
+    // Start the global ticker for this strategy
+    syncTickers();
   };
 
   const handlePauseLive = () => {
@@ -251,6 +250,7 @@ export function StrategyPanel() {
       stages: { ...state.stages, live: "paused" },
     });
     addLog("实盘", '<span class="warn">已暂停</span>，持仓保持');
+    syncTickers();
   };
 
   const handleResumeLive = () => {
@@ -258,6 +258,7 @@ export function StrategyPanel() {
       stages: { ...state.stages, live: "running" },
     });
     addLog("实盘", '<span class="hi">已恢复</span>');
+    syncTickers();
   };
 
   const handleStopLive = () => {
@@ -265,6 +266,7 @@ export function StrategyPanel() {
       stages: { ...state.stages, live: "stopped" },
     });
     addLog("实盘", '<span class="sell">已终止</span>，所有持仓已平仓');
+    syncTickers();
   };
 
   const handleRestartLive = () => {
@@ -278,9 +280,9 @@ export function StrategyPanel() {
     });
     updateStrategy(activeStrategyId, { returnHint: "已归档" });
     addLog("实盘", '策略已<span class="mono">归档</span>');
+    syncTickers();
   };
 
-  // THE ONE improve action — always creates a new version in the same family, always goes forward
   const handleImprove = () => {
     if (!canImprove) return;
     cloneStrategy(activeStrategyId);
@@ -292,7 +294,6 @@ export function StrategyPanel() {
 
     switch (state.activeTab) {
       case "draft": {
-        // Params are locked once backtest has been started at least once
         const draftParamsLocked =
           state.stages.bt !== "ready" && state.stages.bt !== "locked";
         return (

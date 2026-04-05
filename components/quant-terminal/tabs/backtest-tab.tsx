@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { drawBacktestChart, generateBacktestData } from "../chart-utils";
-import type { BacktestChartViewport } from "../chart-utils";
 
 // Maps btRange to human label
 const RANGE_LABEL: Record<string, string> = {

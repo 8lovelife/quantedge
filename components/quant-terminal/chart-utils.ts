@@ -26,31 +26,26 @@ function drawXAxisTimeLabels(
 ) {
   const steps = 3; // we draw 4 labels at positions 0/3, 1/3, 2/3, 3/3
   ctx.fillStyle = "#94a3b8";
-  ctx.font = "9px JetBrains Mono, monospace";
+  ctx.font = "8px JetBrains Mono, monospace";
 
   for (let i = 0; i <= steps; i++) {
     const t = startTime + (totalMs * i) / steps;
     const d = new Date(t);
-    // Format: "HH:MM" for intraday spans, "M/D" for multi-day spans
+    // Format: full date+time for short spans, date+hour for medium, date only for multi-day
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const date = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
     const label =
       totalMs < 60_000 * 10
-        ? // < 10 minutes: show HH:MM:SS so seconds are visible
-          d.toLocaleTimeString("zh-CN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          })
+        ? // < 10 minutes: "YYYY/MM/DD HH:MM:SS"
+          `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
         : totalMs < 3_600_000 * 4
-          ? // < 4 hours: HH:MM
-            d.toLocaleTimeString("zh-CN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+          ? // < 4 hours: "YYYY/MM/DD HH:MM"
+            `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}`
           : totalMs < 86_400_000 * 3
-            ? // < 3 days: M/D HH:00
-              `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:00`
-            : // multi-day: M/D
-              `${d.getMonth() + 1}/${d.getDate()}`;
+            ? // < 3 days: "YYYY/MM/DD HH:00"
+              `${date} ${d.getHours()}:00`
+            : // multi-day: "YYYY/MM/DD"
+              date;
     ctx.textAlign = i === 0 ? "left" : i === steps ? "right" : "center";
     const x = PAD.l + cW * (i / steps);
     ctx.fillText(label, x, H - 6);
@@ -384,17 +379,22 @@ export function drawPaperChart(
   const realViewSpanMs = realViewEndMs - realViewStartMs;
 
   // Format granularity based on the visible real-time span
+  // Always include date so signal markers show the correct calendar day.
   const fmtReal = (ms: number): string => {
     const d = new Date(ms);
     const pad = (n: number) => String(n).padStart(2, "0");
+    const date = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
     if (realViewSpanMs < 3_600_000 * 2)
-      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      // Short window: show full "YYYY/MM/DD HH:MM:SS"
+      return `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     if (realViewSpanMs < 86_400_000 * 2)
-      return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:00`;
-    return `${d.getMonth() + 1}/${d.getDate()}`;
+      // Medium window: "YYYY/MM/DD HH:00"
+      return `${date} ${pad(d.getHours())}:00`;
+    // Multi-day: "YYYY/MM/DD"
+    return date;
   };
 
-  ctx.font = "9px JetBrains Mono, monospace";
+  ctx.font = "8px JetBrains Mono, monospace";
   const labelY = H - 5;
   const MAX_INNER = 2; // at most 2 inner ticks → max 4 labels total
   const MIN_TICK_PX = 90;
@@ -460,7 +460,7 @@ export function drawLiveChart(
   const yM = (v: number) => PAD.t + cH - ((v - mn) / range) * cH;
   const xM = (i: number) => PAD.l + (i / (pts.length - 1)) * cW;
 
-  // Grid lines
+  const GRID_R = 12;
   const gridStops = [0, 0.25, 0.5, 0.75, 1];
   gridStops.forEach((t) => {
     const y = PAD.t + cH * (1 - t);
@@ -468,7 +468,7 @@ export function drawLiveChart(
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     ctx.moveTo(PAD.l, y);
-    ctx.lineTo(W - PAD.r, y);
+    ctx.lineTo(W - GRID_R, y);
     ctx.stroke();
 
     ctx.fillStyle = "#94a3b8";
@@ -525,35 +525,17 @@ export function drawLiveChart(
     ctx.stroke();
   });
 
-  // Current point with pulse effect
+  // Current point — small dot only, no large glow rings.
+  // The animated pulse ring is rendered via CSS in the HTML overlay (live-tab.tsx)
+  // so it never overlaps the "● LIVE" badge.
   const lx = xM(pts.length - 1);
   const ly = yM(pts[pts.length - 1]);
 
   ctx.beginPath();
-  ctx.arc(lx, ly, 6, 0, Math.PI * 2);
+  ctx.arc(lx, ly, 4, 0, Math.PI * 2);
   ctx.fillStyle = "#10b981";
   ctx.fill();
 
-  ctx.beginPath();
-  ctx.arc(lx, ly, 10, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(16, 185, 129, 0.2)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(lx, ly, 15, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(16, 185, 129, 0.08)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Price label
-  const price = (84231 + Math.round(pts[pts.length - 1] * 80)).toLocaleString();
-  ctx.fillStyle = "#10b981";
-  ctx.font = "bold 10px JetBrains Mono, monospace";
-  ctx.textAlign = "left";
-  ctx.fillText(price, Math.min(lx + 16, W - PAD.r - 60), ly + 4);
-
-  // X-axis labels — dynamic real-time timestamps
   const liveStart = startTime ?? Date.now() - pts.length * tickMs;
   const liveTotalMs = pts.length * tickMs;
   drawXAxisTimeLabels(ctx, PAD, cW, H, liveStart, liveTotalMs);

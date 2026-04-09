@@ -149,26 +149,6 @@ export function LiveTab({
 
       {/* Chart */}
       <div className="relative">
-        <span
-          className={`absolute top-2 right-2 z-10 font-mono text-[9px] px-2 py-0.5 rounded-full border ${
-            isArchived
-              ? "bg-muted text-muted-foreground border-border/40"
-              : isPaused
-                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                : isStopped
-                  ? "bg-red-500/10 text-red-500 border-red-500/30"
-                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-          }`}
-          dangerouslySetInnerHTML={{
-            __html: isArchived
-              ? "&#128193; 已归档"
-              : isPaused
-                ? "&#9208; 暂停中"
-                : isStopped
-                  ? "&#9632; 已终止"
-                  : "● LIVE",
-          }}
-        />
         <canvas
           ref={canvasRef}
           className="w-full h-[140px] rounded-lg bg-card"

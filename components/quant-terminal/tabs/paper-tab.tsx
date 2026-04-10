@@ -109,6 +109,18 @@ export function PaperTab({
   const [customDays, setCustomDays] = useState(14);
   const [isCustom, setIsCustom] = useState(false);
 
+  // ── Crosshair tooltip ─────────────────────────────────────────────────────────
+  interface TooltipData {
+    x: number; // canvas-relative px (for positioning)
+    canvasLeft: number;
+    canvasWidth: number;
+    time: string;
+    returnPct: string;
+    amount: string;
+    signal?: "buy" | "sell";
+  }
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+
   const isRunning = state?.stages.paper === "running";
   const isPaused = state?.stages.paper === "paused";
   const isDone = state?.stages.paper === "done";
@@ -762,7 +774,148 @@ export function PaperTab({
         <canvas
           ref={canvasRef}
           className="w-full h-[140px] rounded-lg bg-card"
+          onMouseMove={(e) => {
+            const canvas = canvasRef.current;
+            const cur = strategyStates[activeStrategyId];
+            if (!canvas || !cur?.paperPts?.length || !cur.paperSigs.length) {
+              setTooltip(null);
+              return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+            const PAD_T = 12;
+            const PAD_B = 24;
+            const PAD_L = 40;
+            const PAD_R = 12;
+            const drawW = rect.width - PAD_L - PAD_R;
+            const cH = rect.height - PAD_T - PAD_B;
+            const vPts = cur.paperPts.slice(
+              viewStartRef.current,
+              viewEndRef.current + 1,
+            );
+            const mn = Math.min(...vPts) - 1.5;
+            const mx = Math.max(...vPts) + 1.5;
+            const span = Math.max(viewEndRef.current - viewStartRef.current, 1);
+            // Check each signal point — show tooltip only when within 14px
+            const HIT_R = 14;
+            let found: {
+              sig: (typeof cur.paperSigs)[0];
+              x: number;
+              y: number;
+            } | null = null;
+            for (const sig of cur.paperSigs) {
+              if (sig.i < viewStartRef.current || sig.i > viewEndRef.current)
+                continue;
+              const localIdx = sig.i - viewStartRef.current;
+              const x = PAD_L + (localIdx / span) * drawW;
+              const pt = cur.paperPts[sig.i];
+              const y = PAD_T + cH - ((pt - mn) / (mx - mn || 1)) * cH;
+              if (Math.hypot(offsetX - x, offsetY - y) <= HIT_R) {
+                found = { sig, x, y };
+                break;
+              }
+            }
+            if (!found) {
+              setTooltip(null);
+              return;
+            }
+            // Build tooltip data from the signal point
+            const pt = cur.paperPts[found.sig.i];
+            const nowMs = Date.now();
+            const elapsed = startTime > 0 ? nowMs - startTime : 0;
+            const ratio =
+              cur.paperPts.length <= 1
+                ? 0
+                : found.sig.i / (cur.paperPts.length - 1);
+            const ptMs = startTime > 0 ? startTime + ratio * elapsed : nowMs;
+            const d = new Date(ptMs);
+            const pad = (n: number) => String(n).padStart(2, "0");
+            const timeStr = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const btcPrice = (84231 + Math.round(pt * 80)).toLocaleString();
+            // For buy: show "持仓中", for sell: compute pnl vs the preceding buy point
+            let returnPct = "持仓中";
+            if (found.sig.type === "sell") {
+              const buyIdx = [...cur.paperSigs]
+                .reverse()
+                .find((s) => s.type === "buy" && s.i < found.sig.i)?.i;
+              if (buyIdx !== undefined) {
+                const buyPt = cur.paperPts[buyIdx];
+                const pnl = pt - buyPt;
+                returnPct = `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`;
+              } else {
+                returnPct = `${pt >= 0 ? "+" : ""}${pt.toFixed(2)}%`;
+              }
+            }
+            setTooltip({
+              x: found.x,
+              canvasLeft: rect.left,
+              canvasWidth: rect.width,
+              time: timeStr,
+              returnPct,
+              amount: `BTC ${btcPrice}`,
+              signal: found.sig.type,
+            });
+          }}
+          onMouseLeave={() => setTooltip(null)}
         />
+        {/* Signal-point tooltip */}
+        {tooltip &&
+          (() => {
+            const tipW = 148;
+            const tipLeft =
+              tooltip.x / tooltip.canvasWidth > 0.65
+                ? tooltip.x - tipW - 10
+                : tooltip.x + 10;
+            const isBuy = tooltip.signal === "buy";
+            const accent = isBuy
+              ? "border-emerald-500/50"
+              : "border-red-500/50";
+            return (
+              <div
+                className="absolute z-20 pointer-events-none"
+                style={{ left: tipLeft, top: 16 }}
+              >
+                <div
+                  className={`bg-card/95 border ${accent} rounded-lg px-2.5 py-2 shadow-xl backdrop-blur-sm`}
+                  style={{ width: tipW }}
+                >
+                  <div
+                    className={`font-mono text-[9px] font-semibold mb-1 ${isBuy ? "text-emerald-500" : "text-red-500"}`}
+                  >
+                    {isBuy ? "▲ 模拟买入" : "▼ 模拟卖出"}
+                  </div>
+                  <div className="font-mono text-[10px] text-muted-foreground">
+                    {tooltip.time}
+                  </div>
+                  <div className="mt-1.5 flex justify-between items-baseline">
+                    <span className="font-mono text-[9px] text-muted-foreground">
+                      价格
+                    </span>
+                    <span className="font-mono text-[11px] font-bold text-foreground">
+                      {tooltip.amount.replace("BTC ", "")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-baseline mt-0.5">
+                    <span className="font-mono text-[9px] text-muted-foreground">
+                      {tooltip.signal === "buy" ? "状态" : "盈亏"}
+                    </span>
+                    <span
+                      className={`font-mono text-[11px] font-bold ${
+                        tooltip.returnPct === "持仓中"
+                          ? "text-amber-500"
+                          : tooltip.returnPct.startsWith("+")
+                            ? "text-violet-500"
+                            : "text-red-500"
+                      }`}
+                    >
+                      {tooltip.returnPct}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         {(isRunning || isPaused) && (
           <div className="flex items-center justify-center gap-1.5 mt-1.5">
             <span className="font-mono text-[9px] text-muted-foreground/50">

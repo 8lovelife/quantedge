@@ -286,8 +286,10 @@ export function drawPaperChart(
     ctx.font = "9px JetBrains Mono, monospace";
     ctx.textAlign = "right";
     const val = mn + (mx - mn) * t;
+    // Convert pts unit → BTC price (same formula as store: 84231 + pt * 80)
+    const price = Math.round(84231 + val * 80);
     const label =
-      t === 0.5 ? "0%" : (val > 0 ? "+" : "") + Math.round(val * 0.4) + "%";
+      price >= 1000 ? (price / 1000).toFixed(1) + "k" : String(price);
     ctx.fillText(label, PAD.l - 4, y + 3);
   });
 
@@ -474,10 +476,11 @@ export function drawLiveChart(
     ctx.fillStyle = "#94a3b8";
     ctx.font = "9px JetBrains Mono, monospace";
     ctx.textAlign = "right";
+    const val = mn + (mx - mn) * t;
+    // Convert pts unit → BTC price (same formula as store: 84231 + pt * 80)
+    const price = Math.round(84231 + val * 80);
     const label =
-      t === 0.5
-        ? "0%"
-        : (t > 0.5 ? "+" : "") + Math.round((mn + (mx - mn) * t) * 0.3) + "%";
+      price >= 1000 ? (price / 1000).toFixed(1) + "k" : String(price);
     ctx.fillText(label, PAD.l - 4, y + 3);
   });
 
@@ -539,6 +542,95 @@ export function drawLiveChart(
   const liveStart = startTime ?? Date.now() - pts.length * tickMs;
   const liveTotalMs = pts.length * tickMs;
   drawXAxisTimeLabels(ctx, PAD, cW, H, liveStart, liveTotalMs);
+}
+
+// ── Shared crosshair drawing ─────────────────────────────────────────────────
+// Draws a vertical hairline + highlighted dot at position `x` on the canvas.
+// color: the accent color for this chart (violet for paper, emerald for live).
+export function drawCrosshair(
+  canvas: HTMLCanvasElement,
+  x: number, // canvas CSS pixel x
+  y: number, // canvas CSS pixel y (the data point's y)
+  color: string,
+  PAD_L = 40,
+  PAD_T = 12,
+  PAD_B = 24,
+) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+
+  ctx.save();
+  // Vertical hairline
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(x, PAD_T);
+  ctx.lineTo(x, H - PAD_B);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Highlighted dot
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y, 9, 0, Math.PI * 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.25;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Hit-test for paper chart: given mouse offsetX, return the closest data point index
+// and its canvas coordinates.
+export function paperHitTest(
+  canvas: HTMLCanvasElement,
+  offsetX: number,
+  allPts: number[],
+  vStart: number,
+  vEnd: number,
+  PAD_L = 40,
+  PAD_R = 12,
+): { localIdx: number; globalIdx: number; x: number } | null {
+  if (allPts.length < 2 || vEnd <= vStart) return null;
+  const drawW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+  const span = vEnd - vStart;
+  const localIdx = Math.max(
+    0,
+    Math.min(vEnd - vStart, Math.round(((offsetX - PAD_L) / drawW) * span)),
+  );
+  const globalIdx = vStart + localIdx;
+  const x = PAD_L + (localIdx / Math.max(span, 1)) * drawW;
+  return { localIdx, globalIdx, x };
+}
+
+// Hit-test for live chart: given mouse offsetX, return the closest data point index.
+export function liveHitTest(
+  canvas: HTMLCanvasElement,
+  offsetX: number,
+  pts: number[],
+  PAD_L = 40,
+  PAD_R = 12,
+): { idx: number; x: number } | null {
+  if (pts.length < 2) return null;
+  const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+  const idx = Math.max(
+    0,
+    Math.min(
+      pts.length - 1,
+      Math.round(((offsetX - PAD_L) / cW) * (pts.length - 1)),
+    ),
+  );
+  const x = PAD_L + (idx / (pts.length - 1)) * cW;
+  return { idx, x };
 }
 
 export function generateBacktestData(): { pts: number[]; sigs: Signal[] } {

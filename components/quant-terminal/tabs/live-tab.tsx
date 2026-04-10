@@ -32,6 +32,30 @@ export function LiveTab({
   const startTimeRef = useRef<number>(Date.now());
   const [streamOk, setStreamOk] = useState(false);
 
+  // Viewport for zoom/pan (same pattern as paper-tab)
+  const DEFAULT_WINDOW = 80;
+  const viewStartRef = useRef(0);
+  const viewEndRef = useRef(0);
+  const isLiveViewRef = useRef(true);
+  const [isLiveView, setIsLiveView] = useState(true);
+  const dragRef = useRef<{
+    startX: number;
+    startVS: number;
+    startVE: number;
+  } | null>(null);
+
+  // Crosshair tooltip
+  interface LiveTooltipData {
+    x: number;
+    canvasWidth: number;
+    time: string;
+    returnPct: string;
+    price: string;
+    signal?: "buy" | "sell";
+  }
+  const [tooltip, setTooltip] = useState<LiveTooltipData | null>(null);
+  const startTimeRef2 = useRef<number>(Date.now());
+
   const isRunning = state?.stages.live === "running";
   const isPaused = state?.stages.live === "paused";
   const isStopped = state?.stages.live === "stopped";
@@ -48,18 +72,125 @@ export function LiveTab({
     }
   }, [isRunning, activeStrategyId, syncTickers]);
 
-  // Redraw canvas whenever pts change (driven by the global ticker writing to store)
+  // Advance live viewport to show latest DEFAULT_WINDOW pts
+  const advanceLiveViewport = (totalPts: number) => {
+    viewEndRef.current = totalPts - 1;
+    viewStartRef.current = Math.max(0, totalPts - 1 - DEFAULT_WINDOW);
+  };
+
+  // Redraw helper respecting current viewport
+  const redrawLive = (pts: number[], sigs: typeof state.liveSigs) => {
+    if (!canvasRef.current || pts.length < 2) return;
+    const vStart = viewStartRef.current;
+    const vEnd = Math.min(viewEndRef.current, pts.length - 1);
+    const sliced = pts.slice(vStart, vEnd + 1);
+    const slicedSigs = sigs
+      .filter((s) => s.i >= vStart && s.i <= vEnd)
+      .map((s) => ({ ...s, i: s.i - vStart }));
+    drawLiveChart(
+      canvasRef.current,
+      sliced,
+      slicedSigs,
+      startTimeRef.current,
+      300,
+    );
+  };
+
+  // Redraw canvas whenever pts change
   useEffect(() => {
-    if (canvasRef.current && state?.livePts.length) {
-      drawLiveChart(
-        canvasRef.current,
-        state.livePts,
-        state.liveSigs,
-        startTimeRef.current,
-        300,
+    const pts = state?.livePts;
+    if (!pts?.length) return;
+    if (isLiveViewRef.current) advanceLiveViewport(pts.length);
+    redrawLive(pts, state.liveSigs);
+  }, [state?.livePts, state?.liveSigs, isPaused, isArchived, isStopped]); // eslint-disable-line
+
+  // Wheel + drag zoom/pan
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const PAD_L = 40;
+    const PAD_R = 12;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const pts =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.livePts;
+      if (!pts || pts.length < 2) return;
+      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+      const span = viewEndRef.current - viewStartRef.current;
+      const factor = e.deltaY < 0 ? 1.3 : 0.77;
+      const newSpan = Math.min(
+        pts.length - 1,
+        Math.max(5, Math.round(span / factor)),
       );
-    }
-  }, [state?.livePts, state?.liveSigs, isPaused, isArchived, isStopped]);
+      const mouseRatio = Math.max(0, Math.min(1, (e.offsetX - PAD_L) / cW));
+      const anchor = viewStartRef.current + Math.round(span * mouseRatio);
+      viewStartRef.current = Math.max(
+        0,
+        anchor - Math.round(newSpan * mouseRatio),
+      );
+      viewEndRef.current = Math.min(
+        pts.length - 1,
+        viewStartRef.current + newSpan,
+      );
+      isLiveViewRef.current = false;
+      setIsLiveView(false);
+      const sigs =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.liveSigs ?? [];
+      redrawLive(pts, sigs);
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      dragRef.current = {
+        startX: e.clientX,
+        startVS: viewStartRef.current,
+        startVE: viewEndRef.current,
+      };
+      canvas.style.cursor = "grabbing";
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      const pts =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.livePts;
+      if (!pts || pts.length < 2) return;
+      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
+      const span = dragRef.current.startVE - dragRef.current.startVS;
+      const pxPerPt = cW / Math.max(span, 1);
+      const delta = Math.round((dragRef.current.startX - e.clientX) / pxPerPt);
+      viewStartRef.current = Math.max(0, dragRef.current.startVS + delta);
+      viewEndRef.current = Math.min(
+        pts.length - 1,
+        dragRef.current.startVE + delta,
+      );
+      isLiveViewRef.current = false;
+      setIsLiveView(false);
+      const sigs =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
+          ?.liveSigs ?? [];
+      redrawLive(pts, sigs);
+    };
+
+    const onMouseUp = () => {
+      dragRef.current = null;
+      canvas.style.cursor = "grab";
+    };
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.style.cursor = "grab";
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [activeStrategyId]); // eslint-disable-line
 
   const latestPt = state?.livePts[state.livePts.length - 1] || 0;
   const floatPnl = Math.round(latestPt * 80);
@@ -152,7 +283,172 @@ export function LiveTab({
         <canvas
           ref={canvasRef}
           className="w-full h-[140px] rounded-lg bg-card"
+          onMouseMove={(e) => {
+            const canvas = canvasRef.current;
+            if (!canvas || !state?.livePts?.length || !state.liveSigs.length) {
+              setTooltip(null);
+              return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+            const PAD_T = 12;
+            const PAD_B = 24;
+            const PAD_L = 40;
+            const PAD_R = 12;
+            const vStart = viewStartRef.current;
+            const vEnd = Math.min(viewEndRef.current, state.livePts.length - 1);
+            const span = Math.max(vEnd - vStart, 1);
+            const drawW = rect.width - PAD_L - PAD_R;
+            const cH = rect.height - PAD_T - PAD_B;
+            const sliced = state.livePts.slice(vStart, vEnd + 1);
+            const mn = Math.min(...sliced) - 1.5;
+            const mx = Math.max(...sliced) + 1.5;
+            const HIT_R = 14;
+            let found: { sig: (typeof state.liveSigs)[0]; x: number } | null =
+              null;
+            for (const sig of state.liveSigs) {
+              if (
+                sig.i < vStart ||
+                sig.i > vEnd ||
+                sig.i >= state.livePts.length
+              )
+                continue;
+              const localIdx = sig.i - vStart;
+              const x = PAD_L + (localIdx / span) * drawW;
+              const pt = state.livePts[sig.i];
+              const y = PAD_T + cH - ((pt - mn) / (mx - mn || 1)) * cH;
+              if (Math.hypot(offsetX - x, offsetY - y) <= HIT_R) {
+                found = { sig, x };
+                break;
+              }
+            }
+            if (!found) {
+              setTooltip(null);
+              return;
+            }
+            const pt = state.livePts[found.sig.i];
+            const tickMs = 300;
+            const totalMs = state.livePts.length * tickMs;
+            const liveStart = startTimeRef.current - totalMs;
+            const ptMs =
+              liveStart +
+              (found.sig.i / Math.max(state.livePts.length - 1, 1)) * totalMs;
+            const d = new Date(ptMs);
+            const pad = (n: number) => String(n).padStart(2, "0");
+            const timeStr = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const price = (84231 + Math.round(pt * 80)).toLocaleString();
+            let returnPct = "持仓中";
+            if (found.sig.type === "sell") {
+              const buyIdx = [...state.liveSigs]
+                .reverse()
+                .find((s) => s.type === "buy" && s.i < found.sig.i)?.i;
+              if (buyIdx !== undefined) {
+                const buyPt = state.livePts[buyIdx];
+                const pnl = pt - buyPt;
+                returnPct = `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`;
+              } else {
+                returnPct = `${pt >= 0 ? "+" : ""}${pt.toFixed(2)}%`;
+              }
+            }
+            setTooltip({
+              x: found.x,
+              canvasWidth: rect.width,
+              time: timeStr,
+              returnPct,
+              price,
+              signal: found.sig.type,
+            });
+          }}
+          onMouseLeave={() => setTooltip(null)}
         />
+        {/* Signal-point tooltip */}
+        {tooltip &&
+          (() => {
+            const tipW = 148;
+            const tipLeft =
+              tooltip.x / tooltip.canvasWidth > 0.65
+                ? tooltip.x - tipW - 10
+                : tooltip.x + 10;
+            const isBuy = tooltip.signal === "buy";
+            const accent = isBuy
+              ? "border-emerald-500/50"
+              : "border-red-500/50";
+            return (
+              <div
+                className="absolute z-20 pointer-events-none"
+                style={{ left: tipLeft, top: 16 }}
+              >
+                <div
+                  className={`bg-card/95 border ${accent} rounded-lg px-2.5 py-2 shadow-xl backdrop-blur-sm`}
+                  style={{ width: tipW }}
+                >
+                  <div
+                    className={`font-mono text-[9px] font-semibold mb-1 ${isBuy ? "text-emerald-500" : "text-red-500"}`}
+                  >
+                    {isBuy ? "▲ 实盘买入" : "▼ 实盘卖出"}
+                  </div>
+                  <div className="font-mono text-[10px] text-muted-foreground">
+                    {tooltip.time}
+                  </div>
+                  <div className="mt-1.5 flex justify-between items-baseline">
+                    <span className="font-mono text-[9px] text-muted-foreground">
+                      价格
+                    </span>
+                    <span className="font-mono text-[11px] font-bold text-foreground">
+                      {tooltip.price}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-baseline mt-0.5">
+                    <span className="font-mono text-[9px] text-muted-foreground">
+                      {tooltip.signal === "buy" ? "状态" : "盈亏"}
+                    </span>
+                    <span
+                      className={`font-mono text-[11px] font-bold ${
+                        tooltip.returnPct === "持仓中"
+                          ? "text-amber-500"
+                          : tooltip.returnPct.startsWith("+")
+                            ? "text-emerald-500"
+                            : "text-red-500"
+                      }`}
+                    >
+                      {tooltip.returnPct}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        {/* Zoom/pan hints + back-to-live */}
+        <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              滚轮缩放
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/30">
+              ·
+            </span>
+            <span className="font-mono text-[9px] text-muted-foreground/50">
+              拖拽平移
+            </span>
+          </div>
+          {!isLiveView && (
+            <button
+              onClick={() => {
+                isLiveViewRef.current = true;
+                setIsLiveView(true);
+                const pts = state?.livePts;
+                if (pts?.length) {
+                  advanceLiveViewport(pts.length);
+                  redrawLive(pts, state.liveSigs);
+                }
+              }}
+              className="font-mono text-[10px] font-medium text-amber-500 hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-0"
+            >
+              ↩ 回到实时
+            </button>
+          )}
+        </div>
         {isStopped && (
           <div className="absolute inset-0 top-6 rounded-lg bg-red-500/5 border border-red-500/10 flex items-center justify-center pointer-events-none">
             <span className="font-mono text-[10px] text-red-500/50 tracking-widest uppercase">
@@ -215,90 +511,103 @@ export function LiveTab({
         </div>
       </div>
 
-      {/* Recent trades */}
-      <div>
-        <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
-          最近成交
-        </div>
-        <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-muted/50">
-                {["时间", "方向", "价格", "盈亏"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                {
-                  time: "03-22 09:42",
-                  dir: "买入",
-                  price: "83,940",
-                  pnl: isStopped ? "已平仓" : "持仓中",
-                  isBuy: true,
-                  isPending: !isStopped,
-                  isUp: true,
-                },
-                {
-                  time: "03-19 14:10",
-                  dir: "卖出",
-                  price: "85,140",
-                  pnl: "+¥342",
-                  isBuy: false,
-                  isPending: false,
-                  isUp: true,
-                },
-                {
-                  time: "03-15 08:20",
-                  dir: "买入",
-                  price: "80,820",
-                  pnl: "—",
-                  isBuy: true,
-                  isPending: true,
-                  isUp: true,
-                },
-                {
-                  time: "03-12 11:00",
-                  dir: "卖出",
-                  price: "79,180",
-                  pnl: "-¥204",
-                  isBuy: false,
-                  isPending: false,
-                  isUp: false,
-                },
-              ].map((row, i) => (
-                <tr
-                  key={i}
-                  className="border-t border-muted/30 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                    {row.time}
-                  </td>
-                  <td
-                    className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? "text-emerald-500" : "text-red-500"}`}
-                  >
-                    {row.dir}
-                  </td>
-                  <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                    {row.price}
-                  </td>
-                  <td
-                    className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isPending ? "text-muted-foreground" : row.isUp ? "text-emerald-500" : "text-red-500"}`}
-                  >
-                    {row.pnl}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Recent trades — derived from live signal points */}
+      {(() => {
+        const sigs = state?.liveSigs ?? [];
+        const pts = state?.livePts ?? [];
+        if (!sigs.length) return null;
+
+        // Build trade rows from signals; sell rows compute pnl vs preceding buy
+        const rows = [...sigs]
+          .reverse()
+          .slice(0, 10)
+          .map((sig) => {
+            const isBuy = sig.type === "buy";
+            const pt = pts[sig.i] ?? 0;
+            const price = (84231 + Math.round(pt * 80)).toLocaleString();
+            // Timestamp: interpolate from startTimeRef
+            const totalPts = pts.length;
+            const ratio = totalPts <= 1 ? 0 : sig.i / (totalPts - 1);
+            const elapsed = Date.now() - startTimeRef.current;
+            const sigMs =
+              startTimeRef.current - totalPts * 300 + ratio * (totalPts * 300);
+            const d = new Date(sigMs);
+            const pad = (n: number) => String(n).padStart(2, "0");
+            const timeStr = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+            let pnl = "持仓中";
+            let isUp = true;
+            let isPending = true;
+            if (!isBuy) {
+              const prevBuy = sigs
+                .slice()
+                .reverse()
+                .find((s) => s.type === "buy" && s.i < sig.i);
+              if (prevBuy) {
+                const diff = pt - (pts[prevBuy.i] ?? 0);
+                pnl = `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
+                isUp = diff >= 0;
+              } else {
+                pnl = "—";
+              }
+              isPending = false;
+            } else if (isStopped) {
+              pnl = "已平仓";
+              isPending = false;
+            }
+
+            return { timeStr, isBuy, price, pnl, isUp, isPending };
+          });
+
+        return (
+          <div>
+            <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
+              最近成交
+            </div>
+            <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-muted/50">
+                    {["时间", "方向", "价格", "盈亏"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr
+                      key={i}
+                      className="border-t border-muted/30 hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                        {row.timeStr}
+                      </td>
+                      <td
+                        className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? "text-emerald-500" : "text-red-500"}`}
+                      >
+                        {row.isBuy ? "买入" : "卖出"}
+                      </td>
+                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                        {row.price}
+                      </td>
+                      <td
+                        className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isPending ? "text-muted-foreground" : row.isUp ? "text-emerald-500" : "text-red-500"}`}
+                      >
+                        {row.pnl}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 优化此策略 */}
       {onClone && (

@@ -60,6 +60,11 @@ export interface StrategyState {
 export interface Signal {
   i: number;
   type: "buy" | "sell";
+  // Snapshot fields written at signal time — never change after creation
+  price?: number; // exact BTC price at signal moment
+  ts?: number; // unix ms timestamp
+  pnl?: string; // e.g. "+2.34%" for sell signals; undefined for buy
+  trigger?: string; // e.g. "EMA上穿"
 }
 
 export interface ParsedParams {

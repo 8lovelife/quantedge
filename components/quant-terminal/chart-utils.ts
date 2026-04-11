@@ -71,7 +71,7 @@ export function drawBacktestChart(
 
   const W = canvas.parentElement?.getBoundingClientRect().width || 500;
   const H = 140;
-  const PAD: ChartPadding = { l: 40, r: 12, t: 12, b: 24 };
+  const PAD: ChartPadding = { l: 40, r: 12, t: 20, b: 24 };
   const cW = W - PAD.l - PAD.r;
   const cH = H - PAD.t - PAD.b;
 
@@ -152,13 +152,39 @@ export function drawBacktestChart(
   });
   ctx.stroke();
 
-  // Signals
+  // Signals — buy ▼ above line (green), sell ▲ below line (red)
   sigs
     .filter((s) => s.i < pts.length)
     .forEach((s) => {
+      const sx = xM(s.i);
+      const sy = yM(pts[s.i]);
+      const isBuy = s.type === "buy";
+      const color = isBuy ? "#10b981" : "#ef4444";
+      const glowColor = isBuy ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)";
+      const r = 5;
+      const GAP = 8;
+      const rawTy = isBuy ? sy - GAP - r : sy + GAP + r;
+      const ty = Math.max(PAD.t + r + 2, Math.min(H - PAD.b - r - 2, rawTy));
+
+      // Glow
       ctx.beginPath();
-      ctx.arc(xM(s.i), yM(pts[s.i]), 5, 0, Math.PI * 2);
-      ctx.fillStyle = s.type === "buy" ? "#10b981" : "#ef4444";
+      ctx.arc(sx, ty, r + 3, 0, Math.PI * 2);
+      ctx.fillStyle = glowColor;
+      ctx.fill();
+
+      // Triangle pointing toward the line
+      ctx.beginPath();
+      if (isBuy) {
+        ctx.moveTo(sx, ty + r);
+        ctx.lineTo(sx - r, ty - r + 2);
+        ctx.lineTo(sx + r, ty - r + 2);
+      } else {
+        ctx.moveTo(sx, ty - r);
+        ctx.lineTo(sx - r, ty + r - 2);
+        ctx.lineTo(sx + r, ty + r - 2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
       ctx.fill();
     });
 
@@ -217,7 +243,7 @@ export function drawPaperChart(
 
   const W = canvas.parentElement?.getBoundingClientRect().width || 500;
   const H = 140;
-  const PAD: ChartPadding = { l: 40, r: 12, t: 12, b: 24 };
+  const PAD: ChartPadding = { l: 40, r: 12, t: 20, b: 24 };
   const cW = W - PAD.l - PAD.r;
   const cH = H - PAD.t - PAD.b;
 
@@ -322,9 +348,7 @@ export function drawPaperChart(
   });
   ctx.stroke();
 
-  // ── Signal dots ──────────────────────────────────────────────────────────────
-  // Filter to signals whose global index falls within the current viewport.
-  // Deduplicate by canvas X distance so zoomed-out views don't pile circles.
+  // ── Signal markers — buy ▼ above line (green), sell ▲ below line (red) ──────
   const MIN_SIG_PX = 12;
   let lastSigX = -MIN_SIG_PX * 2;
 
@@ -335,16 +359,34 @@ export function drawPaperChart(
       const x = xM(s.i);
       if (x - lastSigX < MIN_SIG_PX) return;
       lastSigX = x;
-      // glow ring
+      const sy = yM(allPts[s.i]);
+      const isBuy = s.type === "buy";
+      const color = isBuy ? "#10b981" : "#ef4444";
+      const glowColor = isBuy ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)";
+      const r = 5;
+      const GAP = 8;
+      const rawTy = isBuy ? sy - GAP - r : sy + GAP + r;
+      const ty = Math.max(PAD.t + r + 2, Math.min(H - PAD.b - r - 2, rawTy));
+
+      // Glow
       ctx.beginPath();
-      ctx.arc(x, yM(allPts[s.i]), 8, 0, Math.PI * 2);
-      ctx.fillStyle =
-        s.type === "buy" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)";
+      ctx.arc(x, ty, r + 3, 0, Math.PI * 2);
+      ctx.fillStyle = glowColor;
       ctx.fill();
-      // dot
+
+      // Triangle pointing toward the line
       ctx.beginPath();
-      ctx.arc(x, yM(allPts[s.i]), 5, 0, Math.PI * 2);
-      ctx.fillStyle = s.type === "buy" ? "#10b981" : "#ef4444";
+      if (isBuy) {
+        ctx.moveTo(x, ty + r);
+        ctx.lineTo(x - r, ty - r + 2);
+        ctx.lineTo(x + r, ty - r + 2);
+      } else {
+        ctx.moveTo(x, ty - r);
+        ctx.lineTo(x - r, ty + r - 2);
+        ctx.lineTo(x + r, ty + r - 2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
       ctx.fill();
     });
 
@@ -439,7 +481,7 @@ export function drawLiveChart(
 
   const W = canvas.parentElement?.getBoundingClientRect().width || 500;
   const H = 140;
-  const PAD: ChartPadding = { l: 40, r: 12, t: 12, b: 24 };
+  const PAD: ChartPadding = { l: 40, r: 12, t: 20, b: 24 };
   const cW = W - PAD.l - PAD.r;
   const cH = H - PAD.t - PAD.b;
 
@@ -511,29 +553,47 @@ export function drawLiveChart(
   });
   ctx.stroke();
 
-  // Signals with glow
+  // Signals — buy ▼ floats above the line (green), sell ▲ floats below (red)
   sigs.forEach((s) => {
     if (s.i >= pts.length) return;
+    const sx = xM(s.i);
+    const sy = yM(pts[s.i]);
+    const isBuy = s.type === "buy";
+    const color = isBuy ? "#10b981" : "#ef4444";
+    const glowColor = isBuy ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)";
+    const r = 5;
+    const GAP = 8; // px gap between line and triangle tip
+    // Clamp so triangle stays inside canvas
+    const rawTy = isBuy ? sy - GAP - r : sy + GAP + r;
+    const ty = Math.max(PAD.t + r + 2, Math.min(H - PAD.b - r - 2, rawTy));
+
+    // Glow
     ctx.beginPath();
-    ctx.arc(xM(s.i), yM(pts[s.i]), 5, 0, Math.PI * 2);
-    ctx.fillStyle = s.type === "buy" ? "#10b981" : "#ef4444";
+    ctx.arc(sx, ty, r + 3, 0, Math.PI * 2);
+    ctx.fillStyle = glowColor;
     ctx.fill();
 
-    // Outer glow
+    // Triangle pointing toward the line
     ctx.beginPath();
-    ctx.arc(xM(s.i), yM(pts[s.i]), 9, 0, Math.PI * 2);
-    ctx.strokeStyle =
-      s.type === "buy" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (isBuy) {
+      // ▼ tip points down toward line
+      ctx.moveTo(sx, ty + r);
+      ctx.lineTo(sx - r, ty - r + 2);
+      ctx.lineTo(sx + r, ty - r + 2);
+    } else {
+      // ▲ tip points up toward line
+      ctx.moveTo(sx, ty - r);
+      ctx.lineTo(sx - r, ty + r - 2);
+      ctx.lineTo(sx + r, ty + r - 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
   });
 
-  // Current point — small dot only, no large glow rings.
-  // The animated pulse ring is rendered via CSS in the HTML overlay (live-tab.tsx)
-  // so it never overlaps the "● LIVE" badge.
+  // Current point — small circle at live edge
   const lx = xM(pts.length - 1);
   const ly = yM(pts[pts.length - 1]);
-
   ctx.beginPath();
   ctx.arc(lx, ly, 4, 0, Math.PI * 2);
   ctx.fillStyle = "#10b981";

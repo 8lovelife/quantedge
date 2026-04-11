@@ -87,14 +87,17 @@ export function LiveTab({
     const slicedSigs = sigs
       .filter((s) => s.i >= vStart && s.i <= vEnd)
       .map((s) => ({ ...s, i: s.i - vStart }));
-    drawLiveChart(
-      canvasRef.current,
-      sliced,
-      slicedSigs,
-      startTimeRef.current,
-      300,
-    );
+    drawLiveChart(canvasRef.current, sliced, slicedSigs, undefined, 300);
   };
+
+  // Reset viewport whenever the active strategy changes
+  useEffect(() => {
+    viewStartRef.current = 0;
+    viewEndRef.current = 0;
+    isLiveViewRef.current = true;
+    setIsLiveView(true);
+    setTooltip(null);
+  }, [activeStrategyId]);
 
   // Redraw canvas whenever pts change
   useEffect(() => {
@@ -102,7 +105,14 @@ export function LiveTab({
     if (!pts?.length) return;
     if (isLiveViewRef.current) advanceLiveViewport(pts.length);
     redrawLive(pts, state.liveSigs);
-  }, [state?.livePts, state?.liveSigs, isPaused, isArchived, isStopped]); // eslint-disable-line
+  }, [
+    state?.livePts,
+    state?.liveSigs,
+    isPaused,
+    isArchived,
+    isStopped,
+    activeStrategyId,
+  ]); // eslint-disable-line
 
   // Wheel + drag zoom/pan
   useEffect(() => {
@@ -280,6 +290,25 @@ export function LiveTab({
 
       {/* Chart */}
       <div className="relative">
+        {/* Back-to-live button above chart, right aligned */}
+        <div className="flex justify-end mb-1.5 h-4">
+          {!isLiveView && (
+            <button
+              onClick={() => {
+                isLiveViewRef.current = true;
+                setIsLiveView(true);
+                const pts = state?.livePts;
+                if (pts?.length) {
+                  advanceLiveViewport(pts.length);
+                  redrawLive(pts, state.liveSigs);
+                }
+              }}
+              className="font-mono text-[10px] font-medium text-amber-500 hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-0"
+            >
+              ↩ 回到实时
+            </button>
+          )}
+        </div>
         <canvas
           ref={canvasRef}
           className="w-full h-[140px] rounded-lg bg-card"
@@ -292,19 +321,22 @@ export function LiveTab({
             const rect = canvas.getBoundingClientRect();
             const offsetX = e.clientX - rect.left;
             const offsetY = e.clientY - rect.top;
-            const PAD_T = 12;
+            const PAD_T = 20;
             const PAD_B = 24;
             const PAD_L = 40;
             const PAD_R = 12;
+            const H = rect.height;
             const vStart = viewStartRef.current;
             const vEnd = Math.min(viewEndRef.current, state.livePts.length - 1);
             const span = Math.max(vEnd - vStart, 1);
             const drawW = rect.width - PAD_L - PAD_R;
-            const cH = rect.height - PAD_T - PAD_B;
+            const cH = H - PAD_T - PAD_B;
             const sliced = state.livePts.slice(vStart, vEnd + 1);
             const mn = Math.min(...sliced) - 1.5;
             const mx = Math.max(...sliced) + 1.5;
             const HIT_R = 14;
+            const r = 5;
+            const GAP = 8;
             let found: { sig: (typeof state.liveSigs)[0]; x: number } | null =
               null;
             for (const sig of state.liveSigs) {
@@ -317,8 +349,14 @@ export function LiveTab({
               const localIdx = sig.i - vStart;
               const x = PAD_L + (localIdx / span) * drawW;
               const pt = state.livePts[sig.i];
-              const y = PAD_T + cH - ((pt - mn) / (mx - mn || 1)) * cH;
-              if (Math.hypot(offsetX - x, offsetY - y) <= HIT_R) {
+              const lineY = PAD_T + cH - ((pt - mn) / (mx - mn || 1)) * cH;
+              const rawTy =
+                sig.type === "buy" ? lineY - GAP - r : lineY + GAP + r;
+              const ty = Math.max(
+                PAD_T + r + 2,
+                Math.min(H - PAD_B - r - 2, rawTy),
+              );
+              if (Math.hypot(offsetX - x, offsetY - ty) <= HIT_R) {
                 found = { sig, x };
                 break;
               }
@@ -419,36 +457,6 @@ export function LiveTab({
               </div>
             );
           })()}
-        {/* Zoom/pan hints + back-to-live */}
-        <div className="flex items-center justify-between mt-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[9px] text-muted-foreground/50">
-              滚轮缩放
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground/30">
-              ·
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground/50">
-              拖拽平移
-            </span>
-          </div>
-          {!isLiveView && (
-            <button
-              onClick={() => {
-                isLiveViewRef.current = true;
-                setIsLiveView(true);
-                const pts = state?.livePts;
-                if (pts?.length) {
-                  advanceLiveViewport(pts.length);
-                  redrawLive(pts, state.liveSigs);
-                }
-              }}
-              className="font-mono text-[10px] font-medium text-amber-500 hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-0"
-            >
-              ↩ 回到实时
-            </button>
-          )}
-        </div>
         {isStopped && (
           <div className="absolute inset-0 top-6 rounded-lg bg-red-500/5 border border-red-500/10 flex items-center justify-center pointer-events-none">
             <span className="font-mono text-[10px] text-red-500/50 tracking-widest uppercase">
@@ -456,6 +464,20 @@ export function LiveTab({
             </span>
           </div>
         )}
+      </div>
+      {/* Zoom hints — centered below chart */}
+      <div className="flex items-center justify-center gap-1.5 -mt-2">
+        <span className="font-mono text-[9px] text-muted-foreground/50">
+          滚轮缩放
+        </span>
+        <span className="font-mono text-[9px] text-muted-foreground/30">·</span>
+        <span className="font-mono text-[9px] text-muted-foreground/50">
+          拖拽平移
+        </span>
+        <span className="font-mono text-[9px] text-muted-foreground/30">·</span>
+        <span className="font-mono text-[9px] text-muted-foreground/50">
+          缩小可找回历史信号点
+        </span>
       </div>
 
       {/* Secondary stats */}
@@ -511,97 +533,102 @@ export function LiveTab({
         </div>
       </div>
 
-      {/* Recent trades — derived from live signal points */}
+      {/* Recent trades — read from immutable signal snapshots, never re-computed */}
       {(() => {
         const sigs = state?.liveSigs ?? [];
-        const pts = state?.livePts ?? [];
-        if (!sigs.length) return null;
 
-        // Build trade rows from signals; sell rows compute pnl vs preceding buy
-        const rows = [...sigs]
-          .reverse()
-          .slice(0, 10)
-          .map((sig) => {
-            const isBuy = sig.type === "buy";
-            const pt = pts[sig.i] ?? 0;
-            const price = (84231 + Math.round(pt * 80)).toLocaleString();
-            // Timestamp: interpolate from startTimeRef
-            const totalPts = pts.length;
-            const ratio = totalPts <= 1 ? 0 : sig.i / (totalPts - 1);
-            const elapsed = Date.now() - startTimeRef.current;
-            const sigMs =
-              startTimeRef.current - totalPts * 300 + ratio * (totalPts * 300);
-            const d = new Date(sigMs);
-            const pad = (n: number) => String(n).padStart(2, "0");
-            const timeStr = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        const emptyRow = (
+          <tr>
+            <td
+              className="px-2.5 py-3 font-mono text-[11px] text-muted-foreground"
+              colSpan={6}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                等待信号触发...
+              </span>
+            </td>
+          </tr>
+        );
 
-            let pnl = "持仓中";
-            let isUp = true;
-            let isPending = true;
-            if (!isBuy) {
-              const prevBuy = sigs
-                .slice()
-                .reverse()
-                .find((s) => s.type === "buy" && s.i < sig.i);
-              if (prevBuy) {
-                const diff = pt - (pts[prevBuy.i] ?? 0);
-                pnl = `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
-                isUp = diff >= 0;
-              } else {
-                pnl = "—";
-              }
-              isPending = false;
-            } else if (isStopped) {
-              pnl = "已平仓";
-              isPending = false;
-            }
-
-            return { timeStr, isBuy, price, pnl, isUp, isPending };
-          });
+        const rows = !sigs.length
+          ? []
+          : [...sigs]
+              .reverse()
+              .slice(0, 10)
+              .map((sig) => {
+                const isBuy = sig.type === "buy";
+                // Use frozen snapshot — price/ts/pnl never changes after signal is written
+                const price =
+                  sig.price != null ? sig.price.toLocaleString() : "—";
+                const d = sig.ts != null ? new Date(sig.ts) : new Date();
+                const pad = (n: number) => String(n).padStart(2, "0");
+                const timeStr = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                const pnl = isBuy
+                  ? isStopped
+                    ? "已平仓"
+                    : "持仓中"
+                  : (sig.pnl ?? "—");
+                const isPending = isBuy && !isStopped;
+                const isUp =
+                  !isBuy && sig.pnl != null ? !sig.pnl.startsWith("-") : true;
+                const trigger = sig.trigger ?? (isBuy ? "EMA上穿" : "EMA下穿");
+                return { timeStr, isBuy, price, pnl, isPending, isUp, trigger };
+              });
 
         return (
           <div>
             <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
-              最近成交
+              {isStopped ? "成交记录" : "最近成交（实时）"}
             </div>
             <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full">
                 <thead>
                   <tr className="bg-muted/50">
-                    {["时间", "方向", "价格", "盈亏"].map((h) => (
-                      <th
-                        key={h}
-                        className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    {["时间", "方向", "价格", "数量", "盈亏", "触发条件"].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="px-2.5 py-2 text-left font-mono text-[10px] text-muted-foreground font-medium"
+                        >
+                          {h}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row, i) => (
-                    <tr
-                      key={i}
-                      className="border-t border-muted/30 hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                        {row.timeStr}
-                      </td>
-                      <td
-                        className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? "text-emerald-500" : "text-red-500"}`}
-                      >
-                        {row.isBuy ? "买入" : "卖出"}
-                      </td>
-                      <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
-                        {row.price}
-                      </td>
-                      <td
-                        className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isPending ? "text-muted-foreground" : row.isUp ? "text-emerald-500" : "text-red-500"}`}
-                      >
-                        {row.pnl}
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.length === 0
+                    ? emptyRow
+                    : rows.map((row, i) => (
+                        <tr
+                          key={i}
+                          className="border-t border-muted/30 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                            {row.timeStr}
+                          </td>
+                          <td
+                            className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isBuy ? "text-emerald-500" : "text-red-500"}`}
+                          >
+                            {row.isBuy ? "买入" : "卖出"}
+                          </td>
+                          <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                            {row.price}
+                          </td>
+                          <td className="px-2.5 py-2 font-mono text-[11px] text-foreground">
+                            0.012
+                          </td>
+                          <td
+                            className={`px-2.5 py-2 font-mono text-[11px] font-medium ${row.isPending ? "text-muted-foreground" : row.isUp ? "text-emerald-500" : "text-red-500"}`}
+                          >
+                            {row.pnl}
+                          </td>
+                          <td className="px-2.5 py-2 font-mono text-[11px] text-muted-foreground">
+                            {row.trigger}
+                          </td>
+                        </tr>
+                      ))}
                 </tbody>
               </table>
             </div>

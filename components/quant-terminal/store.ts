@@ -280,7 +280,14 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => {
       const last = pts[pts.length - 1];
       const nv = last + (Math.random() - 0.46) * 1.4 + 0.15;
       pts.push(nv);
-      if (pts.length > 120) pts.shift();
+      if (pts.length > 120) {
+        pts.shift();
+        // Shift signal indices to match the new pts array; drop signals that fell off
+        for (let j = sigs.length - 1; j >= 0; j--) {
+          sigs[j] = { ...sigs[j], i: sigs[j].i - 1 };
+          if (sigs[j].i < 0) sigs.splice(j, 1);
+        }
+      }
 
       // Signal detection
       if (pts.length > 5) {
@@ -289,10 +296,17 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => {
           delta > 1.8 &&
           (sigs.length === 0 || sigs[sigs.length - 1].type === "sell")
         ) {
-          sigs.push({ i: pts.length - 1, type: "buy" });
+          const buyPrice = 84231 + Math.round(nv * 80);
+          sigs.push({
+            i: pts.length - 1,
+            type: "buy",
+            price: buyPrice,
+            ts: Date.now(),
+            trigger: "EMA上穿",
+          });
           state.addLog(
             "实盘",
-            `<span class="buy">买入</span> BTC <span class="mono">@ ${(83000 + Math.round(nv * 200)).toLocaleString()}</span>`,
+            `<span class="buy">买入</span> BTC <span class="mono">@ ${buyPrice.toLocaleString()}</span>`,
           );
         }
         if (
@@ -300,10 +314,25 @@ export const useQuantTerminalStore = create<QuantTerminalStore>((set, get) => {
           sigs.length > 0 &&
           sigs[sigs.length - 1].type === "buy"
         ) {
-          sigs.push({ i: pts.length - 1, type: "sell" });
+          const sellPrice = 84231 + Math.round(nv * 80);
+          // Find pnl vs the preceding buy signal
+          const prevBuySig = [...sigs].reverse().find((s) => s.type === "buy");
+          const pnlVal =
+            prevBuySig?.price != null
+              ? ((sellPrice - prevBuySig.price) / prevBuySig.price) * 100
+              : (nv - last) * 1.2;
+          const pnlStr = `${pnlVal >= 0 ? "+" : ""}${pnlVal.toFixed(2)}%`;
+          sigs.push({
+            i: pts.length - 1,
+            type: "sell",
+            price: sellPrice,
+            ts: Date.now(),
+            pnl: pnlStr,
+            trigger: "EMA下穿",
+          });
           state.addLog(
             "实盘",
-            `<span class="sell">卖出</span> <span class="${nv > last ? "buy" : "sell"}">${nv > last ? "+" : ""}${Math.round(Math.abs(delta) * 1.2)}%</span>`,
+            `<span class="sell">卖出</span> <span class="${pnlVal >= 0 ? "buy" : "sell"}">${pnlStr}</span>`,
           );
         }
       }

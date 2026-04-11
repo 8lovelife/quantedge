@@ -460,13 +460,22 @@ export function PaperTab({
     onMetrics: handleMetrics,
   });
 
-  // Redraw on state change (pause/done/resume)
+  // Reset viewport whenever the active strategy changes (e.g. switching tabs)
+  useEffect(() => {
+    viewStartRef.current = 0;
+    viewEndRef.current = 0;
+    isLiveViewRef.current = true;
+    setIsLiveView(true);
+    setTooltip(null);
+  }, [activeStrategyId]);
+
+  // Redraw on state change (pause/done/resume/strategy switch)
   useEffect(() => {
     if (state?.paperPts && state.paperPts.length > 1) {
       if (isLiveViewRef.current) advanceLiveViewport(state.paperPts.length);
       redraw(state.paperPts, state.paperSigs);
     }
-  }, [state, isPaused, isDone, redraw, advanceLiveViewport]);
+  }, [state, isPaused, isDone, redraw, advanceLiveViewport, activeStrategyId]);
 
   // ── Derived values ────────────────────────────────────────────────────────────
   // equityPct is parsed from the unified paperResult string stored in `strategies`.
@@ -784,12 +793,13 @@ export function PaperTab({
             const rect = canvas.getBoundingClientRect();
             const offsetX = e.clientX - rect.left;
             const offsetY = e.clientY - rect.top;
-            const PAD_T = 12;
+            const PAD_T = 20;
             const PAD_B = 24;
             const PAD_L = 40;
             const PAD_R = 12;
+            const H = rect.height;
             const drawW = rect.width - PAD_L - PAD_R;
-            const cH = rect.height - PAD_T - PAD_B;
+            const cH = H - PAD_T - PAD_B;
             const vPts = cur.paperPts.slice(
               viewStartRef.current,
               viewEndRef.current + 1,
@@ -797,8 +807,9 @@ export function PaperTab({
             const mn = Math.min(...vPts) - 1.5;
             const mx = Math.max(...vPts) + 1.5;
             const span = Math.max(viewEndRef.current - viewStartRef.current, 1);
-            // Check each signal point — show tooltip only when within 14px
             const HIT_R = 14;
+            const r = 5;
+            const GAP = 8;
             let found: {
               sig: (typeof cur.paperSigs)[0];
               x: number;
@@ -810,9 +821,16 @@ export function PaperTab({
               const localIdx = sig.i - viewStartRef.current;
               const x = PAD_L + (localIdx / span) * drawW;
               const pt = cur.paperPts[sig.i];
-              const y = PAD_T + cH - ((pt - mn) / (mx - mn || 1)) * cH;
-              if (Math.hypot(offsetX - x, offsetY - y) <= HIT_R) {
-                found = { sig, x, y };
+              const lineY = PAD_T + cH - ((pt - mn) / (mx - mn || 1)) * cH;
+              // Use triangle's actual rendered position (same clamp as chart-utils)
+              const rawTy =
+                sig.type === "buy" ? lineY - GAP - r : lineY + GAP + r;
+              const ty = Math.max(
+                PAD_T + r + 2,
+                Math.min(H - PAD_B - r - 2, rawTy),
+              );
+              if (Math.hypot(offsetX - x, offsetY - ty) <= HIT_R) {
+                found = { sig, x, y: ty };
                 break;
               }
             }

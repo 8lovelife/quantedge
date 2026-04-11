@@ -77,18 +77,6 @@ export function BacktestTab({
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState("加载历史数据...");
 
-  // Viewport state (refs — don't drive React re-render)
-  const DEFAULT_WINDOW = 90; // show all by default for backtest
-  const viewStartRef = useRef(0);
-  const viewEndRef = useRef(0);
-  const isDefaultViewRef = useRef(true);
-  const [isDefaultView, setIsDefaultView] = useState(true);
-  const dragRef = useRef<{
-    startX: number;
-    startVS: number;
-    startVE: number;
-  } | null>(null);
-
   const isDone = state?.stages.bt === "done";
   const isRunning = state?.stages.bt === "running";
   const btRange = state?.btRange ?? "3m";
@@ -105,129 +93,14 @@ export function BacktestTab({
     }
   }, [activeStrategyId, state, isDone, isRunning, setStrategyState]);
 
-  // Reset viewport when strategy changes or data first loads
-  useEffect(() => {
-    if (isDone && state?.btPts.length) {
-      viewStartRef.current = 0;
-      viewEndRef.current = state.btPts.length - 1;
-      isDefaultViewRef.current = true;
-      setIsDefaultView(true);
-    }
-  }, [activeStrategyId, isDone, state?.btPts.length]);
-
   // ── Redraw helper ────────────────────────────────────────────────────────────
   const redraw = useCallback(
     (allPts: number[], allSigs: typeof state.btSigs) => {
       if (!canvasRef.current || allPts.length < 2) return;
-      drawBacktestChart(canvasRef.current, allPts, allSigs, {
-        viewport: {
-          viewStart: viewStartRef.current,
-          viewEnd: viewEndRef.current,
-        },
-      });
+      drawBacktestChart(canvasRef.current, allPts, allSigs, {});
     },
     [],
   );
-
-  // ── Canvas wheel / drag interaction (same pattern as paper-tab) ──────────────
-  useEffect(() => {
-    if (!isDone) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const PAD_L = 40;
-    const PAD_R = 12;
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const allPts =
-        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
-          ?.btPts;
-      const allSigs =
-        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
-          ?.btSigs;
-      if (!allPts || allPts.length < 2) return;
-
-      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
-      const span = viewEndRef.current - viewStartRef.current;
-      const factor = e.deltaY < 0 ? 1.3 : 0.77;
-      const newSpan = Math.min(
-        allPts.length - 1,
-        Math.max(5, Math.round(span / factor)),
-      );
-      const mouseRatio = Math.max(0, Math.min(1, (e.offsetX - PAD_L) / cW));
-      const anchor = viewStartRef.current + Math.round(span * mouseRatio);
-      viewStartRef.current = Math.max(
-        0,
-        anchor - Math.round(newSpan * mouseRatio),
-      );
-      viewEndRef.current = Math.min(
-        allPts.length - 1,
-        viewStartRef.current + newSpan,
-      );
-
-      const atDefault =
-        viewStartRef.current === 0 && viewEndRef.current === allPts.length - 1;
-      isDefaultViewRef.current = atDefault;
-      setIsDefaultView(atDefault);
-
-      redraw(allPts, allSigs ?? []);
-    };
-
-    const onMouseDown = (e: MouseEvent) => {
-      dragRef.current = {
-        startX: e.clientX,
-        startVS: viewStartRef.current,
-        startVE: viewEndRef.current,
-      };
-      canvas.style.cursor = "grabbing";
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragRef.current) return;
-      const allPts =
-        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
-          ?.btPts;
-      const allSigs =
-        useQuantTerminalStore.getState().strategyStates[activeStrategyId]
-          ?.btSigs;
-      if (!allPts || allPts.length < 2) return;
-
-      const cW = canvas.getBoundingClientRect().width - PAD_L - PAD_R;
-      const span = dragRef.current.startVE - dragRef.current.startVS;
-      const pxPerPt = cW / Math.max(span, 1);
-      const delta = Math.round((dragRef.current.startX - e.clientX) / pxPerPt);
-
-      viewStartRef.current = Math.max(0, dragRef.current.startVS + delta);
-      viewEndRef.current = Math.min(
-        allPts.length - 1,
-        dragRef.current.startVE + delta,
-      );
-
-      isDefaultViewRef.current = false;
-      setIsDefaultView(false);
-
-      redraw(allPts, allSigs ?? []);
-    };
-
-    const onMouseUp = () => {
-      dragRef.current = null;
-      canvas.style.cursor = "grab";
-    };
-
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    canvas.style.cursor = "grab";
-
-    return () => {
-      canvas.removeEventListener("wheel", onWheel);
-      canvas.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [isDone, activeStrategyId, redraw]);
 
   // Animation for running state
   useEffect(() => {
@@ -458,21 +331,6 @@ export function BacktestTab({
               回测净值曲线 — {strategy_asset_display(state)} ·{" "}
               {RANGE_DATES[btRange]}
             </div>
-            {!isDefaultView && (
-              <button
-                onClick={() => {
-                  if (!state?.btPts.length) return;
-                  viewStartRef.current = 0;
-                  viewEndRef.current = state.btPts.length - 1;
-                  isDefaultViewRef.current = true;
-                  setIsDefaultView(true);
-                  redraw(state.btPts, state.btSigs);
-                }}
-                className="font-mono text-[10px] font-medium text-amber-500 hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-0"
-              >
-                ↩ 还原全览
-              </button>
-            )}
           </div>
           <div className="flex gap-3.5 mb-2 text-[10px] font-mono text-muted-foreground">
             <span>
@@ -482,34 +340,16 @@ export function BacktestTab({
               <span className="text-muted-foreground">╌</span> BTC持仓
             </span>
             <span>
-              <span className="text-emerald-500">●</span> 买入
+              <span className="text-emerald-500">▼</span> 买入
             </span>
             <span>
-              <span className="text-red-500">●</span> 卖出
+              <span className="text-red-500">▲</span> 卖出
             </span>
           </div>
           <canvas
             ref={canvasRef}
             className="w-full h-[140px] rounded-lg bg-card"
           />
-          {/* Interaction hint — centered */}
-          <div className="flex items-center justify-center gap-1.5 mt-1.5">
-            <span className="font-mono text-[9px] text-muted-foreground/50">
-              滚轮缩放
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground/30">
-              ·
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground/50">
-              拖拽平移
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground/30">
-              ·
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground/50">
-              缩小可找回历史信号点
-            </span>
-          </div>
         </div>
 
         {/* Trade table — derived from real btSigs/btPts */}

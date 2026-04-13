@@ -1,0 +1,22 @@
+// 📁 app/api/quant-terminal/backtest/result/route.ts
+// BFF: 获取已完成的回测结果
+
+import { NextRequest, NextResponse } from "next/server";
+
+const BACKEND = process.env.BACKEND_URL ?? "http://localhost:8000";
+
+export async function GET(request: NextRequest) {
+  try {
+    const qs = request.nextUrl.searchParams.toString();
+    const res = await fetch(`${BACKEND}/backtest/result?${qs}`, {
+      headers: request.headers.get("Authorization")
+        ? { Authorization: request.headers.get("Authorization")! }
+        : {},
+    });
+    if (!res.ok) return NextResponse.json({ error: await res.text() }, { status: res.status });
+    return NextResponse.json(await res.json());
+  } catch (err) {
+    console.error("[quant-terminal/backtest/result]", err);
+    return NextResponse.json({ error: "Backend unreachable" }, { status: 502 });
+  }
+}

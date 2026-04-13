@@ -166,3 +166,35 @@ export interface StrategyFamily {
   baseName: string;
   members: Strategy[]; // sorted version asc, latest first for display
 }
+
+// ─── Shared API Types ─────────────────────────────────────────────────────────
+
+export type Side = "buy" | "sell";
+export type SessionStatus = "running" | "paused" | "done" | "stopped";
+
+export interface Signal {
+  i: number;
+  type: Side;
+  price: number;
+  ts: number;
+  pnl?: string;
+  trigger: string;
+}
+
+export interface TradeRecord {
+  ts: number;
+  side: Side;
+  price: number;
+  qty: number;
+  pnlPct?: number;
+  trigger: string;
+}
+
+export interface Metrics {
+  equityPct: number;
+  maxDrawdownPct: number;
+  winRate: number;
+  tradeCount: number;
+  slippage: number;
+  sharpe: number;
+}

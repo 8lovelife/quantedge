@@ -1,68 +1,81 @@
-// ─── Paper Trading API Types ──────────────────────────────────────────────────
-// These types define the contract between the API stream and the UI.
-// When real data is connected, only the server-side mock needs to change.
+// 📁 lib/api/quant-terminal/types.ts
+// ─── Quant Terminal — 所有共享类型 ───────────────────────────────────────────
+// ─── API 共享基础类型 ─────────────────────────────────────────────────────────
 
-/** A single price tick pushed from the stream */
-export interface PaperTick {
-  type: "tick";
-  ts: number; // unix ms timestamp
-  price: number; // current BTC price (absolute, e.g. 84231)
-  equity: number; // strategy equity index (starts at 0, +/- pct moves)
+export type Side = "buy" | "sell";
+export type SessionStatus = "running" | "paused" | "done" | "stopped";
+
+export interface TradeRecord {
+  ts: number;
+  side: Side;
+  price: number;
+  qty: number;
+  pnlPct?: number;
+  trigger: string;
 }
 
-/** A trade signal emitted by the strategy engine */
+export interface Metrics {
+  equityPct: number;
+  maxDrawdownPct: number;
+  winRate: number;
+  tradeCount: number;
+  slippage: number;
+  sharpe: number;
+}
+
+// ─── Paper Trading Stream Types ───────────────────────────────────────────────
+
+export interface PaperTick {
+  type: "tick";
+  ts: number;
+  price: number;
+  equity: number;
+}
+
 export interface PaperSignal {
   type: "signal";
   ts: number;
-  side: "buy" | "sell";
-  price: number; // execution price
-  qty: number; // BTC quantity
-  pnlPct?: number; // realized P&L % (sell only)
-  trigger: string; // human-readable trigger description
+  side: Side;
+  price: number;
+  qty: number;
+  pnlPct?: number;
+  trigger: string;
 }
 
-/** Rolling metrics snapshot pushed periodically */
 export interface PaperMetrics {
   type: "metrics";
   ts: number;
-  equityPct: number; // total equity change %
-  maxDrawdownPct: number; // max drawdown % since start
-  winRate: number; // 0-100
-  tradeCount: number; // total closed trades
-  slippage: number; // avg slippage %
-  sharpe: number; // Sharpe ratio (rolling)
+  equityPct: number;
+  maxDrawdownPct: number;
+  winRate: number;
+  tradeCount: number;
+  slippage: number;
+  sharpe: number;
 }
 
-/** Connection established / heartbeat */
 export interface PaperHeartbeat {
   type: "heartbeat";
   ts: number;
   strategyId: string;
-  status: "running" | "paused" | "done";
+  status: SessionStatus;
 }
 
-/** Any message coming from the stream */
 export type PaperStreamEvent =
   | PaperTick
   | PaperSignal
   | PaperMetrics
   | PaperHeartbeat;
 
-// ─── REST snapshot (initial load) ─────────────────────────────────────────────
-
 export interface PaperSnapshot {
   strategyId: string;
-  status: "running" | "paused" | "done";
-  startedAt: number; // unix ms
-  equityHistory: number[]; // array of equity index values (for chart)
-  signals: Array<{
-    i: number; // index into equityHistory
-    type: "buy" | "sell";
-  }>;
+  status: SessionStatus;
+  startedAt: number;
+  equityHistory: number[];
+  signals: Array<{ i: number; type: Side }>;
   metrics: PaperMetrics;
   recentTrades: Array<{
     ts: number;
-    side: "buy" | "sell";
+    side: Side;
     price: number;
     qty: number;
     pnlPct?: number;
@@ -70,7 +83,7 @@ export interface PaperSnapshot {
   }>;
 }
 
-// Quant Terminal Types
+// ─── UI / Store 类型 ──────────────────────────────────────────────────────────
 
 export type StageStatus =
   | "locked"
@@ -84,14 +97,17 @@ export type BtRange = "1m" | "3m" | "6m" | "1y";
 
 export interface Strategy {
   id: string;
-  name: string; // base name, no version suffix
+  name: string;
   asset: string;
   timeframe: string;
   type: string;
   returnRate: string;
   returnHint: string;
-  familyId: string; // groups original + all clones together
-  version: number; // 1 = original, 2 = first iteration, etc.
+  btResult?: string;
+  paperResult?: string;
+  liveResult?: string;
+  familyId: string;
+  version: number;
 }
 
 export interface StrategyStages {
@@ -102,6 +118,16 @@ export interface StrategyStages {
 }
 
 export type PaperPlanDays = number;
+
+// Signal — 唯一定义，price/ts/pnl/trigger 可选以兼容旧用法
+export interface Signal {
+  i: number;
+  type: Side;
+  price?: number;
+  ts?: number;
+  pnl?: string;
+  trigger?: string;
+}
 
 export interface StrategyState {
   stages: StrategyStages;
@@ -114,19 +140,15 @@ export interface StrategyState {
   paperSigs: Signal[];
   paperRef: number[];
   paperDone: boolean;
-  paperPlanDays: PaperPlanDays; // planned duration chosen before starting
-  paperStartTime: number; // unix ms when paper trading started (0 = not started)
-  paperEndTime: number; // unix ms of planned end = startTime + planDays*86400000
+  paperPlanDays: PaperPlanDays;
+  paperStartTime: number;
+  paperEndTime: number;
+  paperTickMs: number;
   livePts: number[];
   liveSigs: Signal[];
   showPro: boolean;
   parsedParams?: ParsedParams;
   dslCode?: string;
-}
-
-export interface Signal {
-  i: number;
-  type: "buy" | "sell";
 }
 
 export interface ParsedParams {
@@ -160,41 +182,8 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-// A family = original strategy + all iterations, grouped for display
 export interface StrategyFamily {
   familyId: string;
   baseName: string;
-  members: Strategy[]; // sorted version asc, latest first for display
-}
-
-// ─── Shared API Types ─────────────────────────────────────────────────────────
-
-export type Side = "buy" | "sell";
-export type SessionStatus = "running" | "paused" | "done" | "stopped";
-
-export interface Signal {
-  i: number;
-  type: Side;
-  price: number;
-  ts: number;
-  pnl?: string;
-  trigger: string;
-}
-
-export interface TradeRecord {
-  ts: number;
-  side: Side;
-  price: number;
-  qty: number;
-  pnlPct?: number;
-  trigger: string;
-}
-
-export interface Metrics {
-  equityPct: number;
-  maxDrawdownPct: number;
-  winRate: number;
-  tradeCount: number;
-  slippage: number;
-  sharpe: number;
+  members: Strategy[];
 }

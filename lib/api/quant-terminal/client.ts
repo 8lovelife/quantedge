@@ -1,7 +1,8 @@
+// 📁 lib/api/quant-terminal/client.ts
 // ─── Paper Trading Stream Client ─────────────────────────────────────────────
-// Uses SSE (EventSource) today, structured so switching to a real WebSocket
-// only requires changing this file — all consumers use the same interface.
+// 调用 → app/api/quant-terminal/paper/*  → 后端服务
 
+import { useEffect, useRef, useCallback } from "react";
 import type {
   PaperStreamEvent,
   PaperTick,
@@ -20,7 +21,7 @@ export type {
   PaperSnapshot,
 };
 
-// ── Event handler map ──────────────────────────────────────────────────────────
+// ── Handler map ────────────────────────────────────────────────────────────────
 
 export interface PaperStreamHandlers {
   onTick?: (event: PaperTick) => void;
@@ -32,44 +33,36 @@ export interface PaperStreamHandlers {
   onClose?: () => void;
 }
 
-// ── Connection handle returned to callers ──────────────────────────────────────
-
 export interface PaperStreamConnection {
-  /** Cleanly close the stream */
   close: () => void;
-  /** Whether the stream is currently active */
   isOpen: () => boolean;
 }
 
-// ── Base URL resolution ────────────────────────────────────────────────────────
-// Change NEXT_PUBLIC_PAPER_STREAM_URL in .env to point at a real WebSocket server.
-// Leave empty to use the built-in mock SSE route.
+// ── Base URL ───────────────────────────────────────────────────────────────────
 
-function resolveStreamUrl(strategyId: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_PAPER_STREAM_URL || "/api/paper-trading/stream";
-  return `${base}?strategyId=${encodeURIComponent(strategyId)}`;
-}
+const STREAM_BASE = "/api/quant-terminal/paper";
 
-// ── Snapshot fetch (REST, called once on connect) ──────────────────────────────
+// ── Snapshot fetch ─────────────────────────────────────────────────────────────
 
 export async function fetchPaperSnapshot(
   strategyId: string,
+  planDays = 14,
 ): Promise<PaperSnapshot> {
   const res = await fetch(
-    `/api/paper-trading/snapshot?strategyId=${encodeURIComponent(strategyId)}`,
+    `${STREAM_BASE}/snapshot?strategyId=${encodeURIComponent(strategyId)}&planDays=${planDays}`,
   );
   if (!res.ok) throw new Error(`Snapshot fetch failed: ${res.status}`);
   return res.json() as Promise<PaperSnapshot>;
 }
 
-// ── Main stream connect function ───────────────────────────────────────────────
+// ── SSE connect ────────────────────────────────────────────────────────────────
 
 export function connectPaperStream(
   strategyId: string,
   handlers: PaperStreamHandlers,
+  planDays = 14,
 ): PaperStreamConnection {
-  const url = resolveStreamUrl(strategyId);
+  const url = `${STREAM_BASE}/stream?strategyId=${encodeURIComponent(strategyId)}&planDays=${planDays}`;
   let es: EventSource | null = new EventSource(url);
   let open = false;
 
@@ -80,7 +73,6 @@ export function connectPaperStream(
 
   es.onerror = (err) => {
     handlers.onError?.(err);
-    // SSE will auto-reconnect; if you want to disable that, close here
   };
 
   es.onmessage = (e: MessageEvent) => {
@@ -121,19 +113,15 @@ export function connectPaperStream(
   };
 }
 
-// ── React hook ────────────────────────────────────────────────────────────────
-// Wraps connectPaperStream with automatic lifecycle management.
-// Import and use in paper-tab.tsx.
-
-import { useEffect, useRef, useCallback } from "react";
+// ── React hook ─────────────────────────────────────────────────────────────────
 
 export function usePaperStream(
   strategyId: string | null,
-  active: boolean, // only connect when paper trading is running
+  active: boolean,
   handlers: PaperStreamHandlers,
+  planDays = 14,
 ) {
   const connRef = useRef<PaperStreamConnection | null>(null);
-  // Stable ref to handlers to avoid reconnecting on every render
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
@@ -153,17 +141,13 @@ export function usePaperStream(
       connRef.current = null;
       return;
     }
-
-    // Avoid double-connecting (React StrictMode)
     if (connRef.current?.isOpen()) return;
-
-    connRef.current = connectPaperStream(strategyId, stableHandlers);
-
+    connRef.current = connectPaperStream(strategyId, stableHandlers, planDays);
     return () => {
       connRef.current?.close();
       connRef.current = null;
     };
-  }, [strategyId, active]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [strategyId, active, planDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return connRef;
 }

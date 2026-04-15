@@ -17,7 +17,7 @@ export type {
   BacktestStreamEvent,
 };
 
-const BASE = "/api/backtest";
+const BASE = "/api/quant-terminal/backtest";
 
 // ── Raw fetch helpers ──────────────────────────────────────────────────────────
 

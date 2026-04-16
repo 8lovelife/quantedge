@@ -1,6 +1,7 @@
+// 📁 lib/api/quant-terminal/backtest/client.ts
 // ─── Backtest Client SDK ──────────────────────────────────────────────────────
-// Calls → app/api/backtest/*  → 后端服务
-// Usage: const { run, result, progressPct, partialPts } = useBacktest();
+// 调用链：useBacktest() → app/api/quant-terminal/backtest/* → 后端服务
+// 降级：若 USE_MOCK=true 或后端不可用，自动使用 mock.ts 数据
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -8,8 +9,9 @@ import type {
   BacktestResultResponse,
   BacktestStreamEvent,
   BacktestProgressEvent,
+  Signal,
 } from "./types";
-import type { Signal } from "../types";
+import { buildMockBacktestResult, buildMockProgressEvents } from "./mock";
 
 export type {
   BacktestStartRequest,
@@ -19,11 +21,20 @@ export type {
 
 const BASE = "/api/quant-terminal/backtest";
 
+// USE_MOCK=true  → 跳过真实 API，直接用 mock 数据（开发 / 演示用）
+// USE_MOCK=false → 调用真实后端，若失败则抛出错误
+const USE_MOCK =
+  process.env.NEXT_PUBLIC_BACKTEST_MOCK === "true" ||
+  process.env.NODE_ENV === "development";
+
 // ── Raw fetch helpers ──────────────────────────────────────────────────────────
 
 export async function startBacktest(
   req: BacktestStartRequest,
 ): Promise<{ jobId: string; estimatedMs: number }> {
+  if (USE_MOCK) {
+    return { jobId: `mock_${Date.now()}`, estimatedMs: 3000 };
+  }
   const res = await fetch(`${BASE}/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,15 +44,27 @@ export async function startBacktest(
   return res.json();
 }
 
+export async function fetchBacktestStatus(jobId: string) {
+  if (USE_MOCK) {
+    return { jobId, status: "done", progressPct: 100, message: "完成" };
+  }
+  const res = await fetch(`${BASE}/status?jobId=${encodeURIComponent(jobId)}`);
+  if (!res.ok) throw new Error(`fetchBacktestStatus failed: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchBacktestResult(
   jobId: string,
 ): Promise<BacktestResultResponse> {
+  if (USE_MOCK) {
+    throw new Error("Mock mode: use connectBacktestStream instead");
+  }
   const res = await fetch(`${BASE}/result?jobId=${encodeURIComponent(jobId)}`);
   if (!res.ok) throw new Error(`fetchBacktestResult failed: ${res.status}`);
   return res.json();
 }
 
-// ── SSE stream ─────────────────────────────────────────────────────────────────
+// ── SSE stream (or mock stream) ───────────────────────────────────────────────
 
 export interface BacktestStreamHandlers {
   onProgress?: (e: BacktestProgressEvent) => void;
@@ -49,7 +72,45 @@ export interface BacktestStreamHandlers {
   onError?: (err: Error) => void;
 }
 
-export function connectBacktestStream(
+/** Mock 流：用 setInterval 按步骤推送进度事件，模拟 SSE 时序 */
+function connectMockStream(
+  params: { strategyId: string; range: string; asset: string },
+  handlers: BacktestStreamHandlers,
+): { close: () => void } {
+  const STEP_MS = 350; // 每步间隔，控制动画速度
+  const result = buildMockBacktestResult(
+    params.strategyId,
+    params.range as "1m" | "3m" | "6m" | "1y",
+    params.asset,
+  );
+  const events = buildMockProgressEvents(result);
+  let idx = 0;
+  let closed = false;
+
+  const timer = setInterval(() => {
+    if (closed || idx >= events.length) {
+      clearInterval(timer);
+      return;
+    }
+    const ev = events[idx++];
+    if (ev.type === "progress") {
+      handlers.onProgress?.(ev);
+    } else if (ev.type === "complete") {
+      handlers.onComplete?.(ev.result);
+      clearInterval(timer);
+    }
+  }, STEP_MS);
+
+  return {
+    close: () => {
+      closed = true;
+      clearInterval(timer);
+    },
+  };
+}
+
+/** 真实 SSE 流 */
+function connectRealStream(
   params: { strategyId: string; range: string; asset: string },
   handlers: BacktestStreamHandlers,
 ): { close: () => void } {
@@ -59,8 +120,9 @@ export function connectBacktestStream(
   es.onmessage = (e: MessageEvent) => {
     try {
       const event = JSON.parse(e.data) as BacktestStreamEvent;
-      if (event.type === "progress") handlers.onProgress?.(event);
-      else if (event.type === "complete") {
+      if (event.type === "progress") {
+        handlers.onProgress?.(event);
+      } else if (event.type === "complete") {
         handlers.onComplete?.(event.result);
         es?.close();
         es = null;
@@ -81,6 +143,15 @@ export function connectBacktestStream(
       es = null;
     },
   };
+}
+
+export function connectBacktestStream(
+  params: { strategyId: string; range: string; asset: string },
+  handlers: BacktestStreamHandlers,
+): { close: () => void } {
+  return USE_MOCK
+    ? connectMockStream(params, handlers)
+    : connectRealStream(params, handlers);
 }
 
 // ── React hook ─────────────────────────────────────────────────────────────────
@@ -170,5 +241,6 @@ export function useBacktest() {
     },
     [],
   );
+
   return { ...state, run, reset };
 }

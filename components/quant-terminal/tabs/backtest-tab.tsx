@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+// 📁 components/quant-terminal/tabs/backtest-tab.tsx
+
+import { useEffect, useRef, useCallback } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
-import { drawBacktestChart, generateBacktestData } from "../chart-utils";
+import { drawBacktestChart } from "../chart-utils";
+import { useBacktest } from "@/lib/api/quant-terminal/backtest/client";
+import type { Signal } from "@/lib/api/quant-terminal/backtest/types";
 
-// Maps btRange to human label
+// ── Labels ────────────────────────────────────────────────────────────────────
+
 const RANGE_LABEL: Record<string, string> = {
   "1m": "近1个月",
   "3m": "近3个月",
@@ -13,7 +18,6 @@ const RANGE_LABEL: Record<string, string> = {
   "1y": "近1年",
 };
 
-// Maps btRange to approximate date spans shown in chart
 const RANGE_DATES: Record<string, string> = {
   "1m": "2025-02 ~ 2025-03",
   "3m": "2024-12 ~ 2025-03",
@@ -21,19 +25,14 @@ const RANGE_DATES: Record<string, string> = {
   "1y": "2024-03 ~ 2025-03",
 };
 
-// Seed price for generating realistic prices from pts values
-const BASE_PRICE = 80000;
-const PRICE_SCALE = 200;
+const BASE_PRICE = 84231;
+const PRICE_SCALE = 80;
 
-/** Convert a pts value → a realistic BTC price string */
 function ptToPrice(v: number): string {
   return Math.round(BASE_PRICE + v * PRICE_SCALE).toLocaleString();
 }
 
-/** Convert a global pt index → a date string within the btRange */
 function ptToDate(i: number, total: number, btRange: string): string {
-  const now = new Date();
-  // Map range to total days
   const days: Record<string, number> = {
     "1m": 30,
     "3m": 90,
@@ -42,11 +41,13 @@ function ptToDate(i: number, total: number, btRange: string): string {
   };
   const totalDays = days[btRange] ?? 90;
   const msPerPt = (totalDays * 86_400_000) / total;
-  const d = new Date(now.getTime() - (total - i) * msPerPt);
+  const d = new Date(Date.now() - (total - i) * msPerPt);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${mm}-${dd}`;
 }
+
+// ── Props ──────────────────────────────────────────────────────────────────────
 
 interface BacktestTabProps {
   onStartPaper: () => void;
@@ -56,6 +57,8 @@ interface BacktestTabProps {
   readOnly?: boolean;
   onClone?: () => void;
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function BacktestTab({
   onStartPaper,
@@ -68,97 +71,97 @@ export function BacktestTab({
   const {
     activeStrategyId,
     strategyStates,
+    strategies,
     setStrategyState,
     addLog,
     updateBtResult,
   } = useQuantTerminalStore();
+
   const state = strategyStates[activeStrategyId];
+  const strategy = strategies.find((s) => s.id === activeStrategyId);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [progressMsg, setProgressMsg] = useState("加载历史数据...");
 
   const isDone = state?.stages.bt === "done";
   const isRunning = state?.stages.bt === "running";
   const btRange = state?.btRange ?? "3m";
 
-  // Generate data if not exists
+  // ── useBacktest hook ───────────────────────────────────────────────────────
+  const {
+    isRunning: apiRunning,
+    progressPct,
+    progressMsg,
+    partialPts,
+    partialSignals,
+    result,
+    run: runBacktest,
+    reset: resetBacktest,
+  } = useBacktest();
+
+  // ── 启动回测：调用 API hook ────────────────────────────────────────────────
+  const handleStartBacktest = useCallback(() => {
+    resetBacktest();
+    runBacktest({
+      strategyId: activeStrategyId,
+      range: btRange,
+      asset: strategy?.asset ?? "BTC/USDT",
+      timeframe: strategy?.timeframe ?? "4h",
+    });
+  }, [activeStrategyId, btRange, strategy, runBacktest, resetBacktest]);
+
+  // ── 关键：store stage 变为 running 时自动触发 API hook ────────────────────
+  // strategy-panel 调用 onStartBacktest → store.stage = "running"
+  // 这里监听到变化后立即启动 runBacktest，不依赖按钮点击
   useEffect(() => {
-    if (
-      state &&
-      (!state.btPts.length || !state.btSigs.length) &&
-      (isDone || isRunning)
-    ) {
-      const { pts, sigs } = generateBacktestData();
-      setStrategyState(activeStrategyId, { btPts: pts, btSigs: sigs });
+    if (isRunning && !apiRunning && !result) {
+      handleStartBacktest();
     }
-  }, [activeStrategyId, state, isDone, isRunning, setStrategyState]);
-
-  // ── Redraw helper ────────────────────────────────────────────────────────────
-  const redraw = useCallback(
-    (allPts: number[], allSigs: typeof state.btSigs) => {
-      if (!canvasRef.current || allPts.length < 2) return;
-      drawBacktestChart(canvasRef.current, allPts, allSigs, {});
-    },
-    [],
-  );
-
-  // Animation for running state
+  }, [isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!isRunning) return;
+    if (!result) return;
 
-    let idx = 0;
-    const total = 90;
-    let animFrame: number;
+    const metrics = result.metrics;
+    const returnStr = `+${metrics.equityPct.toFixed(1)}%`;
+    const winRateStr = `${metrics.winRate}%`;
 
-    const animate = () => {
-      idx = Math.min(idx + 1, total - 1);
-      setProgress(Math.round((idx / total) * 100));
+    setStrategyState(activeStrategyId, {
+      stages: { ...state.stages, bt: "done", paper: "ready" },
+      btDone: true,
+      btPts: result.pts,
+      btSigs: result.signals,
+    });
 
-      if (idx < 30) setProgressMsg("加载历史数据...");
-      else if (idx < 60) setProgressMsg("运行信号检测...");
-      else if (idx < 88) setProgressMsg("计算盈亏...");
-      else setProgressMsg("生成报告...");
+    updateBtResult(activeStrategyId, returnStr);
+    addLog(
+      "回测",
+      `<span class="hi">完成</span> · ${RANGE_LABEL[btRange]} · 胜率 ${winRateStr}`,
+    );
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      if (canvasRef.current && state?.btPts.length) {
-        const pts = state.btPts.slice(0, idx + 1);
-        const sigs = state.btSigs.filter((s) => s.i <= idx);
-        drawBacktestChart(canvasRef.current, pts, sigs, {
-          showAnimation: true,
-          currentIndex: idx,
-        });
-      }
-
-      if (idx < total - 1) {
-        animFrame = requestAnimationFrame(animate);
-      } else {
-        setStrategyState(activeStrategyId, {
-          stages: { ...state.stages, bt: "done", paper: "ready" },
-          btDone: true,
-        });
-        updateBtResult(activeStrategyId, "+34.2%");
-        addLog(
-          "回测",
-          `<span class="hi">完成</span> · ${RANGE_LABEL[btRange]} · 胜率 61.3%`,
-        );
-      }
-    };
-
-    animFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animFrame);
-  }, [isRunning, activeStrategyId, state, setStrategyState, addLog, btRange]);
-
-  // Draw static chart for done state (reacts to pts changes)
+  // ── 画布：运行中动画帧 ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (isDone && state?.btPts.length) {
-      redraw(state.btPts, state.btSigs);
-    }
-  }, [isDone, state?.btPts, state?.btSigs, redraw]);
+    if (!apiRunning || !canvasRef.current || partialPts.length < 2) return;
+    drawBacktestChart(canvasRef.current, partialPts, partialSignals, {
+      showAnimation: true,
+      currentIndex: partialPts.length - 1,
+    });
+  }, [apiRunning, partialPts, partialSignals]);
 
-  // ── Derive real trade table from btSigs + btPts ──────────────────────────────
+  // ── 画布：完成后静态图表 ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isDone || !canvasRef.current) return;
+    const pts = state?.btPts ?? result?.pts ?? [];
+    const sigs = state?.btSigs ?? result?.signals ?? [];
+    if (pts.length < 2) return;
+    drawBacktestChart(canvasRef.current, pts, sigs, {});
+  }, [isDone, state?.btPts, state?.btSigs, result]);
+
+  // ── 交易记录 ───────────────────────────────────────────────────────────────
   const tradeRows = (() => {
-    if (!isDone || !state?.btPts.length || !state?.btSigs.length) return [];
-    const pts = state.btPts;
-    const sigs = [...state.btSigs].sort((a, b) => a.i - b.i);
+    const pts = state?.btPts ?? result?.pts ?? [];
+    const sigs: Signal[] = state?.btSigs ?? result?.signals ?? [];
+    if (!isDone || pts.length === 0 || sigs.length === 0) return [];
+
+    const sorted = [...sigs].sort((a, b) => a.i - b.i);
     const rows: {
       time: string;
       dir: string;
@@ -170,8 +173,8 @@ export function BacktestTab({
       isUp: boolean;
     }[] = [];
 
-    for (let k = 0; k < sigs.length; k++) {
-      const s = sigs[k];
+    for (let k = 0; k < sorted.length; k++) {
+      const s = sorted[k];
       const price = ptToPrice(pts[s.i]);
       const time = ptToDate(s.i, pts.length, btRange);
 
@@ -182,45 +185,71 @@ export function BacktestTab({
           price,
           qty: "0.012",
           pnl: "—",
-          trigger: "EMA金叉+量",
+          trigger: s.trigger ?? "EMA金叉",
           isBuy: true,
           isUp: true,
         });
       } else {
-        // Find the matching buy
-        const prevBuy = sigs
+        const prevBuy = sorted
           .slice(0, k)
           .reverse()
           .find((x) => x.type === "buy");
         let pnl = "—";
         let isUp = true;
         if (prevBuy) {
-          const buyPt = pts[prevBuy.i];
-          const sellPt = pts[s.i];
           const pct =
-            buyPt !== 0 ? ((sellPt - buyPt) / Math.abs(buyPt)) * 100 : 0;
+            pts[prevBuy.i] !== 0
+              ? ((pts[s.i] - pts[prevBuy.i]) / Math.abs(pts[prevBuy.i])) * 100
+              : 0;
           isUp = pct >= 0;
           pnl = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
         }
-        const trigger = pnl.startsWith("+") ? `止盈 tp=6%` : `止损 sl=2%`;
         rows.push({
           time,
           dir: "卖出",
           price,
           qty: "0.012",
           pnl,
-          trigger,
+          trigger: s.trigger ?? (isUp ? "止盈 tp=6%" : "止损 sl=2%"),
           isBuy: false,
           isUp,
         });
       }
     }
-
-    // Show most recent first, cap at 8
     return rows.reverse().slice(0, 8);
   })();
 
-  if (isRunning) {
+  // ── 指标（优先用 API 结果，降级用 store 静态值）───────────────────────────
+  const metrics = result?.metrics;
+  const statsGrid = [
+    {
+      label: "总收益",
+      value: metrics ? `+${metrics.equityPct.toFixed(1)}%` : "+34.2%",
+      sub: RANGE_LABEL[btRange],
+      color: "text-emerald-500",
+    },
+    {
+      label: "稳定性",
+      value: metrics ? metrics.sharpe.toFixed(2) : "1.82",
+      sub: "夏普比率",
+      color: "text-cyan-500",
+    },
+    {
+      label: "最大回撤",
+      value: metrics ? `-${metrics.maxDrawdownPct.toFixed(1)}%` : "-8.4%",
+      sub: "可控范围",
+      color: "text-red-500",
+    },
+    {
+      label: "胜率",
+      value: metrics ? `${metrics.winRate}%` : "61.3%",
+      sub: `${(state?.btSigs ?? result?.signals ?? []).length}笔`,
+      color: "text-foreground",
+    },
+  ];
+
+  // ── 运行中视图 ─────────────────────────────────────────────────────────────
+  if (isRunning || apiRunning) {
     return (
       <div className="flex flex-col gap-4 flex-1">
         <div className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
@@ -233,11 +262,11 @@ export function BacktestTab({
           <div className="flex-1 h-1 bg-muted rounded-sm overflow-hidden">
             <div
               className="h-full bg-blue-500 rounded-sm transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${progressPct}%` }}
             />
           </div>
           <span className="font-mono text-[10px] text-blue-500 min-w-[40px] text-right font-medium">
-            {progress}%
+            {progressPct}%
           </span>
         </div>
         <canvas
@@ -248,6 +277,7 @@ export function BacktestTab({
     );
   }
 
+  // ── 完成视图 ───────────────────────────────────────────────────────────────
   if (isDone) {
     return (
       <div className="flex flex-col gap-4 flex-1">
@@ -279,34 +309,9 @@ export function BacktestTab({
           </div>
         )}
 
-        {/* Stats grid */}
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-2.5">
-          {[
-            {
-              label: "总收益",
-              value: "+34.2%",
-              sub: RANGE_LABEL[btRange],
-              color: "text-emerald-500",
-            },
-            {
-              label: "稳定性",
-              value: "1.82",
-              sub: "夏普比率",
-              color: "text-cyan-500",
-            },
-            {
-              label: "最大回撤",
-              value: "-8.4%",
-              sub: "可控范围",
-              color: "text-red-500",
-            },
-            {
-              label: "胜率",
-              value: "61.3%",
-              sub: `${state.btSigs.length}笔`,
-              color: "text-foreground",
-            },
-          ].map((s, i) => (
+          {statsGrid.map((s, i) => (
             <div
               key={i}
               className="bg-card border border-border/50 rounded-xl p-3 shadow-sm"
@@ -328,7 +333,7 @@ export function BacktestTab({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <div className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
-              回测净值曲线 — {strategy_asset_display(state)} ·{" "}
+              回测净值曲线 — {strategy?.asset ?? "BTC/USDT"} ·{" "}
               {RANGE_DATES[btRange]}
             </div>
           </div>
@@ -352,7 +357,7 @@ export function BacktestTab({
           />
         </div>
 
-        {/* Trade table — derived from real btSigs/btPts */}
+        {/* Trade table */}
         <div>
           <div className="font-mono text-[10px] text-muted-foreground tracking-wider mb-2 font-medium uppercase">
             回测交易记录
@@ -419,7 +424,7 @@ export function BacktestTab({
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Actions */}
         <div className="flex gap-2.5">
           {onClone && (
             <Button
@@ -444,13 +449,15 @@ export function BacktestTab({
     );
   }
 
-  // Ready state
+  // ── 待回测视图 ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col items-center justify-center h-full gap-2.5 opacity-50">
       <div className="text-3xl">&#128202;</div>
       <div className="font-mono text-xs text-muted-foreground">尚未回测</div>
       <Button
-        onClick={onStartBacktest}
+        onClick={() => {
+          onStartBacktest(); // 通知 store stage → running，useEffect 自动接管
+        }}
         className="mt-4 h-10 px-6 bg-blue-500/10 border border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white font-mono text-[11px] font-medium"
         variant="outline"
       >
@@ -458,8 +465,4 @@ export function BacktestTab({
       </Button>
     </div>
   );
-}
-
-function strategy_asset_display(state: any): string {
-  return state?.parsedParams?.asset ?? "BTC/USDT 4h";
 }

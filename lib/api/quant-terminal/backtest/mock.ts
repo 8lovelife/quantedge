@@ -16,7 +16,6 @@ import type {
 // ── 配置 ──────────────────────────────────────────────────────────────────────
 
 const BASE_PRICE = 84231;
-const PRICE_SCALE = 80;
 
 const RANGE_PTS: Record<BtRange, number> = {
   "1m": 90,
@@ -31,6 +30,24 @@ const RANGE_DAYS: Record<BtRange, number> = {
   "6m": 180,
   "1y": 365,
 };
+
+// 每次调用都基于当前日期动态生成，保证和真实时间一致
+function buildDateRange(range: BtRange): string {
+  const now = new Date();
+  const days = RANGE_DAYS[range];
+  const start = new Date(now.getTime() - days * 86_400_000);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${fmt(start)} ~ ${fmt(now)}`;
+}
+
+// basePrice 模拟实时行情：基于当天日期做微小随机偏移，同一天内保持一致
+function buildBasePrice(): number {
+  const seed = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return 80000 + (parseInt(seed) % 10000);
+}
+
+const PRICE_SCALE = 80; // pts 单位 → 价格偏移（与 chart-utils 一致）
 
 const PROGRESS_STEPS = [
   { pct: 10, msg: "加载历史数据..." },
@@ -146,6 +163,8 @@ export function buildMockBacktestResult(
   );
   const metrics = buildMetrics(pts, wins, losses);
 
+  const basePrice = buildBasePrice();
+
   return {
     jobId,
     strategyId,
@@ -161,6 +180,9 @@ export function buildMockBacktestResult(
     benchmarkReturnPct: parseFloat(
       (benchmarkPts[benchmarkPts.length - 1] * 0.4).toFixed(2),
     ),
+    dateRange: buildDateRange(range),
+    basePrice,
+    priceScale: PRICE_SCALE,
   };
 }
 

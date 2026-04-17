@@ -71,6 +71,10 @@ export interface BacktestResultResponse {
   trades: TradeRecord[];
   benchmarkPts: number[];
   benchmarkReturnPct: number;
+  // ── 动态配置字段（由后端/mock 生成，前端直接使用） ──────────────────────────
+  dateRange: string; // e.g. "2024-12 ~ 2025-03"  X轴起止日期标注
+  basePrice: number; // e.g. 84231  价格坐标基准
+  priceScale: number; // e.g. 80     pts 单位 → 价格偏移比例
 }
 
 // ── GET /api/quant-terminal/backtest/stream (SSE) ────────────────────────────

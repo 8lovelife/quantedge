@@ -18,18 +18,11 @@ const RANGE_LABEL: Record<string, string> = {
   "1y": "近1年",
 };
 
-const RANGE_DATES: Record<string, string> = {
-  "1m": "2025-02 ~ 2025-03",
-  "3m": "2024-12 ~ 2025-03",
-  "6m": "2024-09 ~ 2025-03",
-  "1y": "2024-03 ~ 2025-03",
-};
+// dateRange / basePrice / priceScale 均从 API 结果动态读取
+// 开发时由 mock.ts 生成，上线后由后端返回
 
-const BASE_PRICE = 84231;
-const PRICE_SCALE = 80;
-
-function ptToPrice(v: number): string {
-  return Math.round(BASE_PRICE + v * PRICE_SCALE).toLocaleString();
+function ptToPrice(v: number, basePrice: number, priceScale: number): string {
+  return Math.round(basePrice + v * priceScale).toLocaleString();
 }
 
 function ptToDate(i: number, total: number, btRange: string): string {
@@ -161,6 +154,10 @@ export function BacktestTab({
     const sigs: Signal[] = state?.btSigs ?? result?.signals ?? [];
     if (!isDone || pts.length === 0 || sigs.length === 0) return [];
 
+    // 从 API 结果读取，fallback 到合理默认值
+    const basePrice = result?.basePrice ?? 84231;
+    const priceScale = result?.priceScale ?? 80;
+
     const sorted = [...sigs].sort((a, b) => a.i - b.i);
     const rows: {
       time: string;
@@ -175,7 +172,7 @@ export function BacktestTab({
 
     for (let k = 0; k < sorted.length; k++) {
       const s = sorted[k];
-      const price = ptToPrice(pts[s.i]);
+      const price = ptToPrice(pts[s.i], basePrice, priceScale);
       const time = ptToDate(s.i, pts.length, btRange);
 
       if (s.type === "buy") {
@@ -334,7 +331,7 @@ export function BacktestTab({
           <div className="flex items-center justify-between mb-1.5">
             <div className="font-mono text-[10px] text-muted-foreground tracking-wider font-medium uppercase">
               回测净值曲线 — {strategy?.asset ?? "BTC/USDT"} ·{" "}
-              {RANGE_DATES[btRange]}
+              {result?.dateRange ?? btRange}
             </div>
           </div>
           <div className="flex gap-3.5 mb-2 text-[10px] font-mono text-muted-foreground">

@@ -15,8 +15,6 @@ import type {
 
 // ── 配置 ──────────────────────────────────────────────────────────────────────
 
-const BASE_PRICE = 84231;
-
 const RANGE_PTS: Record<BtRange, number> = {
   "1m": 90,
   "3m": 180,
@@ -86,6 +84,8 @@ function detectSignals(
   pts: number[],
   startTs: number,
   msPerPt: number,
+  basePrice: number,
+  priceScale: number,
 ): { signals: Signal[]; trades: TradeRecord[]; wins: number; losses: number } {
   const signals: Signal[] = [];
   const trades: TradeRecord[] = [];
@@ -96,7 +96,7 @@ function detectSignals(
 
   for (let i = 5; i < pts.length - 1; i++) {
     const delta = pts[i] - pts[i - 4];
-    const price = Math.round(BASE_PRICE + pts[i] * PRICE_SCALE);
+    const price = Math.round(basePrice + pts[i] * priceScale);
     const ts = startTs + i * msPerPt;
 
     if (delta > 1.8 && openBuyIdx === null) {
@@ -155,15 +155,16 @@ export function buildMockBacktestResult(
   const msPerPt = (days * 86_400_000) / count;
   const historyStart = Date.now() - days * 86_400_000;
 
+  const basePrice = buildBasePrice();
   const { pts, benchmarkPts } = generatePts(count);
   const { signals, trades, wins, losses } = detectSignals(
     pts,
     historyStart,
     msPerPt,
+    basePrice,
+    PRICE_SCALE,
   );
   const metrics = buildMetrics(pts, wins, losses);
-
-  const basePrice = buildBasePrice();
 
   return {
     jobId,

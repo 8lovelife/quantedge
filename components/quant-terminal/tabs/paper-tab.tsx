@@ -477,6 +477,20 @@ export function PaperTab({
     }
   }, [state, isPaused, isDone, redraw, advanceLiveViewport, activeStrategyId]);
 
+  // Redraw canvas on window resize (triggered by drag handle)
+  useEffect(() => {
+    const onResize = () => {
+      const cur =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId];
+      if (cur?.paperPts?.length > 1) {
+        if (isLiveViewRef.current) advanceLiveViewport(cur.paperPts.length);
+        redraw(cur.paperPts, cur.paperSigs);
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [activeStrategyId, redraw, advanceLiveViewport]);
+
   // ── Derived values ────────────────────────────────────────────────────────────
   // equityPct is parsed from the unified paperResult string stored in `strategies`.
   // This guarantees the panel and the sidebar list always show the same number.

@@ -145,7 +145,15 @@ export function BacktestTab({
     const pts = state?.btPts ?? result?.pts ?? [];
     const sigs = state?.btSigs ?? result?.signals ?? [];
     if (pts.length < 2) return;
-    drawBacktestChart(canvasRef.current, pts, sigs, {});
+
+    const draw = () => {
+      if (canvasRef.current)
+        drawBacktestChart(canvasRef.current, pts, sigs, {});
+    };
+    draw();
+    // Redraw on container resize (triggered by drag handle in quant-terminal)
+    window.addEventListener("resize", draw);
+    return () => window.removeEventListener("resize", draw);
   }, [isDone, state?.btPts, state?.btSigs, result]);
 
   // ── 交易记录 ───────────────────────────────────────────────────────────────

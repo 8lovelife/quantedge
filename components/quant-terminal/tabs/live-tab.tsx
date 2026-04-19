@@ -114,6 +114,20 @@ export function LiveTab({
     activeStrategyId,
   ]); // eslint-disable-line
 
+  // Redraw canvas on window resize (triggered by drag handle)
+  useEffect(() => {
+    const onResize = () => {
+      const cur =
+        useQuantTerminalStore.getState().strategyStates[activeStrategyId];
+      if (cur?.livePts?.length) {
+        if (isLiveViewRef.current) advanceLiveViewport(cur.livePts.length);
+        redrawLive(cur.livePts, cur.liveSigs);
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [activeStrategyId, advanceLiveViewport]); // eslint-disable-line
+
   // Wheel + drag zoom/pan
   useEffect(() => {
     const canvas = canvasRef.current;

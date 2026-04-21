@@ -6,6 +6,7 @@
 import type {
   BtRange,
   BacktestResultResponse,
+  BacktestSnapshotResponse,
   BacktestProgressEvent,
   BacktestCompleteEvent,
   Signal,
@@ -58,6 +59,42 @@ const PROGRESS_STEPS = [
   { pct: 97, msg: "计算夏普比率..." },
   { pct: 100, msg: "完成" },
 ];
+
+// ── Snapshot 缓存 ────────────────────────────────────────────────────────────
+// key: `${strategyId}::${range}`  每个策略+区间各自独立缓存
+
+interface SnapshotEntry {
+  result: BacktestResultResponse;
+  cachedAt: number;
+}
+
+const snapshotCache = new Map<string, SnapshotEntry>();
+
+function cacheKey(strategyId: string, range: BtRange): string {
+  return `${strategyId}::${range}`;
+}
+
+/** 写入缓存 — 由 buildMockBacktestResult 在生成结果后自动调用 */
+export function saveSnapshot(
+  strategyId: string,
+  range: BtRange,
+  result: BacktestResultResponse,
+): void {
+  snapshotCache.set(cacheKey(strategyId, range), {
+    result,
+    cachedAt: Date.now(),
+  });
+}
+
+/** 读取缓存 — 供 fetchBacktestSnapshot 使用 */
+export function getMockSnapshot(
+  strategyId: string,
+  range: BtRange,
+): BacktestSnapshotResponse {
+  const entry = snapshotCache.get(cacheKey(strategyId, range));
+  if (!entry) return { found: false };
+  return { found: true, cachedAt: entry.cachedAt, result: entry.result };
+}
 
 // ── 价格曲线生成 ───────────────────────────────────────────────────────────────
 
@@ -166,7 +203,7 @@ export function buildMockBacktestResult(
   );
   const metrics = buildMetrics(pts, wins, losses);
 
-  return {
+  const result = {
     jobId,
     strategyId,
     range,
@@ -185,6 +222,10 @@ export function buildMockBacktestResult(
     basePrice,
     priceScale: PRICE_SCALE,
   };
+
+  // 自动写入缓存，供后续 snapshot 接口直接返回
+  saveSnapshot(strategyId, range, result);
+  return result;
 }
 
 // ── SSE 进度事件序列 ──────────────────────────────────────────────────────────

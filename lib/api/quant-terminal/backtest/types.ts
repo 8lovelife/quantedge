@@ -77,6 +77,15 @@ export interface BacktestResultResponse {
   priceScale: number; // e.g. 80     pts 单位 → 价格偏移比例
 }
 
+// ── GET /api/quant-terminal/backtest/snapshot?strategyId=&range= ─────────────
+// 返回该策略+区间最近一次回测的缓存结果，若无缓存则返回 null
+
+export interface BacktestSnapshotResponse {
+  found: boolean;
+  cachedAt?: number; // unix ms，缓存写入时间
+  result?: BacktestResultResponse;
+}
+
 // ── GET /api/quant-terminal/backtest/stream (SSE) ────────────────────────────
 
 export interface BacktestProgressEvent {

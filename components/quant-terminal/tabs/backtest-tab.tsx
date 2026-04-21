@@ -6,7 +6,10 @@ import { useEffect, useRef, useCallback } from "react";
 import { useQuantTerminalStore } from "../store";
 import { Button } from "@/components/ui/button";
 import { drawBacktestChart } from "../chart-utils";
-import { useBacktest } from "@/lib/api/quant-terminal/backtest/client";
+import {
+  useBacktest,
+  fetchBacktestSnapshot,
+} from "@/lib/api/quant-terminal/backtest/client";
 import type { Signal } from "@/lib/api/quant-terminal/backtest/types";
 
 // ── Labels ────────────────────────────────────────────────────────────────────
@@ -101,9 +104,37 @@ export function BacktestTab({
     });
   }, [activeStrategyId, btRange, strategy, runBacktest, resetBacktest]);
 
-  // ── 关键：store stage 变为 running 时自动触发 API hook ────────────────────
-  // strategy-panel 调用 onStartBacktest → store.stage = "running"
-  // 这里监听到变化后立即启动 runBacktest，不依赖按钮点击
+  // ── 挂载时查询 snapshot：有缓存直接展示，无缓存等待 running 触发 ─────────
+  useEffect(() => {
+    if (isDone || apiRunning || result) return; // 已有结果，不重复查询
+    fetchBacktestSnapshot(activeStrategyId, btRange)
+      .then((snap) => {
+        if (!snap.found || !snap.result) return;
+        // 有缓存：写入 store 并直接进入 done 状态，无需重跑
+        setStrategyState(activeStrategyId, {
+          stages: {
+            ...state.stages,
+            bt: "done",
+            paper:
+              state.stages.paper === "locked" ? "ready" : state.stages.paper,
+          },
+          btDone: true,
+          btPts: snap.result.pts,
+          btSigs: snap.result.signals,
+        });
+        updateBtResult(
+          activeStrategyId,
+          `+${snap.result.metrics.equityPct.toFixed(1)}%`,
+        );
+        addLog(
+          "回测",
+          `<span class="hi">已从缓存恢复</span> · ${snap.result.dateRange}`,
+        );
+      })
+      .catch(() => {}); // 静默失败，等待用户手动触发
+  }, [activeStrategyId, btRange]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── store stage 变为 running 时自动触发 API hook ──────────────────────────
   useEffect(() => {
     if (isRunning && !apiRunning && !result) {
       handleStartBacktest();

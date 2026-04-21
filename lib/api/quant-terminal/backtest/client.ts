@@ -7,15 +7,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   BacktestStartRequest,
   BacktestResultResponse,
+  BacktestSnapshotResponse,
   BacktestStreamEvent,
   BacktestProgressEvent,
   Signal,
 } from "./types";
-import { buildMockBacktestResult, buildMockProgressEvents } from "./mock";
+import {
+  buildMockBacktestResult,
+  buildMockProgressEvents,
+  getMockSnapshot,
+} from "./mock";
 
 export type {
   BacktestStartRequest,
   BacktestResultResponse,
+  BacktestSnapshotResponse,
   BacktestStreamEvent,
 };
 
@@ -61,6 +67,23 @@ export async function fetchBacktestResult(
   }
   const res = await fetch(`${BASE}/result?jobId=${encodeURIComponent(jobId)}`);
   if (!res.ok) throw new Error(`fetchBacktestResult failed: ${res.status}`);
+  return res.json();
+}
+
+// ── Snapshot ──────────────────────────────────────────────────────────────────
+// 查询该策略+区间是否有缓存的回测结果，有则直接返回，无需重新跑回测
+
+export async function fetchBacktestSnapshot(
+  strategyId: string,
+  range: string,
+): Promise<BacktestSnapshotResponse> {
+  if (USE_MOCK) {
+    return getMockSnapshot(strategyId, range as "1m" | "3m" | "6m" | "1y");
+  }
+  const res = await fetch(
+    `/api/quant-terminal/backtest/snapshot?strategyId=${encodeURIComponent(strategyId)}&range=${encodeURIComponent(range)}`,
+  );
+  if (!res.ok) throw new Error(`fetchBacktestSnapshot failed: ${res.status}`);
   return res.json();
 }
 

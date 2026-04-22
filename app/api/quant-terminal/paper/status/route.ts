@@ -1,15 +1,19 @@
 // 📁 app/api/quant-terminal/paper/status/route.ts
-// BFF: 查询模拟交易会话运行状态
-//
-// GET /api/quant-terminal/paper/status?strategyId=
-//
-// 返回 PaperStatusResponse：状态、进度百分比、剩余时间等
-
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getOrCreateSession,
+  buildPaperStatus,
+} from "@/lib/api/quant-terminal/paper/mock";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:8000";
+const BACKEND = process.env.BACKEND_URL;
 
 export async function GET(request: NextRequest) {
+  const strategyId =
+    request.nextUrl.searchParams.get("strategyId") ?? "unknown";
+  if (!BACKEND) {
+    const state = getOrCreateSession(strategyId);
+    return NextResponse.json(buildPaperStatus(state));
+  }
   try {
     const qs = request.nextUrl.searchParams.toString();
     const res = await fetch(`${BACKEND}/paper/status?${qs}`, {
@@ -24,7 +28,7 @@ export async function GET(request: NextRequest) {
       );
     return NextResponse.json(await res.json());
   } catch (err) {
-    console.error("[quant-terminal/paper/status]", err);
+    console.error("[paper/status]", err);
     return NextResponse.json({ error: "Backend unreachable" }, { status: 502 });
   }
 }

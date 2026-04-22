@@ -1,17 +1,28 @@
 // 📁 app/api/quant-terminal/paper/snapshot/route.ts
-// BFF: 查询缓存的模拟交易结果快照
-//
-// GET /api/quant-terminal/paper/snapshot?strategyId=
-//
-// 返回 PaperSnapshotResponse：
-//   { found: false }                         — 无缓存
-//   { found: true, cachedAt, result: {...} } — 有缓存，直接渲染无需等待会话
-
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getOrCreateSession,
+  buildPaperSnapshot,
+  getMockPaperSnapshot,
+} from "@/lib/api/quant-terminal/paper/mock";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:8000";
+const BACKEND = process.env.BACKEND_URL;
 
 export async function GET(request: NextRequest) {
+  const strategyId =
+    request.nextUrl.searchParams.get("strategyId") ?? "unknown";
+  const planDays = parseInt(
+    request.nextUrl.searchParams.get("planDays") ?? "14",
+  );
+  const cached = request.nextUrl.searchParams.get("cached") === "true";
+
+  if (!BACKEND) {
+    // cached=true → 查 snapshot 缓存（found:true/false）
+    // cached=false → 返回当前会话快照（legacy PaperSnapshot）
+    if (cached) return NextResponse.json(getMockPaperSnapshot(strategyId));
+    const state = getOrCreateSession(strategyId, planDays);
+    return NextResponse.json(buildPaperSnapshot(state));
+  }
   try {
     const qs = request.nextUrl.searchParams.toString();
     const res = await fetch(`${BACKEND}/paper/snapshot?${qs}`, {
@@ -19,10 +30,7 @@ export async function GET(request: NextRequest) {
         ? { Authorization: request.headers.get("Authorization")! }
         : {},
     });
-    // 404 = 无缓存，标准化为 found:false
-    if (res.status === 404) {
-      return NextResponse.json({ found: false });
-    }
+    if (res.status === 404) return NextResponse.json({ found: false });
     if (!res.ok)
       return NextResponse.json(
         { error: await res.text() },
@@ -30,8 +38,7 @@ export async function GET(request: NextRequest) {
       );
     return NextResponse.json(await res.json());
   } catch (err) {
-    console.error("[quant-terminal/paper/snapshot]", err);
-    // 后端不可达时降级返回 found:false，前端重新开始模拟
+    console.error("[paper/snapshot]", err);
     return NextResponse.json({ found: false });
   }
 }

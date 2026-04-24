@@ -47,8 +47,7 @@ export type {
 const BASE = "/api/quant-terminal/paper";
 
 const USE_MOCK =
-  process.env.NEXT_PUBLIC_PAPER_MOCK === "true" ||
-  process.env.NODE_ENV === "development";
+  process.env.NEXT_PUBLIC_PAPER_MOCK === "true"
 
 // ── status ────────────────────────────────────────────────────────────────────
 

@@ -30,8 +30,7 @@ const BASE = "/api/quant-terminal/backtest";
 // USE_MOCK=true  → 跳过真实 API，直接用 mock 数据（开发 / 演示用）
 // USE_MOCK=false → 调用真实后端，若失败则抛出错误
 const USE_MOCK =
-  process.env.NEXT_PUBLIC_BACKTEST_MOCK === "true" ||
-  process.env.NODE_ENV === "development";
+  process.env.NEXT_PUBLIC_BACKTEST_MOCK === "true"
 
 // ── Raw fetch helpers ──────────────────────────────────────────────────────────
 

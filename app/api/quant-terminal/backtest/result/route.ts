@@ -1,11 +1,17 @@
 // 📁 app/api/quant-terminal/backtest/result/route.ts
-// BFF: 获取已完成的回测结果
-
 import { NextRequest, NextResponse } from "next/server";
+import { buildMockBacktestResult } from "@/lib/api/quant-terminal/backtest/mock";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:8000";
+const BACKEND = process.env.BACKEND_URL;
 
 export async function GET(request: NextRequest) {
+  if (!BACKEND) {
+    const params = request.nextUrl.searchParams;
+    const strategyId = params.get("strategyId") ?? "unknown";
+    const range = (params.get("range") ?? "3m") as "1m" | "3m" | "6m" | "1y";
+    const asset = params.get("asset") ?? "BTC/USDT";
+    return NextResponse.json(buildMockBacktestResult(strategyId, range, asset));
+  }
   try {
     const qs = request.nextUrl.searchParams.toString();
     const res = await fetch(`${BACKEND}/backtest/result?${qs}`, {
@@ -13,10 +19,14 @@ export async function GET(request: NextRequest) {
         ? { Authorization: request.headers.get("Authorization")! }
         : {},
     });
-    if (!res.ok) return NextResponse.json({ error: await res.text() }, { status: res.status });
+    if (!res.ok)
+      return NextResponse.json(
+        { error: await res.text() },
+        { status: res.status },
+      );
     return NextResponse.json(await res.json());
   } catch (err) {
-    console.error("[quant-terminal/backtest/result]", err);
+    console.error("[backtest/result]", err);
     return NextResponse.json({ error: "Backend unreachable" }, { status: 502 });
   }
 }
